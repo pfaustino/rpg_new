@@ -3,12 +3,14 @@ import random
 import math
 import os
 from typing import Dict, List, Tuple, Optional, Union
-
-# Constants
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-TILE_SIZE = 32
-FPS = 60
+from rpg_modules.items import ItemGenerator, Item, Weapon, Armor, Hands, Consumable
+from rpg_modules.ui import InventoryUI, EquipmentUI, ItemGeneratorUI
+from rpg_modules.entities import Player
+from rpg_modules.core.constants import (
+    SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, FPS,
+    WHITE, BLACK, RED, GREEN, BLUE, GRAY,
+    QUALITY_COLORS
+)
 
 # Player stats
 PLAYER_HP = 100
@@ -20,36 +22,12 @@ MONSTER_HP = 50
 MONSTER_ATTACK = 5
 MONSTER_DEFENSE = 2
 
-# Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-GRAY = (100, 100, 100)
-SILVER = (192, 192, 192)  # Common
-GREEN = (0, 255, 0)       # Uncommon
-BLUE = (0, 0, 255)        # Rare
-PURPLE = (128, 0, 128)    # Epic
-GOLD = (255, 215, 0)      # Mythic
-
 # Asset paths
 ASSET_PATH = "assets"
 FLOOR_IMAGE = "floor.png"
 WALL_IMAGE = "wall.png"
 PLAYER_IMAGE = "player.png"
 MONSTER_IMAGE = "monster.png"
-
-# Item generation constants
-WEAPON_TYPES = ['Sword', 'Axe', 'Mace', 'Dagger', 'Staff']
-ARMOR_TYPES = ['Head', 'Chest', 'Legs', 'Feet']
-MATERIALS = ['Iron', 'Steel', 'Silver', 'Gold', 'Mithril']
-QUALITIES = ['Standard', 'Polished', 'Masterwork', 'Legendary']
-PREFIXES = {
-    'common': ['Sharp', 'Sturdy', 'Balanced'],
-    'uncommon': ['Vicious', 'Reinforced', 'Precise'],
-    'rare': ['Soulbound', 'Ethereal', 'Celestial']
-}
 
 def load_assets():
     """Load all game assets"""
@@ -101,6 +79,7 @@ class GameState:
         self.camera = None
         self.map_grid = None
         self.assets = {}
+        self.item_generator = ItemGenerator()
 
     def load_assets(self):
         """Load game assets"""
@@ -145,186 +124,71 @@ class Camera:
         self.x = x
         self.y = y
 
-class Item:
-    def __init__(self, name: str, rarity: str = "Common"):
-        self.name = name
-        self.rarity = rarity
-        self.icon = None
-        self.description = ""
-        self.value = 0
-
-    def get_icon(self) -> pygame.Surface:
-        if not self.icon:
-            self.icon = pygame.Surface((TILE_SIZE, TILE_SIZE))
-            self.icon.fill(GRAY)
-        return self.icon
-
-class Weapon(Item):
-    def __init__(self, name: str, weapon_type: str, material: str, quality: str, 
-                 attack_power: int, prefix: str = None):
-        super().__init__(name)
-        self.weapon_type = weapon_type
-        self.material = material
-        self.quality = quality
-        self.attack_power = attack_power
-        self.prefix = prefix
-        self.value = attack_power * 10  # Calculate value after attack_power is set
-
-    def get_equipment_sprite(self) -> pygame.Surface:
-        # Create a colored surface based on material
-        sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        
-        # Base color based on material
-        if self.material == "Iron":
-            color = (192, 192, 192)  # Silver
-        elif self.material == "Steel":
-            color = (160, 160, 160)  # Darker silver
-        elif self.material == "Mithril":
-            color = (173, 216, 230)  # Light blue
-        else:
-            color = (192, 192, 192)  # Default silver
-            
-        sprite.fill(color)
-        
-        # Add quality overlay
-        if self.quality == "Crude":
-            overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 128))  # Semi-transparent black
-            sprite.blit(overlay, (0, 0))
-        elif self.quality == "Fine":
-            overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-            overlay.fill((255, 255, 255, 64))  # Semi-transparent white
-            sprite.blit(overlay, (0, 0))
-            
-        return sprite
-
-class Armor(Item):
-    def __init__(self, name: str, armor_type: str, material: str, quality: str, 
-                 defense: int, prefix: str = None):
-        super().__init__(name)
-        self.armor_type = armor_type
-        self.material = material
-        self.quality = quality
-        self.defense = defense
-        self.prefix = prefix
-        self.value = defense * 10
-
-    def get_equipment_sprite(self) -> pygame.Surface:
-        # Create a colored surface based on material
-        sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        
-        # Base color based on material
-        if self.material == "Iron":
-            color = (192, 192, 192)  # Silver
-        elif self.material == "Steel":
-            color = (160, 160, 160)  # Darker silver
-        elif self.material == "Mithril":
-            color = (173, 216, 230)  # Light blue
-        else:
-            color = (192, 192, 192)  # Default silver
-            
-        sprite.fill(color)
-        
-        # Add quality overlay
-        if self.quality == "Crude":
-            overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 128))  # Semi-transparent black
-            sprite.blit(overlay, (0, 0))
-        elif self.quality == "Fine":
-            overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-            overlay.fill((255, 255, 255, 64))  # Semi-transparent white
-            sprite.blit(overlay, (0, 0))
-            
-        return sprite
-
-class Consumable(Item):
-    def __init__(self, consumable_type: str, quality: str, effect_value: int, prefix: str = None):
-        name = f"{quality} {consumable_type}"
-        if prefix:
-            name = f"{prefix} {name}"
-        super().__init__(name)
-        self.consumable_type = consumable_type
-        self.quality = quality
-        self.effect_value = effect_value
-        self.prefix = prefix
-        self.value = effect_value * 5
-
-    def get_equipment_sprite(self) -> pygame.Surface:
-        # Create a colored surface based on consumable type
-        sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        
-        # Base color based on type
-        if "Health" in self.consumable_type:
-            color = (255, 0, 0)  # Red for health potions
-        elif "Mana" in self.consumable_type:
-            color = (0, 0, 255)  # Blue for mana potions
-        else:
-            color = (0, 255, 0)  # Green for stamina potions
-            
-        sprite.fill(color)
-        
-        # Add quality overlay
-        if self.quality == "Rusty":
-            overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 128))  # Semi-transparent black
-            sprite.blit(overlay, (0, 0))
-        elif self.quality == "Legendary":
-            overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-            overlay.fill((255, 255, 0, 64))  # Semi-transparent gold
-            sprite.blit(overlay, (0, 0))
-            
-        return sprite
-
 class Equipment:
+    """Class to manage equipped items."""
     def __init__(self):
         self.slots = {
-            'weapon': None,
             'head': None,
             'chest': None,
             'legs': None,
             'feet': None,
-            'hands': None  # Adding hands slot
+            'hands': None,
+            'weapon': None
         }
-
+        
     def get_equipped_item(self, slot: str) -> Optional[Item]:
+        """Get the item equipped in the given slot."""
         return self.slots.get(slot)
-
+        
     def equip_item(self, item: Item) -> bool:
+        """
+        Equip an item in its appropriate slot.
+        Returns True if successful, False if no appropriate slot.
+        """
+        slot = None
         if isinstance(item, Weapon):
-            if self.slots['weapon'] is None:
-                self.slots['weapon'] = item
-                return True
+            slot = 'weapon'
+        elif isinstance(item, Hands):
+            slot = 'hands'
         elif isinstance(item, Armor):
             slot = item.armor_type.lower()
-            if self.slots[slot] is None:
-                self.slots[slot] = item
-                return True
+            
+        if slot and slot in self.slots:
+            self.slots[slot] = item
+            return True
         return False
-
+        
     def unequip_item(self, slot: str) -> Optional[Item]:
-        item = self.slots[slot]
-        if item:
+        """Unequip and return the item in the given slot."""
+        if slot in self.slots:
+            item = self.slots[slot]
             self.slots[slot] = None
-        return item
+            return item
+        return None
 
 class Inventory:
+    """Class to manage the player's inventory."""
     def __init__(self, capacity: int = 40):  # Changed from 32 to 40 to match 5x8 grid
-        self.items = []
-        self.capacity = capacity
-
+        self.items = [None] * capacity
+        
     def add_item(self, item: Item) -> bool:
-        if len(self.items) < self.capacity:
-            self.items.append(item)
-            return True
+        """Add an item to the first empty slot. Returns True if successful."""
+        for i in range(len(self.items)):
+            if self.items[i] is None:
+                self.items[i] = item
+                return True
         return False
-
+        
     def remove_item(self, item: Item) -> bool:
-        if item in self.items:
-            self.items.remove(item)
-            return True
+        """Remove the first occurrence of an item. Returns True if successful."""
+        for i in range(len(self.items)):
+            if self.items[i] is item:
+                self.items[i] = None
+                return True
         return False
-
+        
     def get_item_at(self, index: int) -> Optional[Item]:
+        """Get the item at the given index."""
         if 0 <= index < len(self.items):
             return self.items[index]
         return None
@@ -407,405 +271,6 @@ class Player(pygame.sprite.Sprite):
         """Draw the player on the screen"""
         screen.blit(self.image, camera.apply(self))
 
-class InventoryUI:
-    def __init__(self, x: int, y: int):
-        self.rect = pygame.Rect(x, y, 300, 500)
-        self.font = pygame.font.Font(None, 24)
-        self.small_font = pygame.font.Font(None, 18)
-        self.visible = False
-        self.selected_item = None
-        self.hovered_item = None
-        self.hover_timer = 0
-        self.tooltip_visible = False
-        self.tooltip_rect = pygame.Rect(0, 0, 300, 300)
-
-        # Grid configuration
-        self.grid_margin = 10  # Margin around the grid
-        self.cell_size = 50    # Size of each cell
-        self.cell_padding = 5  # Padding within cells
-        self.grid_cols = 5     # Number of columns
-        self.grid_rows = 8     # Number of rows
-        
-        # Calculate grid positions
-        self.grid_start_x = x + self.grid_margin
-        self.grid_start_y = y + 40  # Leave space for header
-        
-        # Create grid cells
-        self.grid_cells = []
-        for row in range(self.grid_rows):
-            for col in range(self.grid_cols):
-                cell_x = self.grid_start_x + col * (self.cell_size + self.cell_padding)
-                cell_y = self.grid_start_y + row * (self.cell_size + self.cell_padding)
-                self.grid_cells.append(pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size))
-
-    def get_cell_at_pos(self, pos: Tuple[int, int]) -> Optional[int]:
-        """Get the cell index at the given position"""
-        for i, cell in enumerate(self.grid_cells):
-            if cell.collidepoint(pos):
-                return i
-        return None
-
-    def handle_event(self, event: pygame.event.Event, player: Player) -> bool:
-        if not self.visible:
-            return False
-            
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_pos = pygame.mouse.get_pos()
-            if self.rect.collidepoint(mouse_pos):
-                cell_index = self.get_cell_at_pos(mouse_pos)
-                if cell_index is not None and cell_index < len(player.inventory.items):
-                    self.selected_item = player.inventory.items[cell_index]
-                    
-                    # Try to equip the item
-                    if player.equip_item(self.selected_item):
-                        player.inventory.remove_item(self.selected_item)
-                        self.selected_item = None
-                    return True
-        elif event.type == pygame.MOUSEMOTION:
-            mouse_pos = pygame.mouse.get_pos()
-            if self.rect.collidepoint(mouse_pos):
-                cell_index = self.get_cell_at_pos(mouse_pos)
-                if cell_index is not None and cell_index < len(player.inventory.items):
-                    self.hovered_item = player.inventory.items[cell_index]
-                    self.hover_timer = 0
-                    self.tooltip_visible = False
-                else:
-                    self.hovered_item = None
-                    self.tooltip_visible = False
-            else:
-                self.hovered_item = None
-                self.tooltip_visible = False
-        return False
-
-    def draw(self, screen: pygame.Surface, player: Player):
-        if not self.visible:
-            return
-            
-        # Draw background
-        pygame.draw.rect(screen, (50, 50, 50), self.rect)
-        pygame.draw.rect(screen, WHITE, self.rect, 2)
-        
-        # Draw header
-        header_text = self.font.render("Inventory", True, WHITE)
-        screen.blit(header_text, (self.rect.x + 10, self.rect.y + 10))
-        
-        # Draw grid cells
-        for i, cell in enumerate(self.grid_cells):
-            # Draw cell background
-            pygame.draw.rect(screen, (30, 30, 30), cell)
-            
-            # Draw item if one exists at this index
-            if i < len(player.inventory.items):
-                item = player.inventory.items[i]
-                
-                # Determine border color based on quality
-                border_color = SILVER  # Default to common
-                if "Legendary" in item.quality:
-                    border_color = GOLD
-                elif "Masterwork" in item.quality:
-                    border_color = PURPLE
-                elif "Polished" in item.quality:
-                    border_color = BLUE
-                elif "Standard" in item.quality:
-                    border_color = GREEN
-                
-                # Draw cell with quality-colored border
-                pygame.draw.rect(screen, border_color, cell, 2)
-                
-                # Draw item sprite
-                sprite = item.get_equipment_sprite()
-                scaled_sprite = pygame.transform.scale(sprite, (self.cell_size - 10, self.cell_size - 10))
-                screen.blit(scaled_sprite, (cell.x + 5, cell.y + 5))
-                
-                # Draw single-word name overlaid on the sprite
-                name = item.name.split()[0]  # Get first word of the name
-                name_text = self.small_font.render(name, True, WHITE)
-                # Create a semi-transparent background for the name
-                name_bg = pygame.Surface((name_text.get_width() + 4, name_text.get_height() + 4), pygame.SRCALPHA)
-                name_bg.fill((0, 0, 0, 128))  # Semi-transparent black
-                screen.blit(name_bg, (cell.x + 5, cell.y + 5))
-                screen.blit(name_text, (cell.x + 7, cell.y + 7))
-                
-                # Draw small stat indicator in the corner
-                if isinstance(item, Weapon):
-                    stat_text = self.small_font.render(f"ATK:{item.attack_power}", True, WHITE)
-                elif isinstance(item, Hands):
-                    stat_text = self.small_font.render(f"DEF:{item.defense}", True, WHITE)
-                elif isinstance(item, Consumable):
-                    stat_text = self.small_font.render(f"POT:{item.effect_value}", True, WHITE)
-                else:  # Regular armor
-                    stat_text = self.small_font.render(f"DEF:{item.defense}", True, WHITE)
-                screen.blit(stat_text, (cell.right - 40, cell.bottom - 15))
-            else:
-                # Draw empty cell with white border
-                pygame.draw.rect(screen, WHITE, cell, 1)
-
-        # Draw tooltip if visible
-        if self.tooltip_visible and self.hovered_item:
-            # Position tooltip above the equipment window
-            tooltip_x = SCREEN_WIDTH - 700  # Position to the left of equipment window
-            tooltip_y = 50  # Same vertical position as inventory
-            self.tooltip_rect.x = tooltip_x
-            self.tooltip_rect.y = tooltip_y
-            
-            # Draw tooltip background
-            pygame.draw.rect(screen, (30, 30, 30), self.tooltip_rect)
-            pygame.draw.rect(screen, WHITE, self.tooltip_rect, 2)
-            
-            # Determine border color based on quality
-            border_color = SILVER  # Default to common
-            if "Legendary" in self.hovered_item.quality:
-                border_color = GOLD
-            elif "Masterwork" in self.hovered_item.quality:
-                border_color = PURPLE
-            elif "Polished" in self.hovered_item.quality:
-                border_color = BLUE
-            elif "Standard" in self.hovered_item.quality:
-                border_color = GREEN
-            
-            # Draw item sprite with colored border
-            sprite = self.hovered_item.get_equipment_sprite()
-            scaled_sprite = pygame.transform.scale(sprite, (128, 128))
-            # Draw the border first
-            border_rect = pygame.Rect(tooltip_x + 7, tooltip_y + 7, 134, 134)
-            pygame.draw.rect(screen, border_color, border_rect, 3)
-            # Then draw the sprite
-            screen.blit(scaled_sprite, (tooltip_x + 10, tooltip_y + 10))
-            
-            # Draw item name
-            name_text = self.font.render(self.hovered_item.name, True, WHITE)
-            screen.blit(name_text, (tooltip_x + 10, tooltip_y + 150))
-            
-            # Draw item stats
-            y_offset = 180
-            if isinstance(self.hovered_item, Weapon):
-                stats = [
-                    f"Type: {self.hovered_item.weapon_type}",
-                    f"Attack: {self.hovered_item.attack_power}",
-                    f"Material: {self.hovered_item.material}",
-                    f"Quality: {self.hovered_item.quality}"
-                ]
-                if self.hovered_item.prefix:
-                    stats.insert(1, f"Effect: {self.hovered_item.prefix}")
-            elif isinstance(self.hovered_item, Hands):
-                stats = [
-                    "Type: Gauntlets",
-                    f"Defense: {self.hovered_item.defense}",
-                    f"Dexterity: {self.hovered_item.dexterity}",
-                    f"Material: {self.hovered_item.material}",
-                    f"Quality: {self.hovered_item.quality}"
-                ]
-                if self.hovered_item.prefix:
-                    stats.insert(1, f"Effect: {self.hovered_item.prefix}")
-            elif isinstance(self.hovered_item, Consumable):
-                stats = [
-                    f"Type: {self.hovered_item.consumable_type}",
-                    f"Effect Value: {self.hovered_item.effect_value}",
-                    f"Quality: {self.hovered_item.quality}"
-                ]
-                if self.hovered_item.prefix:
-                    stats.insert(1, f"Effect: {self.hovered_item.prefix}")
-            else:  # Regular armor
-                stats = [
-                    f"Type: {self.hovered_item.armor_type}",
-                    f"Defense: {self.hovered_item.defense}",
-                    f"Material: {self.hovered_item.material}",
-                    f"Quality: {self.hovered_item.quality}"
-                ]
-                if self.hovered_item.prefix:
-                    stats.insert(1, f"Effect: {self.hovered_item.prefix}")
-            
-            for stat in stats:
-                stat_text = self.small_font.render(stat, True, WHITE)
-                screen.blit(stat_text, (tooltip_x + 10, tooltip_y + y_offset))
-                y_offset += 20
-
-    def update(self):
-        if self.hovered_item:
-            self.hover_timer += 1
-            if self.hover_timer > 30:  # Show tooltip after 0.5 seconds
-                self.tooltip_visible = True
-
-class Hands(Item):
-    def __init__(self, name: str, material: str, quality: str, 
-                 defense: int, dexterity: int, prefix: str = None):
-        super().__init__(name)
-        self.material = material
-        self.quality = quality
-        self.defense = defense
-        self.dexterity = dexterity  # Bonus to attack speed or precision
-        self.prefix = prefix
-        self.value = (defense + dexterity) * 5
-
-    def get_equipment_sprite(self) -> pygame.Surface:
-        # Create a colored surface based on material
-        sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        
-        # Base color based on material
-        if self.material == "Iron":
-            color = (192, 192, 192)  # Silver
-        elif self.material == "Steel":
-            color = (160, 160, 160)  # Darker silver
-        elif self.material == "Mithril":
-            color = (173, 216, 230)  # Light blue
-        else:
-            color = (192, 192, 192)  # Default silver
-            
-        sprite.fill(color)
-        
-        # Add quality overlay
-        if self.quality == "Crude":
-            overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 128))  # Semi-transparent black
-            sprite.blit(overlay, (0, 0))
-        elif self.quality == "Fine":
-            overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-            overlay.fill((255, 255, 255, 64))  # Semi-transparent white
-            sprite.blit(overlay, (0, 0))
-            
-        return sprite
-
-class EquipmentUI:
-    def __init__(self, x: int, y: int):
-        # Increase height to accommodate all slots
-        self.rect = pygame.Rect(x, y, 300, 500)  # Changed height from 400 to 500
-        self.font = pygame.font.Font(None, 24)
-        self.small_font = pygame.font.Font(None, 18)
-        self.visible = False
-        self.selected_slot = None
-        self.hovered_slot = None
-        self.hover_timer = 0
-        self.tooltip_visible = False
-        self.tooltip_rect = pygame.Rect(0, 0, 300, 300)
-        
-        # Define equipment slots in a mannequin-like layout
-        slot_size = 70  # Slightly smaller slots to fit better
-        center_x = x + (self.rect.width - slot_size) // 2
-        
-        # Adjust vertical spacing for better distribution
-        self.slots = {
-            # Head slot at the top
-            'head': pygame.Rect(center_x, y + 40, slot_size, slot_size),
-            # Chest slot below head
-            'chest': pygame.Rect(center_x, y + 130, slot_size, slot_size),
-            # Hands slot to the left of chest
-            'hands': pygame.Rect(center_x - 90, y + 130, slot_size, slot_size),
-            # Weapon slot to the right of chest
-            'weapon': pygame.Rect(center_x + 90, y + 130, slot_size, slot_size),
-            # Legs slot below chest
-            'legs': pygame.Rect(center_x, y + 220, slot_size, slot_size),
-            # Feet slot below legs with more space above bottom
-            'feet': pygame.Rect(center_x, y + 310, slot_size, slot_size)
-        }
-
-    def handle_event(self, event: pygame.event.Event, player: Player) -> bool:
-        if not self.visible:
-            return False
-            
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_pos = pygame.mouse.get_pos()
-            for slot_name, slot_rect in self.slots.items():
-                if slot_rect.collidepoint(mouse_pos):
-                    # Try to unequip the item
-                    item = player.unequip_item(slot_name)
-                    if item:
-                        player.inventory.add_item(item)
-                    return True
-        elif event.type == pygame.MOUSEMOTION:
-            mouse_pos = pygame.mouse.get_pos()
-            for slot_name, slot_rect in self.slots.items():
-                if slot_rect.collidepoint(mouse_pos):
-                    self.hovered_slot = slot_name
-                    self.hover_timer = 0
-                    self.tooltip_visible = False
-                    break
-            else:
-                self.hovered_slot = None
-                self.tooltip_visible = False
-        return False
-
-    def update(self):
-        if self.hovered_slot:
-            self.hover_timer += 1
-            if self.hover_timer > 30:  # Show tooltip after 0.5 seconds
-                self.tooltip_visible = True
-                # Position tooltip to the right of the equipment UI
-                self.tooltip_rect.x = self.rect.right + 10
-                self.tooltip_rect.y = self.rect.y
-
-    def draw(self, screen: pygame.Surface, player: Player):
-        if not self.visible:
-            return
-            
-        # Draw background
-        pygame.draw.rect(screen, (50, 50, 50), self.rect)
-        pygame.draw.rect(screen, WHITE, self.rect, 2)
-        
-        # Draw header
-        header_text = self.font.render("Equipment", True, WHITE)
-        screen.blit(header_text, (self.rect.x + 10, self.rect.y + 10))
-        
-        # Draw slots
-        for slot_name, slot_rect in self.slots.items():
-            # Draw slot background
-            pygame.draw.rect(screen, (30, 30, 30), slot_rect)
-            pygame.draw.rect(screen, WHITE, slot_rect, 2)
-            
-            # Draw slot name
-            name_text = self.small_font.render(slot_name.capitalize(), True, WHITE)
-            screen.blit(name_text, (slot_rect.x + 5, slot_rect.y - 20))
-            
-            # Draw equipped item if any
-            item = player.equipment.get_equipped_item(slot_name)
-            if item:
-                # Draw item sprite
-                sprite = item.get_equipment_sprite()
-                scaled_sprite = pygame.transform.scale(sprite, (slot_rect.width - 20, slot_rect.height - 20))
-                screen.blit(scaled_sprite, (slot_rect.x + 10, slot_rect.y + 10))
-
-        # Draw tooltip if visible
-        if self.tooltip_visible and self.hovered_slot:
-            item = player.equipment.get_equipped_item(self.hovered_slot)
-            if item:
-                # Draw tooltip background
-                pygame.draw.rect(screen, (30, 30, 30), self.tooltip_rect)
-                pygame.draw.rect(screen, WHITE, self.tooltip_rect, 2)
-                
-                # Draw item sprite (larger - 128x128)
-                sprite = item.get_equipment_sprite()
-                scaled_sprite = pygame.transform.scale(sprite, (128, 128))
-                screen.blit(scaled_sprite, (self.tooltip_rect.x + 10, self.tooltip_rect.y + 10))
-                
-                # Draw item name
-                name_text = self.font.render(item.name, True, WHITE)
-                screen.blit(name_text, (self.tooltip_rect.x + 10, self.tooltip_rect.y + 150))
-                
-                # Draw item stats
-                y_offset = 180
-                if isinstance(item, Weapon):
-                    stats = [
-                        f"Type: {item.weapon_type}",
-                        f"Attack: {item.attack_power}",
-                        f"Material: {item.material}",
-                        f"Quality: {item.quality}"
-                    ]
-                    if item.prefix:
-                        stats.insert(1, f"Effect: {item.prefix}")
-                else:
-                    stats = [
-                        f"Type: {item.armor_type}",
-                        f"Defense: {item.defense}",
-                        f"Material: {item.material}",
-                        f"Quality: {item.quality}"
-                    ]
-                    if item.prefix:
-                        stats.insert(1, f"Effect: {item.prefix}")
-                
-                for stat in stats:
-                    stat_text = self.small_font.render(stat, True, WHITE)
-                    screen.blit(stat_text, (self.tooltip_rect.x + 10, self.tooltip_rect.y + y_offset))
-                    y_offset += 20
-
 class Wall(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int):
         super().__init__()
@@ -814,238 +279,6 @@ class Wall(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x * TILE_SIZE
         self.rect.y = y * TILE_SIZE
-
-class ItemGeneratorUI:
-    def __init__(self, x: int, y: int):
-        self.rect = pygame.Rect(x, y, 400, 500)  # Increased height for preview
-        self.font = pygame.font.Font(None, 24)
-        self.small_font = pygame.font.Font(None, 18)
-        self.visible = False
-        
-        # Dropdown options
-        self.type_options = ['Random', 'Weapon', 'Armor', 'Consumable']
-        self.quality_options = ['Random', 'Standard', 'Polished', 'Masterwork', 'Legendary']
-        self.quality_colors = {
-            'Random': SILVER,
-            'Standard': GREEN,
-            'Polished': BLUE,
-            'Masterwork': PURPLE,
-            'Legendary': GOLD
-        }
-        
-        # Dropdown rectangles
-        self.type_dropdown = pygame.Rect(x + 20, y + 60, 360, 40)
-        self.quality_dropdown = pygame.Rect(x + 20, y + 120, 360, 40)
-        self.generate_button = pygame.Rect(x + 20, y + 180, 360, 40)
-        self.preview_rect = pygame.Rect(x + 20, y + 240, 360, 200)
-        
-        # Dropdown states
-        self.type_expanded = False
-        self.quality_expanded = False
-        self.selected_type = 'Random'
-        self.selected_quality = 'Random'
-        
-        # Preview item
-        self.preview_item = None
-
-    def handle_event(self, event: pygame.event.Event, player: Player) -> bool:
-        if not self.visible:
-            return False
-            
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_pos = pygame.mouse.get_pos()
-            
-            # Handle type dropdown
-            if self.type_dropdown.collidepoint(mouse_pos):
-                self.type_expanded = not self.type_expanded
-                return True
-            elif self.type_expanded:
-                for i, option in enumerate(self.type_options):
-                    option_rect = pygame.Rect(
-                        self.type_dropdown.x,
-                        self.type_dropdown.y + (i + 1) * 40,
-                        self.type_dropdown.width,
-                        40
-                    )
-                    if option_rect.collidepoint(mouse_pos):
-                        self.selected_type = option
-                        self.type_expanded = False
-                        return True
-            
-            # Handle quality dropdown
-            if self.quality_dropdown.collidepoint(mouse_pos):
-                self.quality_expanded = not self.quality_expanded
-                return True
-            elif self.quality_expanded:
-                for i, option in enumerate(self.quality_options):
-                    option_rect = pygame.Rect(
-                        self.quality_dropdown.x,
-                        self.quality_dropdown.y + (i + 1) * 40,
-                        self.quality_dropdown.width,
-                        40
-                    )
-                    if option_rect.collidepoint(mouse_pos):
-                        self.selected_quality = option
-                        self.quality_expanded = False
-                        return True
-            
-            # Handle generate button
-            if self.generate_button.collidepoint(mouse_pos):
-                # Determine type if random
-                item_type = self.selected_type
-                if item_type == 'Random':
-                    item_type = random.choice(['Weapon', 'Armor', 'Consumable'])
-                
-                # Determine quality if random
-                quality = self.selected_quality
-                if quality == 'Random':
-                    quality = random.choice(['Standard', 'Polished', 'Masterwork', 'Legendary'])
-                
-                # Generate the item
-                if item_type == 'Weapon':
-                    self.preview_item = generate_weapon(quality)
-                elif item_type == 'Armor':
-                    self.preview_item = generate_armor(quality)
-                else:  # Consumable
-                    self.preview_item = generate_consumable(quality)
-                
-                # Add to player's inventory
-                if self.preview_item and player.inventory.add_item(self.preview_item):
-                    return True
-        return False
-
-    def draw(self, screen: pygame.Surface, player: Player):
-        if not self.visible:
-            return
-            
-        # Draw background
-        pygame.draw.rect(screen, (50, 50, 50), self.rect)
-        pygame.draw.rect(screen, WHITE, self.rect, 2)
-        
-        # Draw header
-        header_text = self.font.render("Item Generator", True, WHITE)
-        screen.blit(header_text, (self.rect.x + 10, self.rect.y + 10))
-        
-        # Draw type dropdown base
-        pygame.draw.rect(screen, (30, 30, 30), self.type_dropdown)
-        pygame.draw.rect(screen, WHITE, self.type_dropdown, 2)
-        type_text = self.small_font.render(f"Type: {self.selected_type}", True, WHITE)
-        screen.blit(type_text, (self.type_dropdown.x + 10, self.type_dropdown.y + 10))
-        
-        # Draw quality dropdown base
-        pygame.draw.rect(screen, (30, 30, 30), self.quality_dropdown)
-        pygame.draw.rect(screen, self.quality_colors[self.selected_quality], self.quality_dropdown, 2)
-        quality_text = self.small_font.render(f"Quality: {self.selected_quality}", True, WHITE)
-        screen.blit(quality_text, (self.quality_dropdown.x + 10, self.quality_dropdown.y + 10))
-        
-        # Draw generate button
-        pygame.draw.rect(screen, (70, 70, 70), self.generate_button)
-        pygame.draw.rect(screen, WHITE, self.generate_button, 2)
-        generate_text = self.font.render("Generate Item", True, WHITE)
-        text_rect = generate_text.get_rect(center=self.generate_button.center)
-        screen.blit(generate_text, text_rect)
-        
-        # Draw preview area
-        pygame.draw.rect(screen, (30, 30, 30), self.preview_rect)
-        if self.preview_item:
-            # Determine border color based on quality
-            border_color = self.quality_colors[self.preview_item.quality]
-            pygame.draw.rect(screen, border_color, self.preview_rect, 3)
-            
-            # Calculate layout dimensions
-            padding = 10
-            sprite_size = 128  # Increased sprite size
-            
-            # Draw item sprite
-            sprite = self.preview_item.get_equipment_sprite()
-            scaled_sprite = pygame.transform.scale(sprite, (sprite_size, sprite_size))
-            sprite_x = self.preview_rect.x + padding
-            sprite_y = self.preview_rect.y + (self.preview_rect.height - sprite_size) // 2  # Center vertically
-            screen.blit(scaled_sprite, (sprite_x, sprite_y))
-            
-            # Calculate text start position (to the right of sprite)
-            text_x = sprite_x + sprite_size + padding * 2
-            text_y = self.preview_rect.y + padding
-            text_spacing = 25  # Increased spacing between lines
-            
-            # Draw item name
-            name_text = self.font.render(self.preview_item.name, True, WHITE)
-            screen.blit(name_text, (text_x, text_y))
-            
-            # Draw item stats
-            if isinstance(self.preview_item, Weapon):
-                stats = [
-                    f"Type: {self.preview_item.weapon_type}",
-                    f"Attack: {self.preview_item.attack_power}",
-                    f"Material: {self.preview_item.material}",
-                    f"Quality: {self.preview_item.quality}"
-                ]
-                if self.preview_item.prefix:
-                    stats.insert(1, f"Effect: {self.preview_item.prefix}")
-            elif isinstance(self.preview_item, Hands):
-                stats = [
-                    "Type: Gauntlets",
-                    f"Defense: {self.preview_item.defense}",
-                    f"Dexterity: {self.preview_item.dexterity}",
-                    f"Material: {self.preview_item.material}",
-                    f"Quality: {self.preview_item.quality}"
-                ]
-                if self.preview_item.prefix:
-                    stats.insert(1, f"Effect: {self.preview_item.prefix}")
-            elif isinstance(self.preview_item, Consumable):
-                stats = [
-                    f"Type: {self.preview_item.consumable_type}",
-                    f"Effect Value: {self.preview_item.effect_value}",
-                    f"Quality: {self.preview_item.quality}"
-                ]
-                if self.preview_item.prefix:
-                    stats.insert(1, f"Effect: {self.preview_item.prefix}")
-            else:  # Regular armor
-                stats = [
-                    f"Type: {self.preview_item.armor_type}",
-                    f"Defense: {self.preview_item.defense}",
-                    f"Material: {self.preview_item.material}",
-                    f"Quality: {self.preview_item.quality}"
-                ]
-                if self.preview_item.prefix:
-                    stats.insert(1, f"Effect: {self.preview_item.prefix}")
-            
-            # Draw stats with proper spacing
-            for i, stat in enumerate(stats):
-                stat_text = self.small_font.render(stat, True, WHITE)
-                screen.blit(stat_text, (text_x, text_y + text_spacing + i * text_spacing))
-        else:
-            pygame.draw.rect(screen, WHITE, self.preview_rect, 2)
-            preview_text = self.small_font.render("Generated item will appear here", True, WHITE)
-            text_rect = preview_text.get_rect(center=self.preview_rect.center)
-            screen.blit(preview_text, text_rect)
-
-        # Draw expanded dropdowns last so they appear on top
-        if self.type_expanded:
-            for i, option in enumerate(self.type_options):
-                option_rect = pygame.Rect(
-                    self.type_dropdown.x,
-                    self.type_dropdown.y + (i + 1) * 40,
-                    self.type_dropdown.width,
-                    40
-                )
-                pygame.draw.rect(screen, (30, 30, 30), option_rect)
-                pygame.draw.rect(screen, WHITE, option_rect, 1)
-                option_text = self.small_font.render(option, True, WHITE)
-                screen.blit(option_text, (option_rect.x + 10, option_rect.y + 10))
-        
-        if self.quality_expanded:
-            for i, option in enumerate(self.quality_options):
-                option_rect = pygame.Rect(
-                    self.quality_dropdown.x,
-                    self.quality_dropdown.y + (i + 1) * 40,
-                    self.quality_dropdown.width,
-                    40
-                )
-                pygame.draw.rect(screen, (30, 30, 30), option_rect)
-                pygame.draw.rect(screen, self.quality_colors[option], option_rect, 2)
-                option_text = self.small_font.render(option, True, WHITE)
-                screen.blit(option_text, (option_rect.x + 10, option_rect.y + 10))
 
 def create_map(width: int, height: int) -> Tuple[pygame.sprite.Group, List[List[int]]]:
     """Create a simple map with walls around the edges"""
@@ -1066,124 +299,6 @@ def create_map(width: int, height: int) -> Tuple[pygame.sprite.Group, List[List[
         map_grid[y][width - 1] = 1
     
     return walls, map_grid
-
-def generate_weapon(quality: str) -> Weapon:
-    """Generate a weapon with random attributes based on quality"""
-    weapon_type = random.choice(WEAPON_TYPES)
-    material = random.choice(MATERIALS)
-    
-    # Base stats
-    attack_power = random.randint(5, 15)
-    
-    # Apply quality modifiers
-    if quality == 'Polished':
-        attack_power += 5
-        prefix = random.choice(PREFIXES['common'])
-    elif quality == 'Masterwork':
-        attack_power += 10
-        prefix = random.choice(PREFIXES['uncommon'])
-    elif quality == 'Legendary':
-        attack_power += 15
-        prefix = random.choice(PREFIXES['rare'])
-    else:  # Standard
-        prefix = None
-    
-    # Create the weapon name
-    name = f"{quality} {material} {weapon_type}"
-    if prefix:
-        name = f"{prefix} {name}"
-    
-    return Weapon(name, weapon_type, material, quality, attack_power, prefix)
-
-def generate_armor(quality: str) -> Union[Armor, Hands]:
-    """Generate a piece of armor with random attributes based on quality"""
-    # Randomly select armor type with equal probability
-    armor_type = random.choice(['head', 'chest', 'legs', 'feet', 'hands'])
-    material = random.choice(MATERIALS)
-    
-    # Base stats
-    defense = random.randint(2, 8)
-    
-    # Apply quality modifiers
-    if quality == 'Polished':
-        defense += 3
-        prefix = random.choice(PREFIXES['common'])
-    elif quality == 'Masterwork':
-        defense += 6
-        prefix = random.choice(PREFIXES['uncommon'])
-    elif quality == 'Legendary':
-        defense += 9
-        prefix = random.choice(PREFIXES['rare'])
-    else:  # Standard
-        prefix = None
-    
-    # Create the armor name
-    name = f"{quality} {material} {armor_type.capitalize()}"
-    if prefix:
-        name = f"{prefix} {name}"
-    
-    if armor_type == 'hands':
-        # Generate hands with dexterity bonus
-        dexterity = random.randint(1, 4)
-        if quality == 'Polished':
-            dexterity += 2
-        elif quality == 'Masterwork':
-            dexterity += 4
-        elif quality == 'Legendary':
-            dexterity += 6
-        return Hands(name, material, quality, defense, dexterity, prefix)
-    else:
-        return Armor(name, armor_type, material, quality, defense, prefix)
-
-def generate_hands(rarity: str) -> Hands:
-    """Generate a pair of hands equipment with random attributes based on rarity"""
-    material = random.choice(MATERIALS)
-    quality = random.choice(QUALITIES)
-    
-    # Base stats
-    defense = random.randint(1, 4)
-    dexterity = random.randint(1, 4)
-    
-    # Apply rarity modifiers
-    if rarity == 'uncommon':
-        defense += 2
-        dexterity += 2
-        prefix = random.choice(PREFIXES['common'])
-    elif rarity == 'rare':
-        defense += 4
-        dexterity += 4
-        prefix = random.choice(PREFIXES['uncommon'])
-    else:
-        prefix = None
-    
-    # Create the hands name
-    name = f"{quality} {material} Gauntlets"
-    if prefix:
-        name = f"{prefix} {name}"
-    
-    return Hands(name, material, quality, defense, dexterity, prefix)
-
-def generate_consumable(quality: str) -> Consumable:
-    """Generate a consumable item with random attributes based on quality"""
-    consumable_type = random.choice(['Health Potion', 'Mana Potion', 'Stamina Potion'])
-    
-    # Base stats
-    effect_value = random.randint(10, 30)
-    
-    # Apply quality modifiers
-    if quality == 'Polished':
-        effect_value += 15
-        prefix = random.choice(PREFIXES['common'])
-    elif quality == 'Masterwork':
-        effect_value += 30
-        prefix = random.choice(PREFIXES['uncommon'])
-    elif quality == 'Legendary':
-        effect_value += 45
-        prefix = random.choice(PREFIXES['rare'])
-    else:  # Standard
-        prefix = None
-    
-    return Consumable(consumable_type, quality, effect_value, prefix)
 
 def main():
     pygame.init()
@@ -1207,7 +322,7 @@ def main():
     # Calculate UI positions
     inventory_width = 300
     equipment_width = 300
-    spacing = 20  # Reduced spacing between windows (was 50)
+    spacing = 20
     
     # Center both windows with proper spacing
     total_width = inventory_width + spacing + equipment_width
@@ -1215,8 +330,11 @@ def main():
     
     # Create UI elements with calculated positions
     inventory_ui = InventoryUI(start_x, 50)  # Left side
-    equipment_ui = EquipmentUI(start_x + inventory_width + spacing, 50)  # Right side with reduced spacing
-    item_generator = ItemGeneratorUI(SCREEN_WIDTH // 2 - 200, SCREEN_HEIGHT // 2 - 200)
+    equipment_ui = EquipmentUI(start_x + inventory_width + spacing, 50)  # Right side
+    item_generator = ItemGeneratorUI(start_x + inventory_width + spacing, 50)  # Right side, same position as equipment
+    
+    # Initialize mode
+    current_mode = None  # None, "equip", or "generate"
     
     # Main game loop
     running = True
@@ -1227,22 +345,46 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_i:
-                    # Toggle both inventory and equipment UI
-                    inventory_ui.visible = not inventory_ui.visible
-                    equipment_ui.visible = inventory_ui.visible  # Keep them in sync
+                    if current_mode == "equip":
+                        current_mode = None
+                        inventory_ui.visible = False
+                        equipment_ui.visible = False
+                    else:
+                        current_mode = "equip"
+                        inventory_ui.visible = True
+                        equipment_ui.visible = True
+                        item_generator.visible = False
                 elif event.key == pygame.K_g:
-                    item_generator.visible = not item_generator.visible
+                    if current_mode == "generate":
+                        current_mode = None
+                        inventory_ui.visible = False
+                        item_generator.visible = False
+                    else:
+                        current_mode = "generate"
+                        inventory_ui.visible = True
+                        item_generator.visible = True
+                        equipment_ui.visible = False
+                elif event.key == pygame.K_ESCAPE:
+                    current_mode = None
+                    inventory_ui.visible = False
+                    equipment_ui.visible = False
+                    item_generator.visible = False
             
-            # Handle UI events
-            if inventory_ui.handle_event(event, player):
-                continue
-            if equipment_ui.handle_event(event, player):
-                continue
-            if item_generator.handle_event(event, player):
-                continue
+            # Handle UI events only if in a mode
+            if current_mode:
+                # Always handle inventory events first
+                inventory_handled = inventory_ui.handle_event(event, player)
+                
+                if current_mode == "equip":
+                    equipment_handled = equipment_ui.handle_event(event, player)
+                    if inventory_handled or equipment_handled:
+                        continue
+                elif current_mode == "generate":
+                    if inventory_handled or item_generator.handle_event(event, player):
+                        continue
             
-            # Handle player movement
-            if not (inventory_ui.visible or item_generator.visible):
+            # Handle player movement only if not in any mode
+            if not current_mode:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
                         player.move(-1, 0, walls)
@@ -1258,7 +400,15 @@ def main():
         # Update game state
         player.update()
         camera.update(player)
-        inventory_ui.update()
+        
+        # Update UI elements based on current mode
+        if current_mode:
+            # Always update inventory UI first
+            inventory_ui.update()
+            if current_mode == "equip":
+                equipment_ui.update()
+            elif current_mode == "generate":
+                item_generator.update()
         
         # Draw everything
         screen.fill(BLACK)
@@ -1274,13 +424,27 @@ def main():
         # Draw player
         player.draw(screen, camera)
         
-        # Draw UI elements if visible
-        if inventory_ui.visible:
-            inventory_ui.draw(screen, player)
-        if equipment_ui.visible:
-            equipment_ui.draw(screen, player)
-        if item_generator.visible:
-            item_generator.draw(screen, player)
+        # Draw UI elements based on current mode
+        if current_mode:
+            # Draw inventory UI first (but save tooltip for later)
+            if inventory_ui.visible:
+                # Store tooltip state
+                tooltip_visible = inventory_ui.tooltip_visible
+                inventory_ui.tooltip_visible = False
+                # Draw inventory without tooltip
+                inventory_ui.draw(screen, player)
+                # Restore tooltip state
+                inventory_ui.tooltip_visible = tooltip_visible
+
+            # Draw mode-specific UI
+            if current_mode == "equip":
+                equipment_ui.draw(screen, player)
+            elif current_mode == "generate":
+                item_generator.draw(screen, player)
+
+            # Draw inventory tooltip last (on top of everything)
+            if inventory_ui.visible and tooltip_visible:
+                inventory_ui.draw_tooltip(screen)
             
         pygame.display.flip()
         clock.tick(60)

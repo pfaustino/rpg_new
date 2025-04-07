@@ -1,36 +1,37 @@
 # RPG Game
 
-A simple RPG game built with Python and Pygame featuring:
-- Inventory system with colored quality tiers
-- Equipment system with different slots
-- Item generator with various types and qualities
-- Tooltip system for item information
+A simple RPG game built with Python and Pygame, featuring:
+- Inventory system with tooltips
+- Equipment system with tooltips
+- Item generator with different types and qualities
+- Basic player movement and map rendering
 
 ## Requirements
 - Python 3.x
-- Pygame
+- Pygame 2.x
 
 ## Installation
-1. Clone this repository
-2. Install requirements:
+1. Clone the repository
+2. Install dependencies:
 ```bash
-pip install pygame
+pip install -e .
 ```
 
 ## Running the Game
 ```bash
-python game.py
+python -m game
 ```
 
 ## Controls
-- `I` - Toggle Inventory/Equipment screen
-- `G` - Toggle Item Generator
-- Arrow keys - Move character
-- Mouse - Interact with inventory and equipment
+- Arrow keys: Move player
+- I: Toggle inventory/equipment view
+- G: Toggle item generator
+- ESC: Close UI windows/exit game
+- Click items to equip/unequip them
 
 ## Features
-- Item qualities: Standard, Polished, Masterwork, Legendary
-- Item types: Weapons, Armor, Consumables
-- Equipment slots: Head, Chest, Hands, Legs, Feet, Weapon
-- Color-coded item borders based on quality
-- Dynamic tooltips with item stats 
+- Grid-based inventory system
+- Equipment slots for different item types
+- Item tooltips showing detailed stats
+- Item generator with various types and qualities
+- Quality-based color coding for items 
