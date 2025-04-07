@@ -5,6 +5,7 @@ Player entity class for RPG games.
 import pygame
 from typing import Optional, Dict, List, Any
 from ..items import Item
+from ..quests import QuestLog
 
 class Player:
     """Class representing the player character."""
@@ -20,6 +21,9 @@ class Player:
         self.x = x
         self.y = y
         self.speed = 5
+        self.level = 1
+        self.experience = 0
+        self.gold = 0
         self.inventory: List[Optional[Item]] = [None] * 40  # 40 inventory slots
         self.equipment: Dict[str, Optional[Item]] = {
             'head': None,
@@ -29,6 +33,7 @@ class Player:
             'hands': None,
             'weapon': None
         }
+        self.quest_log = QuestLog()
         
         # Load player sprite
         self.sprite = pygame.Surface((32, 32))
@@ -99,6 +104,25 @@ class Player:
             
         return False
         
+    def add_experience(self, amount: int) -> None:
+        """
+        Add experience points to the player.
+        
+        Args:
+            amount: Amount of experience to add
+        """
+        self.experience += amount
+        # TODO: Add level up logic based on experience thresholds
+        
+    def add_gold(self, amount: int) -> None:
+        """
+        Add gold to the player's currency.
+        
+        Args:
+            amount: Amount of gold to add
+        """
+        self.gold += amount
+        
     def draw(self, screen: pygame.Surface) -> None:
         """
         Draw the player on the screen.
@@ -114,6 +138,9 @@ class Player:
             "x": self.x,
             "y": self.y,
             "speed": self.speed,
+            "level": self.level,
+            "experience": self.experience,
+            "gold": self.gold,
             "inventory": [
                 item.to_dict() if item else None
                 for item in self.inventory
@@ -129,6 +156,9 @@ class Player:
         """Create a player from dictionary data."""
         player = cls(data["x"], data["y"])
         player.speed = data["speed"]
+        player.level = data.get("level", 1)
+        player.experience = data.get("experience", 0)
+        player.gold = data.get("gold", 0)
         
         # Restore inventory
         for i, item_data in enumerate(data["inventory"]):

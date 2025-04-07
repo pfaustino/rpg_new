@@ -4,8 +4,9 @@ import math
 import os
 from typing import Dict, List, Tuple, Optional, Union
 from rpg_modules.items import ItemGenerator, Item, Weapon, Armor, Hands, Consumable
-from rpg_modules.ui import InventoryUI, EquipmentUI, ItemGeneratorUI
+from rpg_modules.ui import InventoryUI, EquipmentUI, ItemGeneratorUI, QuestUI
 from rpg_modules.entities import Player
+from rpg_modules.quests import QuestGenerator, QuestType, QuestLog
 from rpg_modules.core.constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, FPS,
     WHITE, BLACK, RED, GREEN, BLUE, GRAY,
@@ -73,31 +74,49 @@ def load_assets():
 
 # Game states
 class GameState:
+    """Manages the global game state."""
+    
     def __init__(self):
-        self.running = True
-        self.player = None
-        self.camera = None
-        self.map_grid = None
+        """Initialize the game state."""
         self.assets = {}
         self.item_generator = ItemGenerator()
-
+        self.quest_generator = QuestGenerator(self.item_generator)
+        
+        # Generate more quests
+        self.quests = []
+        
+        # Generate main quests (5)
+        for _ in range(5):
+            self.quests.append(self.quest_generator.generate_quest(QuestType.MAIN))
+            
+        # Generate side quests (10)
+        for _ in range(10):
+            self.quests.append(self.quest_generator.generate_quest(QuestType.SIDE))
+            
+        # Generate daily quests (5)
+        for _ in range(5):
+            self.quests.append(self.quest_generator.generate_quest(QuestType.DAILY))
+        
     def load_assets(self):
-        """Load game assets"""
-        try:
-            # Load images
-            self.assets['floor'] = pygame.Surface((TILE_SIZE, TILE_SIZE))
-            self.assets['floor'].fill(GRAY)
-            
-            self.assets['wall'] = pygame.Surface((TILE_SIZE, TILE_SIZE))
-            self.assets['wall'].fill(BLACK)
-            
-            # Load sounds
-            pygame.mixer.init()
-            self.assets['silent_sound'] = pygame.mixer.Sound(buffer=bytearray(0))
-            
-            print("Assets loaded successfully")
-        except Exception as e:
-            print(f"Error loading assets: {e}")
+        """Load game assets."""
+        self.assets['wall'] = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        self.assets['wall'].fill((100, 100, 100))
+        
+        self.assets['floor'] = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        self.assets['floor'].fill((50, 50, 50))
+        
+        self.assets['player'] = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        self.assets['player'].fill((0, 255, 0))
+        
+    def update(self):
+        """Update game state."""
+        # Update daily quests if needed
+        pass
+        
+    def initialize_player_quests(self, player):
+        """Add initial quests to the player's quest log."""
+        for quest in self.quests:
+            player.quest_log.add_quest(quest)
 
 class Camera:
     def __init__(self, width: int, height: int):
@@ -211,6 +230,10 @@ class Player(pygame.sprite.Sprite):
         self.defense = 5
         self.inventory = Inventory()
         self.equipment = Equipment()
+        self.quest_log = QuestLog()
+        self.level = 1
+        self.experience = 0
+        self.gold = 0
 
     def update(self):
         """Update player state"""
@@ -270,6 +293,15 @@ class Player(pygame.sprite.Sprite):
     def draw(self, screen: pygame.Surface, camera: Camera):
         """Draw the player on the screen"""
         screen.blit(self.image, camera.apply(self))
+        
+    def add_experience(self, amount: int):
+        """Add experience points to the player."""
+        self.experience += amount
+        # TODO: Add level up logic
+        
+    def add_gold(self, amount: int):
+        """Add gold to the player's currency."""
+        self.gold += amount
 
 class Wall(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int):
@@ -300,6 +332,37 @@ def create_map(width: int, height: int) -> Tuple[pygame.sprite.Group, List[List[
     
     return walls, map_grid
 
+def initialize_game():
+    """Initialize the game state."""
+    # ... existing code ...
+    
+    # Generate quests
+    quest_generator = QuestGenerator(item_generator)
+    
+    # Generate main quest chains
+    for _ in range(2):  # 2 main quest chains (6 quests total)
+        chain_id = f"chain_{random.randint(1000, 9999)}"
+        quests = quest_generator.generate_quest_chain(chain_id, QuestType.MAIN)
+        for quest in quests:
+            player.quest_log.add_quest(quest)
+    
+    # Generate individual main quests
+    for _ in range(4):  # 4 individual main quests
+        quest = quest_generator.generate_quest(QuestType.MAIN)
+        player.quest_log.add_quest(quest)
+    
+    # Generate side quests
+    for _ in range(6):  # 6 side quests
+        quest = quest_generator.generate_quest(QuestType.SIDE)
+        player.quest_log.add_quest(quest)
+    
+    # Generate daily quests
+    for _ in range(4):  # 4 daily quests
+        quest = quest_generator.generate_quest(QuestType.DAILY)
+        player.quest_log.add_quest(quest)
+    
+    # ... existing code ...
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -322,9 +385,10 @@ def main():
     # Calculate UI positions
     inventory_width = 300
     equipment_width = 300
+    quest_width = 400
     spacing = 20
     
-    # Center both windows with proper spacing
+    # Center windows with proper spacing
     total_width = inventory_width + spacing + equipment_width
     start_x = (SCREEN_WIDTH - total_width) // 2
     
@@ -332,9 +396,13 @@ def main():
     inventory_ui = InventoryUI(start_x, 50)  # Left side
     equipment_ui = EquipmentUI(start_x + inventory_width + spacing, 50)  # Right side
     item_generator = ItemGeneratorUI(start_x + inventory_width + spacing, 50)  # Right side, same position as equipment
+    quest_ui = QuestUI((SCREEN_WIDTH - quest_width) // 2, 50, width=quest_width)  # Centered
+    
+    # Set initial quests
+    initialize_game()
     
     # Initialize mode
-    current_mode = None  # None, "equip", or "generate"
+    current_mode = None  # None, "equip", "generate", or "quest"
     
     # Main game loop
     running = True
@@ -354,6 +422,7 @@ def main():
                         inventory_ui.visible = True
                         equipment_ui.visible = True
                         item_generator.visible = False
+                        quest_ui.visible = False
                 elif event.key == pygame.K_g:
                     if current_mode == "generate":
                         current_mode = None
@@ -364,11 +433,23 @@ def main():
                         inventory_ui.visible = True
                         item_generator.visible = True
                         equipment_ui.visible = False
+                        quest_ui.visible = False
+                elif event.key == pygame.K_j:  # J for Journal
+                    if current_mode == "quest":
+                        current_mode = None
+                        quest_ui.visible = False
+                    else:
+                        current_mode = "quest"
+                        quest_ui.visible = True
+                        inventory_ui.visible = False
+                        equipment_ui.visible = False
+                        item_generator.visible = False
                 elif event.key == pygame.K_ESCAPE:
                     current_mode = None
                     inventory_ui.visible = False
                     equipment_ui.visible = False
                     item_generator.visible = False
+                    quest_ui.visible = False
             
             # Handle UI events only if in a mode
             if current_mode:
@@ -381,6 +462,9 @@ def main():
                         continue
                 elif current_mode == "generate":
                     if inventory_handled or item_generator.handle_event(event, player):
+                        continue
+                elif current_mode == "quest":
+                    if quest_ui.handle_event(event, player):
                         continue
             
             # Handle player movement only if not in any mode
@@ -409,6 +493,8 @@ def main():
                 equipment_ui.update()
             elif current_mode == "generate":
                 item_generator.update()
+            elif current_mode == "quest":
+                quest_ui.update()
         
         # Draw everything
         screen.fill(BLACK)
@@ -426,25 +512,14 @@ def main():
         
         # Draw UI elements based on current mode
         if current_mode:
-            # Draw inventory UI first (but save tooltip for later)
-            if inventory_ui.visible:
-                # Store tooltip state
-                tooltip_visible = inventory_ui.tooltip_visible
-                inventory_ui.tooltip_visible = False
-                # Draw inventory without tooltip
-                inventory_ui.draw(screen, player)
-                # Restore tooltip state
-                inventory_ui.tooltip_visible = tooltip_visible
-
-            # Draw mode-specific UI
             if current_mode == "equip":
+                inventory_ui.draw(screen, player)
                 equipment_ui.draw(screen, player)
             elif current_mode == "generate":
+                inventory_ui.draw(screen, player)
                 item_generator.draw(screen, player)
-
-            # Draw inventory tooltip last (on top of everything)
-            if inventory_ui.visible and tooltip_visible:
-                inventory_ui.draw_tooltip(screen)
+            elif current_mode == "quest":
+                quest_ui.draw(screen, player)
             
         pygame.display.flip()
         clock.tick(60)
