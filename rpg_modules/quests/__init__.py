@@ -1,23 +1,21 @@
 """
-Quest system for RPG games.
+Quest system for the RPG game.
 """
 
-from .base import Quest, QuestType, QuestStatus
-from .objectives import KillObjective, CollectObjective, ExploreObjective
-from .rewards import GoldReward, ExperienceReward, ItemReward
+from .base import Quest, QuestType, QuestDifficulty, QuestObjective, QuestReward
 from .generator import QuestGenerator
-from .manager import QuestLog
+from .log import QuestLog
+from .rewards import GoldReward, ExperienceReward, ItemReward
 
 __all__ = [
     'Quest',
     'QuestType',
-    'QuestStatus',
-    'KillObjective',
-    'CollectObjective',
-    'ExploreObjective',
+    'QuestDifficulty',
+    'QuestObjective',
+    'QuestReward',
+    'QuestGenerator',
+    'QuestLog',
     'GoldReward',
     'ExperienceReward',
-    'ItemReward',
-    'QuestGenerator',
-    'QuestLog'
+    'ItemReward'
 ] 

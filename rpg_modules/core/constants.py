@@ -3,8 +3,8 @@ Core constants for the RPG game modules.
 """
 
 # Display constants
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
 TILE_SIZE = 32
 FPS = 60
 

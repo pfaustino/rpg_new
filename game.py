@@ -1,16 +1,23 @@
+"""
+Main game module.
+"""
+
 import pygame
 import random
 import math
 import os
 from typing import Dict, List, Tuple, Optional, Union
 from rpg_modules.items import ItemGenerator, Item, Weapon, Armor, Hands, Consumable
-from rpg_modules.ui import InventoryUI, EquipmentUI, ItemGeneratorUI, QuestUI
+from rpg_modules.ui import InventoryUI, EquipmentUI, ItemGeneratorUI as GeneratorUI, QuestUI
 from rpg_modules.entities import Player
+from rpg_modules.entities.monster import Monster, MonsterType
 from rpg_modules.quests import QuestGenerator, QuestType, QuestLog
+from rpg_modules.core.map import Map
+from rpg_modules.core.camera import Camera
 from rpg_modules.core.constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, FPS,
     WHITE, BLACK, RED, GREEN, BLUE, GRAY,
-    QUALITY_COLORS
+    QUALITY_COLORS, UI_DIMENSIONS
 )
 
 # Player stats
@@ -22,6 +29,7 @@ PLAYER_DEFENSE = 5
 MONSTER_HP = 50
 MONSTER_ATTACK = 5
 MONSTER_DEFENSE = 2
+MAX_MONSTERS = 50  # Maximum number of monsters allowed at once
 
 # Asset paths
 ASSET_PATH = "assets"
@@ -32,116 +40,373 @@ MONSTER_IMAGE = "monster.png"
 
 def load_assets():
     """Load all game assets"""
+    print("Loading assets...")
     assets = {}
     
     # Create placeholder assets if they don't exist
     if not os.path.exists(ASSET_PATH):
         os.makedirs(ASSET_PATH)
+        print(f"Created assets directory at {ASSET_PATH}")
     
     # Load or create floor image
     floor_path = os.path.join(ASSET_PATH, FLOOR_IMAGE)
     if not os.path.exists(floor_path):
-        floor_surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        floor_surface.fill((200, 200, 200))
+        floor_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+        # Create a stone floor pattern
+        floor_surface.fill((120, 120, 120))  # Base gray color
+        for i in range(4):  # Add some random darker spots for texture
+            x = random.randint(0, TILE_SIZE-4)
+            y = random.randint(0, TILE_SIZE-4)
+            pygame.draw.rect(floor_surface, (100, 100, 100), (x, y, 4, 4))
         pygame.image.save(floor_surface, floor_path)
-    assets['floor'] = pygame.image.load(floor_path)
+        print(f"Created floor image at {floor_path}")
+    assets['floor'] = pygame.image.load(floor_path).convert_alpha()
     
     # Load or create wall image
     wall_path = os.path.join(ASSET_PATH, WALL_IMAGE)
     if not os.path.exists(wall_path):
-        wall_surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        wall_surface.fill((100, 100, 100))
+        wall_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+        # Create a brick wall pattern
+        wall_surface.fill((80, 80, 80))  # Dark gray base
+        # Add brick pattern
+        for y in range(0, TILE_SIZE, 8):
+            offset = 8 if y % 16 == 0 else 0
+            for x in range(-8 + offset, TILE_SIZE, 16):
+                pygame.draw.rect(wall_surface, (100, 80, 80), (x, y, 14, 6))  # Brick
+                pygame.draw.rect(wall_surface, (60, 60, 60), (x, y, 14, 1))  # Shadow
         pygame.image.save(wall_surface, wall_path)
-    assets['wall'] = pygame.image.load(wall_path)
+        print(f"Created wall image at {wall_path}")
+    assets['wall'] = pygame.image.load(wall_path).convert_alpha()
     
     # Load or create player image
-    player_path = os.path.join(ASSET_PATH, PLAYER_IMAGE)
+    player_path = os.path.join(ASSET_PATH, "animations", "player.png")
     if not os.path.exists(player_path):
-        player_surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        player_surface.fill(BLUE)
+        # Create the animations directory if it doesn't exist
+        os.makedirs(os.path.dirname(player_path), exist_ok=True)
+        # Create a simple character sprite
+        player_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+        pygame.draw.circle(player_surface, (50, 100, 200), (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3)  # Body
+        pygame.draw.circle(player_surface, (200, 150, 100), (TILE_SIZE//2, TILE_SIZE//3), TILE_SIZE//4)  # Head
         pygame.image.save(player_surface, player_path)
-    assets['player'] = pygame.image.load(player_path)
+        print(f"Created player image at {player_path}")
+    assets['player'] = pygame.image.load(player_path).convert_alpha()
     
     # Load or create monster image
     monster_path = os.path.join(ASSET_PATH, MONSTER_IMAGE)
     if not os.path.exists(monster_path):
-        monster_surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        monster_surface.fill(RED)
+        monster_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+        # Create a simple monster sprite
+        pygame.draw.polygon(monster_surface, (200, 50, 50),  # Red triangle body
+                          [(TILE_SIZE//2, TILE_SIZE//4),
+                           (TILE_SIZE//4, TILE_SIZE*3//4),
+                           (TILE_SIZE*3//4, TILE_SIZE*3//4)])
+        # Add eyes
+        pygame.draw.circle(monster_surface, (255, 255, 255),
+                         (TILE_SIZE*3//8, TILE_SIZE//2), 2)
+        pygame.draw.circle(monster_surface, (255, 255, 255),
+                         (TILE_SIZE*5//8, TILE_SIZE//2), 2)
         pygame.image.save(monster_surface, monster_path)
-    assets['monster'] = pygame.image.load(monster_path)
+        print(f"Created monster image at {monster_path}")
+    assets['monster'] = pygame.image.load(monster_path).convert_alpha()
     
+    print("Assets loaded successfully")
     return assets
 
 # Game states
 class GameState:
     """Manages the global game state."""
     
-    def __init__(self):
+    def __init__(self, screen):
         """Initialize the game state."""
-        self.assets = {}
-        self.item_generator = ItemGenerator()
-        self.quest_generator = QuestGenerator(self.item_generator)
+        print("\n=== Initializing Game State ===")
+        self.screen = screen
+        self.running = True
+        self.clock = pygame.time.Clock()
+        self.fps = 60
         
-        # Generate more quests
-        self.quests = []
+        # Create game map
+        print("Creating game map...")
+        self.map = Map()
+        print(f"Map created with dimensions: {self.map.width}x{self.map.height}")
         
-        # Generate main quests (5)
-        for _ in range(5):
-            self.quests.append(self.quest_generator.generate_quest(QuestType.MAIN))
-            
-        # Generate side quests (10)
-        for _ in range(10):
-            self.quests.append(self.quest_generator.generate_quest(QuestType.SIDE))
-            
-        # Generate daily quests (5)
-        for _ in range(5):
-            self.quests.append(self.quest_generator.generate_quest(QuestType.DAILY))
+        # Create player at center of map
+        print("Creating player...")
+        spawn_pos = (self.map.width * TILE_SIZE // 2, self.map.height * TILE_SIZE // 2)  # Center of map in pixels
+        print(f"Player spawn position: ({spawn_pos[0] // TILE_SIZE}, {spawn_pos[1] // TILE_SIZE})")
+        self.player = Player(spawn_pos[0], spawn_pos[1])
+        print("Player created")
         
-    def load_assets(self):
-        """Load game assets."""
-        self.assets['wall'] = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        self.assets['wall'].fill((100, 100, 100))
+        # Create camera
+        print("Creating camera...")
+        self.camera = Camera(self.player)
+        self.camera.set_map_bounds(self.map.width * TILE_SIZE, self.map.height * TILE_SIZE)
+        print("Camera created")
         
-        self.assets['floor'] = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        self.assets['floor'].fill((50, 50, 50))
+        # Initialize monsters list and counts
+        print("\nInitializing monster system...")
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
         
-        self.assets['player'] = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        self.assets['player'].fill((0, 255, 0))
+        # Create UI elements with empty containers
+        print("\nCreating UI elements...")
+        self.quest_log = QuestLog()  # Create empty quest log
+        self.inventory_ui = InventoryUI(screen, [])  # Empty inventory
+        self.equipment_ui = EquipmentUI(screen, {})  # Empty equipment
+        self.quest_ui = QuestUI(screen, self.quest_log)  # Quest UI with empty log
         
-    def update(self):
+        # Position the generator UI in the center of the screen
+        generator_x = (SCREEN_WIDTH - UI_DIMENSIONS['generator_width']) // 2
+        generator_y = (SCREEN_HEIGHT - UI_DIMENSIONS['generator_height']) // 2
+        self.generator_ui = GeneratorUI(generator_x, generator_y)
+        print("UI elements created")
+        
+        # Load assets
+        print("\nLoading assets...")
+        self.assets = load_assets()
+        self.camera.assets = self.assets
+        print("Assets loaded")
+        
+        # Spawn initial monsters
+        print("\n=== Spawning Initial Monsters ===")
+        self._spawn_initial_monsters()
+        print(f"Total monsters spawned: {len(self.monsters)}")
+        for monster_type in MonsterType:
+            if self.monster_counts[monster_type] > 0:
+                print(f"- {monster_type.name}: {self.monster_counts[monster_type]}")
+        
+        print("\n=== Game State Initialized ===")
+        
+    def update(self, dt):
         """Update game state."""
-        # Update daily quests if needed
-        pass
+        # Handle player input
+        keys = pygame.key.get_pressed()
+        self.player.handle_input(keys, self.map.get_walls())
+            
+        # Update player
+        self.player.update(dt)
         
-    def initialize_player_quests(self, player):
-        """Add initial quests to the player's quest log."""
-        for quest in self.quests:
-            player.quest_log.add_quest(quest)
-
-class Camera:
-    def __init__(self, width: int, height: int):
-        self.camera = pygame.Rect(0, 0, width, height)
-        self.width = width
-        self.height = height
-        self.x = 0
-        self.y = 0
-
-    def apply(self, entity):
-        return entity.rect.move(self.camera.topleft)
-
-    def update(self, target):
-        x = -target.rect.x + int(SCREEN_WIDTH / 2)
-        y = -target.rect.y + int(SCREEN_HEIGHT / 2)
+        # Print debug info every second
+        current_time = pygame.time.get_ticks()
+        if not hasattr(self, 'last_debug_time'):
+            self.last_debug_time = 0
+        if current_time - self.last_debug_time >= 1000:  # Every 1 second
+            tile_x = int(self.player.x / TILE_SIZE)
+            tile_y = int(self.player.y / TILE_SIZE)
+            print(f"\n=== Game State ===")
+            print(f"Player at: tile ({tile_x}, {tile_y}), pixel ({int(self.player.x)}, {int(self.player.y)})")
+            print(f"Active monsters: {len(self.monsters)}")
+            for monster_type in MonsterType:
+                if self.monster_counts[monster_type] > 0:
+                    print(f"- {monster_type.name}: {self.monster_counts[monster_type]}")
+            self.last_debug_time = current_time
         
-        # Limit scrolling to map size
-        x = min(0, x)  # Left
-        y = min(0, y)  # Top
-        x = max(-(self.width - SCREEN_WIDTH), x)  # Right
-        y = max(-(self.height - SCREEN_HEIGHT), y)  # Bottom
+        # Update monsters
+        for monster in self.monsters[:]:
+            monster.update(dt, (self.player.x, self.player.y))
+            
+            # Check for monster death
+            if monster.health <= 0:
+                self._handle_monster_death(monster)
+                continue
+                
+            # Handle monster attacks
+            dx = monster.x - self.player.x
+            dy = monster.y - self.player.y
+            dist = (dx * dx + dy * dy) ** 0.5
+            
+            if dist <= monster.attack_range * TILE_SIZE and monster.can_attack():
+                damage = monster.attack()
+                print(f"{monster.monster_type.name} attacks player for {damage} damage!")
         
-        self.camera = pygame.Rect(x, y, self.width, self.height)
-        self.x = x
-        self.y = y
+        # Try spawning new monsters occasionally
+        if random.random() < 0.01:  # 1% chance each frame
+            monster_type = random.choice([MonsterType.SLIME, MonsterType.SPIDER, MonsterType.WOLF])
+            if self._try_spawn_monster(monster_type):
+                print(f"New {monster_type.name} spawned!")
+        
+        # Update camera
+        self.camera.update(self.player)
+        
+    def draw(self, screen):
+        """Draw the game state."""
+        # Clear screen
+        screen.fill((40, 40, 40))  # Dark gray background
+        
+        # Draw game world
+        self.map.draw(screen, self.camera, self.assets)
+        
+        # Draw monsters
+        for monster in self.monsters:
+            monster.draw(screen, self.camera)
+        
+        # Draw player
+        self.player.draw(screen, self.camera)
+        
+        # Draw coordinates in top-left corner
+        font = pygame.font.Font(None, 24)
+        tile_x = int(self.player.x / TILE_SIZE)
+        tile_y = int(self.player.y / TILE_SIZE)
+        pixel_x = int(self.player.x)
+        pixel_y = int(self.player.y)
+        coord_text = f"Player Position - Tile: ({tile_x}, {tile_y}) Pixel: ({pixel_x}, {pixel_y})"
+        text_surface = font.render(coord_text, True, (255, 255, 255))
+        screen.blit(text_surface, (10, 10))
+        
+        monster_text = f"Active Monsters: {len(self.monsters)}"
+        monster_surface = font.render(monster_text, True, (255, 255, 255))
+        screen.blit(monster_surface, (10, 35))
+        
+        # Draw UI elements
+        self.inventory_ui.draw(screen)
+        self.equipment_ui.draw(screen)
+        self.quest_ui.draw(screen)
+        if self.generator_ui.visible:
+            self.generator_ui.draw(screen)
+            
+        # Update display
+        pygame.display.flip()
+
+    def _spawn_initial_monsters(self):
+        """Spawn initial set of monsters."""
+        # Use a wider variety of monster types for initial spawn
+        monster_types = [
+            # Original monsters
+            MonsterType.SLIME, MonsterType.SPIDER, MonsterType.WOLF,
+            # Elemental creatures
+            MonsterType.FIRE_ELEMENTAL, MonsterType.ICE_ELEMENTAL, MonsterType.STORM_ELEMENTAL,
+            # Undead
+            MonsterType.ZOMBIE, MonsterType.WRAITH, MonsterType.VAMPIRE,
+            # Magical creatures
+            MonsterType.PIXIE, MonsterType.PHOENIX, MonsterType.UNICORN,
+            # Forest creatures
+            MonsterType.TREANT, MonsterType.BEAR, MonsterType.DRYAD,
+            # Dark creatures
+            MonsterType.DEMON, MonsterType.SHADOW_STALKER, MonsterType.NIGHTMARE,
+            # Constructs
+            MonsterType.CLOCKWORK_KNIGHT, MonsterType.STEAM_GOLEM, MonsterType.ARCANE_TURRET,
+            # Crystal Creatures
+            MonsterType.CRYSTAL_GOLEM, MonsterType.PRISM_ELEMENTAL, MonsterType.GEM_BASILISK
+        ]
+        spawn_count = 0
+        
+        # Try to spawn 2-3 of each type
+        for monster_type in monster_types:
+            print(f"\nSpawning {monster_type.name} monsters...")
+            for _ in range(random.randint(2, 3)):  # Random number of each type
+                # Generate position away from player
+                tile_x = random.randint(5, self.map.width - 6)
+                tile_y = random.randint(5, self.map.height - 6)
+                pixel_x = tile_x * TILE_SIZE
+                pixel_y = tile_y * TILE_SIZE
+                
+                # Check distance from player
+                dx = pixel_x - self.player.x
+                dy = pixel_y - self.player.y
+                distance = math.sqrt(dx * dx + dy * dy)
+                
+                if distance < 200:  # Minimum spawn distance
+                    print(f"Skip: Too close to player at ({tile_x}, {tile_y})")
+                    continue
+                
+                if self.map.is_wall(tile_x, tile_y):
+                    print(f"Skip: Wall at ({tile_x}, {tile_y})")
+                    continue
+                
+                # Spawn monster
+                monster = Monster(pixel_x, pixel_y, monster_type)
+                self.monsters.append(monster)
+                self.monster_counts[monster_type] += 1
+                spawn_count += 1
+                print(f"Spawned {monster_type.name} at ({tile_x}, {tile_y})")
+        
+        print(f"\nInitial spawn complete - {spawn_count} monsters spawned")
+
+    def _try_spawn_monster(self, monster_type=None):
+        """Try to spawn a monster of the given type or a random type."""
+        if len(self.monsters) >= MAX_MONSTERS:
+            print("Maximum monster count reached")
+            return False
+
+        # If no specific type provided, choose a random one from an expanded list
+        if monster_type is None:
+            monster_type = random.choice([
+                # Original monsters
+                MonsterType.SLIME, MonsterType.SPIDER, MonsterType.WOLF,
+                # Elemental creatures
+                MonsterType.FIRE_ELEMENTAL, MonsterType.ICE_ELEMENTAL, MonsterType.STORM_ELEMENTAL,
+                # Undead
+                MonsterType.ZOMBIE, MonsterType.WRAITH, MonsterType.VAMPIRE,
+                # Magical creatures
+                MonsterType.PIXIE, MonsterType.PHOENIX, MonsterType.UNICORN,
+                # Forest creatures
+                MonsterType.TREANT, MonsterType.BEAR, MonsterType.DRYAD,
+                # Dark creatures
+                MonsterType.DEMON, MonsterType.SHADOW_STALKER, MonsterType.NIGHTMARE,
+                # Constructs
+                MonsterType.CLOCKWORK_KNIGHT, MonsterType.STEAM_GOLEM, MonsterType.ARCANE_TURRET,
+                # Crystal Creatures
+                MonsterType.CRYSTAL_GOLEM, MonsterType.PRISM_ELEMENTAL, MonsterType.GEM_BASILISK
+            ])
+
+        # Try multiple positions until we find a valid one
+        for _ in range(10):  # Try up to 10 different positions
+            # Generate random position in tile coordinates
+            tile_x = random.randint(2, self.map.width - 3)
+            tile_y = random.randint(2, self.map.height - 3)
+            
+            # Convert to pixel coordinates
+            pixel_x = tile_x * TILE_SIZE
+            pixel_y = tile_y * TILE_SIZE
+            
+            # Check if position is walkable
+            if self.map.is_wall(tile_x, tile_y):
+                continue
+                
+            # Check distance from player
+            dx = pixel_x - self.player.x
+            dy = pixel_y - self.player.y
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            min_distance = 200  # Increased minimum spawn distance
+            if distance < min_distance:
+                continue
+                
+            # Check if we've reached max count for this type
+            max_count = 10  # Default max count per type
+            if self.monster_counts[monster_type] >= max_count:
+                print(f"Max count reached for {monster_type.name}")
+                return False
+                
+            # Valid position found, spawn the monster
+            monster = Monster(pixel_x, pixel_y, monster_type)
+            self.monsters.append(monster)
+            self.monster_counts[monster_type] += 1
+            print(f"Spawned {monster_type.name} at tile ({tile_x}, {tile_y})")
+            return True
+            
+        print(f"Failed to find valid spawn position for {monster_type.name}")
+        return False
+        
+    def _handle_monster_death(self, monster: Monster):
+        """Handle monster death and potential item drops."""
+        self.monster_counts[monster.monster_type] -= 1
+        self.monsters.remove(monster)
+        
+        # Handle special death effects
+        if monster.monster_type == MonsterType.SLIME:
+            # Create smaller slimes
+            if monster.size > 16:  # Minimum size check
+                for _ in range(2):
+                    new_slime = Monster(
+                        monster.x + random.randint(-20, 20),
+                        monster.y + random.randint(-20, 20),
+                        MonsterType.SLIME
+                    )
+                    new_slime.size = max(16, monster.size - 8)
+                    new_slime.health = new_slime.size * 2
+                    new_slime.max_health = new_slime.health
+                    self.monsters.append(new_slime)
+                    self.monster_counts[MonsterType.SLIME] += 1
 
 class Equipment:
     """Class to manage equipped items."""
@@ -212,97 +477,6 @@ class Inventory:
             return self.items[index]
         return None
 
-class Player(pygame.sprite.Sprite):
-    def __init__(self, x: int, y: int):
-        super().__init__()
-        # Create a more visible player sprite
-        self.image = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        self.image.fill(BLUE)
-        # Add a white border to make the player more visible
-        pygame.draw.rect(self.image, WHITE, self.image.get_rect(), 2)
-        self.rect = self.image.get_rect()
-        self.rect.x = x * TILE_SIZE
-        self.rect.y = y * TILE_SIZE
-        self.speed = 5
-        self.health = 100
-        self.max_health = 100
-        self.attack_power = 10
-        self.defense = 5
-        self.inventory = Inventory()
-        self.equipment = Equipment()
-        self.quest_log = QuestLog()
-        self.level = 1
-        self.experience = 0
-        self.gold = 0
-
-    def update(self):
-        """Update player state"""
-        pass  # Add any necessary update logic here
-
-    def attack(self):
-        """Perform an attack"""
-        print(f"Player attacks with power {self.attack_power}")
-
-    def recalculate_stats(self):
-        """Recalculate player stats based on equipped items"""
-        base_attack = 10
-        base_defense = 5
-        
-        # Add weapon attack power
-        weapon = self.equipment.get_equipped_item('weapon')
-        if weapon:
-            base_attack += weapon.attack_power
-            
-        # Add armor defense
-        for slot in ['head', 'chest', 'legs', 'feet']:
-            armor = self.equipment.get_equipped_item(slot)
-            if armor:
-                base_defense += armor.defense
-                
-        self.attack_power = base_attack
-        self.defense = base_defense
-
-    def equip_item(self, item: Item) -> bool:
-        if self.equipment.equip_item(item):
-            self.recalculate_stats()
-            return True
-        return False
-
-    def unequip_item(self, slot: str) -> Optional[Item]:
-        item = self.equipment.unequip_item(slot)
-        if item:
-            self.recalculate_stats()
-        return item
-
-    def move(self, dx: int, dy: int, walls: pygame.sprite.Group):
-        self.rect.x += dx * self.speed
-        self.rect.y += dy * self.speed
-        
-        # Check for collisions with walls
-        for wall in walls:
-            if self.rect.colliderect(wall.rect):
-                if dx > 0:  # Moving right
-                    self.rect.right = wall.rect.left
-                if dx < 0:  # Moving left
-                    self.rect.left = wall.rect.right
-                if dy > 0:  # Moving down
-                    self.rect.bottom = wall.rect.top
-                if dy < 0:  # Moving up
-                    self.rect.top = wall.rect.bottom
-
-    def draw(self, screen: pygame.Surface, camera: Camera):
-        """Draw the player on the screen"""
-        screen.blit(self.image, camera.apply(self))
-        
-    def add_experience(self, amount: int):
-        """Add experience points to the player."""
-        self.experience += amount
-        # TODO: Add level up logic
-        
-    def add_gold(self, amount: int):
-        """Add gold to the player's currency."""
-        self.gold += amount
-
 class Wall(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int):
         super().__init__()
@@ -314,6 +488,7 @@ class Wall(pygame.sprite.Sprite):
 
 def create_map(width: int, height: int) -> Tuple[pygame.sprite.Group, List[List[int]]]:
     """Create a simple map with walls around the edges"""
+    print("Creating map...")
     walls = pygame.sprite.Group()
     map_grid = [[0 for _ in range(width)] for _ in range(height)]
     
@@ -330,79 +505,95 @@ def create_map(width: int, height: int) -> Tuple[pygame.sprite.Group, List[List[
         map_grid[y][0] = 1
         map_grid[y][width - 1] = 1
     
+    print("Map created")
     return walls, map_grid
 
 def initialize_game():
-    """Initialize the game state."""
-    # ... existing code ...
-    
-    # Generate quests
-    quest_generator = QuestGenerator(item_generator)
-    
-    # Generate main quest chains
-    for _ in range(2):  # 2 main quest chains (6 quests total)
-        chain_id = f"chain_{random.randint(1000, 9999)}"
-        quests = quest_generator.generate_quest_chain(chain_id, QuestType.MAIN)
-        for quest in quests:
-            player.quest_log.add_quest(quest)
-    
-    # Generate individual main quests
-    for _ in range(4):  # 4 individual main quests
-        quest = quest_generator.generate_quest(QuestType.MAIN)
-        player.quest_log.add_quest(quest)
-    
-    # Generate side quests
-    for _ in range(6):  # 6 side quests
-        quest = quest_generator.generate_quest(QuestType.SIDE)
-        player.quest_log.add_quest(quest)
-    
-    # Generate daily quests
-    for _ in range(4):  # 4 daily quests
-        quest = quest_generator.generate_quest(QuestType.DAILY)
-        player.quest_log.add_quest(quest)
-    
-    # ... existing code ...
+    """Initialize the game and return the game state."""
+    try:
+        print("Initializing game...")
+        # Initialize Pygame
+        pygame.init()
+        print("Pygame initialized")
+        
+        # Create screen
+        print("Creating screen...")
+        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption("RPG Game")
+        print("Screen created")
+        
+        # Create game map
+        print("Creating game map...")
+        game_map = Map(50, 50)  # 50x50 grid
+        if not game_map:
+            raise RuntimeError("Failed to create game map")
+        print("Game map created")
+        
+        # Create player at center of map
+        print("Creating player...")
+        spawn_pos = (game_map.width * TILE_SIZE // 2, game_map.height * TILE_SIZE // 2)  # Center of map in pixels
+        print(f"Player spawn position: ({spawn_pos[0] // TILE_SIZE}, {spawn_pos[1] // TILE_SIZE})")
+        player = Player(spawn_pos[0], spawn_pos[1])
+        if not player:
+            raise RuntimeError("Failed to create player")
+        print("Player created")
+        
+        # Create camera
+        print("Creating camera...")
+        camera = Camera(player)
+        camera.set_map_bounds(game_map.width * TILE_SIZE, game_map.height * TILE_SIZE)
+        if not camera:
+            raise RuntimeError("Failed to create camera")
+        print("Camera created")
+        
+        # Create quest generator
+        print("Creating quest generator...")
+        item_generator = ItemGenerator()
+        quest_generator = QuestGenerator(item_generator, game_map)
+        if not quest_generator:
+            raise RuntimeError("Failed to create quest generator")
+        print("Quest generator created")
+        
+        # Create game state
+        print("Creating game state...")
+        game_state = GameState(screen)
+        if not game_state:
+            raise RuntimeError("Failed to initialize game state")
+        print("Game state created")
+        
+        # Initialize player quests
+        print("Initializing player quests...")
+        game_state.initialize_player_quests(player)
+        print("Player quests initialized")
+        
+        print("Game initialization complete")
+        return game_state
+    except Exception as e:
+        print(f"Error during game initialization: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 def main():
+    """Main game loop."""
+    print("Starting main function...")
+    
+    # Initialize Pygame
     pygame.init()
+    print("Pygame initialized")
+    
+    # Set up display
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("RPG Game")
+    print("Display mode set")
+    
+    # Create clock for timing
     clock = pygame.time.Clock()
+    print("Clock created")
     
-    # Initialize game state and load assets
-    game_state = GameState()
-    game_state.load_assets()
-    
-    # Create map
-    map_width = 50
-    map_height = 50
-    walls, map_grid = create_map(map_width, map_height)
-    
-    # Create game objects
-    player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-    camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
-    
-    # Calculate UI positions
-    inventory_width = 300
-    equipment_width = 300
-    quest_width = 400
-    spacing = 20
-    
-    # Center windows with proper spacing
-    total_width = inventory_width + spacing + equipment_width
-    start_x = (SCREEN_WIDTH - total_width) // 2
-    
-    # Create UI elements with calculated positions
-    inventory_ui = InventoryUI(start_x, 50)  # Left side
-    equipment_ui = EquipmentUI(start_x + inventory_width + spacing, 50)  # Right side
-    item_generator = ItemGeneratorUI(start_x + inventory_width + spacing, 50)  # Right side, same position as equipment
-    quest_ui = QuestUI((SCREEN_WIDTH - quest_width) // 2, 50, width=quest_width)  # Centered
-    
-    # Set initial quests
-    initialize_game()
-    
-    # Initialize mode
-    current_mode = None  # None, "equip", "generate", or "quest"
+    # Create game state (it will create all other components)
+    game_state = GameState(screen)
+    print("Game state created")
     
     # Main game loop
     running = True
@@ -412,118 +603,36 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_i:
-                    if current_mode == "equip":
-                        current_mode = None
-                        inventory_ui.visible = False
-                        equipment_ui.visible = False
-                    else:
-                        current_mode = "equip"
-                        inventory_ui.visible = True
-                        equipment_ui.visible = True
-                        item_generator.visible = False
-                        quest_ui.visible = False
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+                elif event.key == pygame.K_i:
+                    game_state.inventory_ui.toggle()
+                elif event.key == pygame.K_e:
+                    game_state.equipment_ui.toggle()
+                elif event.key == pygame.K_q:
+                    game_state.quest_ui.toggle()
                 elif event.key == pygame.K_g:
-                    if current_mode == "generate":
-                        current_mode = None
-                        inventory_ui.visible = False
-                        item_generator.visible = False
-                    else:
-                        current_mode = "generate"
-                        inventory_ui.visible = True
-                        item_generator.visible = True
-                        equipment_ui.visible = False
-                        quest_ui.visible = False
-                elif event.key == pygame.K_j:  # J for Journal
-                    if current_mode == "quest":
-                        current_mode = None
-                        quest_ui.visible = False
-                    else:
-                        current_mode = "quest"
-                        quest_ui.visible = True
-                        inventory_ui.visible = False
-                        equipment_ui.visible = False
-                        item_generator.visible = False
-                elif event.key == pygame.K_ESCAPE:
-                    current_mode = None
-                    inventory_ui.visible = False
-                    equipment_ui.visible = False
-                    item_generator.visible = False
-                    quest_ui.visible = False
+                    game_state.generator_ui.toggle()
             
-            # Handle UI events only if in a mode
-            if current_mode:
-                # Always handle inventory events first
-                inventory_handled = inventory_ui.handle_event(event, player)
-                
-                if current_mode == "equip":
-                    equipment_handled = equipment_ui.handle_event(event, player)
-                    if inventory_handled or equipment_handled:
-                        continue
-                elif current_mode == "generate":
-                    if inventory_handled or item_generator.handle_event(event, player):
-                        continue
-                elif current_mode == "quest":
-                    if quest_ui.handle_event(event, player):
-                        continue
-            
-            # Handle player movement only if not in any mode
-            if not current_mode:
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_LEFT:
-                        player.move(-1, 0, walls)
-                    elif event.key == pygame.K_RIGHT:
-                        player.move(1, 0, walls)
-                    elif event.key == pygame.K_UP:
-                        player.move(0, -1, walls)
-                    elif event.key == pygame.K_DOWN:
-                        player.move(0, 1, walls)
-                    elif event.key == pygame.K_SPACE:
-                        player.attack()
+            # Pass events to UI elements
+            game_state.inventory_ui.handle_event(event)
+            game_state.equipment_ui.handle_event(event)
+            game_state.quest_ui.handle_event(event)
+            if game_state.generator_ui.visible:  # Only handle events when visible
+                game_state.generator_ui.handle_event(event, game_state.player)
         
         # Update game state
-        player.update()
-        camera.update(player)
-        
-        # Update UI elements based on current mode
-        if current_mode:
-            # Always update inventory UI first
-            inventory_ui.update()
-            if current_mode == "equip":
-                equipment_ui.update()
-            elif current_mode == "generate":
-                item_generator.update()
-            elif current_mode == "quest":
-                quest_ui.update()
+        dt = clock.tick(60) / 1000.0  # Convert to seconds
+        game_state.update(dt)
         
         # Draw everything
-        screen.fill(BLACK)
+        game_state.draw(screen)
         
-        # Draw map
-        for y, row in enumerate(map_grid):
-            for x, cell in enumerate(row):
-                if cell == 1:  # Wall
-                    screen.blit(game_state.assets['wall'], (x * TILE_SIZE - camera.x, y * TILE_SIZE - camera.y))
-                else:  # Floor
-                    screen.blit(game_state.assets['floor'], (x * TILE_SIZE - camera.x, y * TILE_SIZE - camera.y))
-        
-        # Draw player
-        player.draw(screen, camera)
-        
-        # Draw UI elements based on current mode
-        if current_mode:
-            if current_mode == "equip":
-                inventory_ui.draw(screen, player)
-                equipment_ui.draw(screen, player)
-            elif current_mode == "generate":
-                inventory_ui.draw(screen, player)
-                item_generator.draw(screen, player)
-            elif current_mode == "quest":
-                quest_ui.draw(screen, player)
-            
-        pygame.display.flip()
-        clock.tick(60)
+        # Print FPS (using carriage return to stay on same line)
+        fps = clock.get_fps()
+        print(f"FPS: {fps:.1f}", end='\r')
     
+    # Clean up
     pygame.quit()
 
 if __name__ == "__main__":

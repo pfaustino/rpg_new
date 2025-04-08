@@ -129,14 +129,14 @@ class QuestUI:
         self.max_scroll = max(0, content_height - self.QUEST_LIST_HEIGHT)
         self.scroll_offset = min(self.scroll_offset, self.max_scroll)
     
-    def draw(self):
+    def draw(self, screen: pygame.Surface):
         """Draw the quest UI."""
         if not self.visible:
             return
         
         # Draw main panel background
         draw_rect_with_border(
-            self.screen,
+            screen,  # Use the passed screen
             (self.x, self.y, self.PANEL_WIDTH, self.PANEL_HEIGHT),
             DARK_GRAY,
             WHITE
@@ -147,7 +147,7 @@ class QuestUI:
         
         # Draw quest list panel
         draw_rect_with_border(
-            self.screen,
+            screen,  # Use the passed screen
             (self.quest_list_x, self.quest_list_y, self.QUEST_LIST_WIDTH, self.QUEST_LIST_HEIGHT),
             BLACK,
             WHITE
@@ -158,7 +158,7 @@ class QuestUI:
         
         # Draw details panel
         draw_rect_with_border(
-            self.screen,
+            screen,  # Use the passed screen
             (self.details_x, self.details_y, self.details_width, self.details_height),
             BLACK,
             WHITE
