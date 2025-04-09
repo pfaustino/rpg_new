@@ -6,16 +6,177 @@ import os
 import pygame
 from typing import Dict
 from .constants import TILE_SIZE
+from .map import TileType
+import random
+import math
 
 def load_assets() -> Dict[str, pygame.Surface]:
     """Load all game assets."""
     assets = {}
     
-    # Create basic colored tiles if image assets don't exist
+    # First attempt to load tile textures from files
+    load_tile_textures(assets)
+    
+    # Define base colors for different tile types (used as fallback)
+    TILE_COLORS = {
+        # Base tiles
+        TileType.GRASS: (34, 139, 34),    # Forest green
+        TileType.DIRT: (139, 69, 19),     # Saddle brown
+        TileType.SAND: (238, 214, 175),   # Tan
+        TileType.WATER: (0, 105, 148),    # Deep blue
+        TileType.STONE: (128, 128, 128),  # Gray
+        # Decorative tiles
+        TileType.FLOWER: (255, 192, 203), # Pink
+        TileType.TREE: (0, 100, 0),       # Dark green
+        TileType.BUSH: (0, 120, 0),       # Medium green
+        TileType.ROCK: (169, 169, 169),   # Dark gray
+        TileType.REED: (205, 133, 63),    # Peru brown
+    }
+    
+    # Create procedural surfaces for any missing tile type
+    for tile_type in TileType:
+        # Skip if already loaded from file
+        if tile_type.value in assets:
+            continue
+            
+        surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        color = TILE_COLORS.get(tile_type, (128, 128, 128))  # Default to gray
+        surface.fill(color)
+        
+        # Add texture/pattern based on tile type
+        if tile_type == TileType.GRASS:
+            # Add grass texture with small random dots
+            for _ in range(10):
+                x = random.randint(0, TILE_SIZE-2)
+                y = random.randint(0, TILE_SIZE-2)
+                pygame.draw.circle(surface, (45, 160, 45), (x, y), 1)
+        
+        elif tile_type == TileType.WATER:
+            # Add water ripple effect
+            for i in range(3):
+                y = TILE_SIZE // 4 + i * (TILE_SIZE // 4)
+                pygame.draw.line(surface, (0, 120, 160), (0, y), (TILE_SIZE, y), 1)
+        
+        elif tile_type == TileType.SAND:
+            # Create a more distinctive sand texture
+            surface.fill((255, 223, 128))  # Brighter yellow/tan color
+            # Add sand texture with tiny dots and patterns
+            for _ in range(30):  # More dots for more texture
+                x = random.randint(0, TILE_SIZE-1)
+                y = random.randint(0, TILE_SIZE-1)
+                # Vary the dot colors for a more sandy appearance
+                dot_color = (
+                    random.randint(220, 255), 
+                    random.randint(200, 223), 
+                    random.randint(100, 150)
+                )
+                pygame.draw.circle(surface, dot_color, (x, y), random.randint(1, 2))
+            
+            # Add some sand ripple lines
+            for i in range(2):
+                y = TILE_SIZE // 3 + i * (TILE_SIZE // 3)
+                wave_points = []
+                for x in range(0, TILE_SIZE, 4):
+                    offset = math.sin(x * 0.2) * 2
+                    wave_points.append((x, y + offset))
+                if len(wave_points) > 1:
+                    pygame.draw.lines(surface, (220, 190, 100), False, wave_points, 1)
+        
+        elif tile_type == TileType.STONE:
+            # Create a more distinctive stone texture
+            base_color = (120, 120, 120)  # Medium gray
+            surface.fill(base_color)
+            
+            # Add stone texture with varied gray shades for a rocky appearance
+            for _ in range(20):
+                x = random.randint(0, TILE_SIZE-1)
+                y = random.randint(0, TILE_SIZE-1)
+                size = random.randint(2, 5)
+                shade = random.randint(100, 150)
+                stone_color = (shade, shade, shade)
+                pygame.draw.circle(surface, stone_color, (x, y), size)
+            
+            # Add cracks for more stone-like appearance
+            for _ in range(3):
+                start_x = random.randint(0, TILE_SIZE)
+                start_y = random.randint(0, TILE_SIZE)
+                end_x = start_x + random.randint(-10, 10)
+                end_y = start_y + random.randint(-10, 10)
+                pygame.draw.line(surface, (90, 90, 90), (start_x, start_y), (end_x, end_y), 1)
+        
+        elif tile_type == TileType.DIRT:
+            # Enhance dirt texture
+            surface.fill((139, 69, 19))  # Brown
+            # Add dirt specks
+            for _ in range(20):
+                x = random.randint(0, TILE_SIZE-1)
+                y = random.randint(0, TILE_SIZE-1)
+                size = random.randint(1, 3)
+                # Vary between lighter and darker browns
+                if random.random() < 0.5:
+                    speck_color = (160, 82, 45)  # Lighter brown
+                else:
+                    speck_color = (101, 67, 33)  # Darker brown
+                pygame.draw.circle(surface, speck_color, (x, y), size)
+        
+        elif tile_type == TileType.FLOWER:
+            # Draw a simple flower
+            center = (TILE_SIZE//2, TILE_SIZE//2)
+            pygame.draw.circle(surface, (255, 255, 0), center, 3)  # Center
+            for angle in range(0, 360, 72):  # 5 petals
+                x = center[0] + int(math.cos(math.radians(angle)) * 5)
+                y = center[1] + int(math.sin(math.radians(angle)) * 5)
+                pygame.draw.circle(surface, (255, 192, 203), (x, y), 3)
+        
+        elif tile_type == TileType.TREE:
+            # Draw a simple tree
+            trunk_color = (139, 69, 19)  # Brown
+            leaves_color = (0, 100, 0)   # Dark green
+            # Trunk
+            pygame.draw.rect(surface, trunk_color, 
+                           (TILE_SIZE//2 - 2, TILE_SIZE//2, 4, TILE_SIZE//2))
+            # Leaves
+            pygame.draw.circle(surface, leaves_color, 
+                             (TILE_SIZE//2, TILE_SIZE//3), TILE_SIZE//3)
+        
+        elif tile_type == TileType.BUSH:
+            # Draw a simple bush
+            for _ in range(5):
+                x = random.randint(TILE_SIZE//4, 3*TILE_SIZE//4)
+                y = random.randint(TILE_SIZE//4, 3*TILE_SIZE//4)
+                pygame.draw.circle(surface, (0, 120, 0), (x, y), TILE_SIZE//6)
+        
+        elif tile_type == TileType.ROCK:
+            # Draw a rock with some shading
+            points = [
+                (TILE_SIZE//4, 3*TILE_SIZE//4),
+                (TILE_SIZE//4, TILE_SIZE//2),
+                (TILE_SIZE//2, TILE_SIZE//4),
+                (3*TILE_SIZE//4, TILE_SIZE//2),
+                (3*TILE_SIZE//4, 3*TILE_SIZE//4)
+            ]
+            pygame.draw.polygon(surface, (169, 169, 169), points)
+            # Add highlight
+            pygame.draw.line(surface, (192, 192, 192),
+                           points[1], points[2], 2)
+        
+        elif tile_type == TileType.REED:
+            # Draw some reeds
+            for i in range(3):
+                x = TILE_SIZE//4 + i * (TILE_SIZE//4)
+                pygame.draw.line(surface, (205, 133, 63),
+                               (x, TILE_SIZE), (x, TILE_SIZE//3), 2)
+                # Add reed head
+                pygame.draw.ellipse(surface, (139, 69, 19),
+                                  (x-2, TILE_SIZE//3-4, 4, 8))
+        
+        assets[tile_type.value] = surface
+    
+    # Load or create other required assets
     wall_surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
     wall_surface.fill((100, 100, 100))  # Gray for walls
-    pygame.draw.rect(wall_surface, (80, 80, 80), 
-                    (1, 1, TILE_SIZE-2, TILE_SIZE-2))  # Darker border
+    pygame.draw.rect(wall_surface, (80, 80, 80),  # Darker border
+                    (0, 0, TILE_SIZE, TILE_SIZE), 2)
     assets['wall'] = wall_surface
     
     floor_surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
@@ -59,3 +220,36 @@ def load_assets() -> Dict[str, pygame.Surface]:
     assets['item'] = item_surface
     
     return assets 
+
+def load_tile_textures(assets: Dict[str, pygame.Surface]) -> None:
+    """Load tile textures from files."""
+    print("\n" + "="*50)
+    print("LOADING TILE TEXTURES")
+    print("Current working directory:", os.getcwd())
+    print("="*50 + "\n")
+    
+    # Check for grass texture
+    grass_texture_path = os.path.join('assets', 'images', 'tiles', 'tile_floor_grass.png')
+    print(f"Looking for grass texture at: {os.path.abspath(grass_texture_path)}")
+    if os.path.exists(grass_texture_path):
+        try:
+            print(f"FOUND! Loading grass texture from: {grass_texture_path}")
+            grass_surface = pygame.image.load(grass_texture_path).convert_alpha()
+            assets[TileType.GRASS.value] = grass_surface
+            print(f"Successfully loaded grass texture, size: {grass_surface.get_size()}")
+        except Exception as e:
+            print(f"ERROR loading grass texture: {e}")
+    else:
+        print(f"Grass texture file NOT FOUND at: {grass_texture_path}")
+        print("Available files in assets directory:")
+        try:
+            base_path = os.path.join('assets', 'images', 'tiles')
+            if os.path.exists(base_path):
+                for file in os.listdir(base_path):
+                    print(f"  - {file}")
+            else:
+                print(f"  Directory {base_path} does not exist")
+        except Exception as e:
+            print(f"  Error listing directory: {e}")
+
+    # Add more tile textures here when available 

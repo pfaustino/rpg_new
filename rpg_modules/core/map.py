@@ -4,109 +4,216 @@ Map management for the RPG game.
 
 import pygame
 import random
-from typing import List, Tuple, Dict, Optional
+import math
+from opensimplex import OpenSimplex
+from typing import List, Tuple, Dict, Optional, Set
+from enum import Enum
 from .constants import TILE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT
 
-class Map:
-    """Class for managing the game world map."""
+class BiomeType(Enum):
+    GRASSLAND = "grassland"
+    FOREST = "forest"
+    DESERT = "desert"
+    SWAMP = "swamp"
+    MOUNTAIN = "mountain"
+
+class TileType(Enum):
+    # Base tiles
+    GRASS = "grass"
+    DIRT = "dirt"
+    SAND = "sand"
+    WATER = "water"
+    STONE = "stone"
+    # Decorative tiles
+    FLOWER = "flower"
+    TREE = "tree"
+    BUSH = "bush"
+    ROCK = "rock"
+    REED = "reed"
     
-    def __init__(self, width: int = 50, height: int = 50):
-        """
-        Initialize the map.
-        
-        Args:
-            width: Width of the map in tiles (default: 50)
-            height: Height of the map in tiles (default: 50)
-        """
+class Map:
+    """Class for managing the game world map with biomes and varied terrain."""
+    
+    BIOME_CONFIG = {
+        BiomeType.GRASSLAND: {
+            "base_tiles": [(TileType.GRASS, 0.7), (TileType.DIRT, 0.3)],
+            "decorations": [(TileType.FLOWER, 0.1), (TileType.BUSH, 0.05)],
+            "elevation_range": (0.2, 0.5),
+            "moisture_range": (0.3, 0.6)
+        },
+        BiomeType.FOREST: {
+            "base_tiles": [(TileType.GRASS, 0.8), (TileType.DIRT, 0.2)],
+            "decorations": [(TileType.TREE, 0.15), (TileType.BUSH, 0.1), (TileType.FLOWER, 0.05)],
+            "elevation_range": (0.3, 0.7),
+            "moisture_range": (0.6, 1.0)
+        },
+        BiomeType.DESERT: {
+            "base_tiles": [(TileType.SAND, 0.9), (TileType.DIRT, 0.1)],
+            "decorations": [(TileType.ROCK, 0.05)],
+            "elevation_range": (0.0, 0.3),
+            "moisture_range": (0.0, 0.2)
+        },
+        BiomeType.SWAMP: {
+            "base_tiles": [(TileType.DIRT, 0.6), (TileType.WATER, 0.4)],
+            "decorations": [(TileType.REED, 0.1), (TileType.BUSH, 0.05)],
+            "elevation_range": (0.0, 0.3),
+            "moisture_range": (0.7, 1.0)
+        },
+        BiomeType.MOUNTAIN: {
+            "base_tiles": [(TileType.STONE, 0.8), (TileType.DIRT, 0.2)],
+            "decorations": [(TileType.ROCK, 0.2)],
+            "elevation_range": (0.7, 1.0),
+            "moisture_range": (0.2, 0.5)
+        }
+    }
+    
+    def __init__(self, width: int = 50, height: int = 50, seed: Optional[int] = None):
+        """Initialize the map with biomes and varied terrain."""
         self.width = width
         self.height = height
         self.pixel_width = width * TILE_SIZE
         self.pixel_height = height * TILE_SIZE
+        self.seed = seed if seed is not None else random.randint(0, 1000000)
         
-        # Initialize map grid (0 = floor/grass, 1 = wall/obstacle)
-        self.grid = [[0 for _ in range(width)] for _ in range(height)]
+        # Initialize noise generators
+        self.elevation_noise = OpenSimplex(seed=self.seed)
+        self.moisture_noise = OpenSimplex(seed=self.seed + 1)
+        
+        # Initialize map layers
+        self.biome_grid = [[BiomeType.GRASSLAND for _ in range(width)] for _ in range(height)]
+        self.base_grid = [[TileType.GRASS for _ in range(width)] for _ in range(height)]
+        self.decoration_grid = [[None for _ in range(width)] for _ in range(height)]
+        self.collision_grid = [[False for _ in range(width)] for _ in range(height)]
         
         # List of wall rectangles for collision detection
         self.walls: List[pygame.Rect] = []
         
-        # Generate initial map
+        # Generate the map
         self._generate_map()
         
     def _generate_map(self) -> None:
-        """Generate an outdoor map with scattered obstacles."""
-        # Start with all grass (0)
+        """Generate a varied terrain map with different biomes."""
+        # Create noise maps for elevation and moisture
+        elevation = [[0 for _ in range(self.width)] for _ in range(self.height)]
+        moisture = [[0 for _ in range(self.width)] for _ in range(self.height)]
+        
+        # Fill with noise values
+        elevation_min = 1.0
+        elevation_max = -1.0
+        moisture_min = 1.0
+        moisture_max = -1.0
+        
+        # Increase noise scale for more distinct biome borders
+        noise_scale = 0.08  # Lower values create larger, more distinct regions
+
+        print("Generating terrain with noise...")
         for y in range(self.height):
             for x in range(self.width):
-                self.grid[y][x] = 0
+                # Get noise values
+                ex = x * noise_scale
+                ey = y * noise_scale
+                elevation[y][x] = self.elevation_noise.noise2(ex, ey)
+                moisture[y][x] = self.moisture_noise.noise2(ex + 100, ey + 100)
+                
+                # Track min/max for normalization
+                elevation_min = min(elevation_min, elevation[y][x])
+                elevation_max = max(elevation_max, elevation[y][x])
+                moisture_min = min(moisture_min, moisture[y][x])
+                moisture_max = max(moisture_max, moisture[y][x])
+        
+        # Create some distinct terrain features
+        # Create a desert area in the bottom left quadrant
+        for y in range(self.height // 2, self.height):
+            for x in range(0, self.width // 2):
+                elevation[y][x] = 0.15  # Low elevation for desert
+                moisture[y][x] = 0.1   # Low moisture for desert
+        
+        # Create a mountain area in the top right quadrant
+        for y in range(0, self.height // 2):
+            for x in range(self.width // 2, self.width):
+                elevation[y][x] = 0.8  # High elevation for mountains
+                moisture[y][x] = 0.3   # Medium-low moisture for mountains
+        
+        # Create a swamp area in the bottom right
+        for y in range(self.height // 2, self.height):
+            for x in range(self.width // 2, self.width):
+                if (x > self.width * 0.75 and y > self.height * 0.75):
+                    elevation[y][x] = 0.2  # Low elevation for swamp
+                    moisture[y][x] = 0.9   # High moisture for swamp
+        
+        print("Normalization and biome assignment...")
+        for y in range(self.height):
+            for x in range(self.width):
+                elevation[y][x] = (elevation[y][x] - elevation_min) / (elevation_max - elevation_min)
+                moisture[y][x] = (moisture[y][x] - moisture_min) / (moisture_max - moisture_min)
+                
+                # Determine biome based on elevation and moisture
+                self.biome_grid[y][x] = self._get_biome(elevation[y][x], moisture[y][x])
+                
+                # Generate base terrain
+                self.base_grid[y][x] = self._get_base_tile(self.biome_grid[y][x])
+                
+                # Add decorations
+                if random.random() < 0.1:  # 10% chance for decoration
+                    self.decoration_grid[y][x] = self._get_decoration(self.biome_grid[y][x])
+                    
+                # Update collision grid
+                self.collision_grid[y][x] = (self.base_grid[y][x] == TileType.WATER or 
+                                           self.decoration_grid[y][x] in {TileType.TREE, TileType.ROCK})
+        
+        # Ensure distinct terrain patches
+        self._add_terrain_patches()
         
         # Add border walls
-        for x in range(self.width):
-            self.grid[0][x] = 1  # Top wall
-            self.grid[self.height-1][x] = 1  # Bottom wall
-        for y in range(self.height):
-            self.grid[y][0] = 1  # Left wall
-            self.grid[y][self.width-1] = 1  # Right wall
-        
-        # Add random rock formations and obstacles
-        num_obstacles = random.randint(10, 15)
-        for _ in range(num_obstacles):
-            self._add_obstacle()
-        
-        # Add some small scattered rocks
-        num_rocks = random.randint(20, 30)
-        for _ in range(num_rocks):
-            x = random.randint(2, self.width - 3)
-            y = random.randint(2, self.height - 3)
-            if random.random() < 0.3:  # 30% chance for a 2x2 rock
-                for dx in range(2):
-                    for dy in range(2):
-                        self.grid[y+dy][x+dx] = 1
-            else:  # Single rock
-                self.grid[y][x] = 1
+        self._add_border_walls()
         
         # Update wall collision rectangles
         self._update_wall_rects()
         
-    def _add_obstacle(self) -> None:
-        """Add a natural-looking obstacle formation."""
-        # Choose random starting point
-        x = random.randint(3, self.width - 4)
-        y = random.randint(3, self.height - 4)
+    def _get_biome(self, elevation: float, moisture: float) -> BiomeType:
+        """Determine biome type based on elevation and moisture levels."""
+        for biome, config in self.BIOME_CONFIG.items():
+            elev_min, elev_max = config["elevation_range"]
+            moist_min, moist_max = config["moisture_range"]
+            
+            if (elev_min <= elevation <= elev_max and 
+                moist_min <= moisture <= moist_max):
+                return biome
         
-        # Determine obstacle size
-        size = random.randint(3, 6)
-        
-        # Create irregular shape using random walks
-        points = [(x, y)]
-        for _ in range(size):
-            last_x, last_y = points[-1]
-            for _ in range(3):  # Try 3 times to find valid position
-                dx = random.randint(-1, 1)
-                dy = random.randint(-1, 1)
-                new_x = last_x + dx
-                new_y = last_y + dy
-                if (2 <= new_x < self.width-2 and 
-                    2 <= new_y < self.height-2):
-                    points.append((new_x, new_y))
-                    break
-        
-        # Fill in the obstacle points
-        for px, py in points:
-            self.grid[py][px] = 1
-            # Sometimes extend the obstacle
-            if random.random() < 0.4:
-                for dx, dy in [(0,1), (1,0), (0,-1), (-1,0)]:
-                    nx, ny = px + dx, py + dy
-                    if (2 <= nx < self.width-2 and 
-                        2 <= ny < self.height-2):
-                        self.grid[ny][nx] = 1
-                    
+        return BiomeType.GRASSLAND  # Default biome
+    
+    def _get_base_tile(self, biome: BiomeType) -> TileType:
+        """Get a random base tile type based on biome configuration."""
+        tiles = self.BIOME_CONFIG[biome]["base_tiles"]
+        return random.choices([t[0] for t in tiles], 
+                           weights=[t[1] for t in tiles])[0]
+    
+    def _get_decoration(self, biome: BiomeType) -> Optional[TileType]:
+        """Get a random decoration type based on biome configuration."""
+        decorations = self.BIOME_CONFIG[biome]["decorations"]
+        if not decorations:
+            return None
+            
+        if random.random() < sum(d[1] for d in decorations):
+            return random.choices([d[0] for d in decorations],
+                               weights=[d[1] for d in decorations])[0]
+        return None
+    
+    def _add_border_walls(self) -> None:
+        """Add impassable borders around the map."""
+        for x in range(self.width):
+            self.collision_grid[0][x] = True
+            self.collision_grid[self.height-1][x] = True
+        for y in range(self.height):
+            self.collision_grid[y][0] = True
+            self.collision_grid[y][self.width-1] = True
+    
     def _update_wall_rects(self) -> None:
         """Update the list of wall rectangles for collision detection."""
         self.walls.clear()
         for y in range(self.height):
             for x in range(self.width):
-                if self.grid[y][x] == 1:
+                if self.collision_grid[y][x]:
                     self.walls.append(pygame.Rect(
                         x * TILE_SIZE,
                         y * TILE_SIZE,
@@ -126,14 +233,14 @@ class Map:
                 for dy in range(-radius, radius + 1):
                     x = center_x + dx
                     y = center_y + dy
-                    if 0 <= x < self.width and 0 <= y < self.height and self.grid[y][x] == 0:
+                    if 0 <= x < self.width and 0 <= y < self.height and not self.collision_grid[y][x]:
                         return x, y
                         
         # If no position found near center, fall back to random position
         while True:
             x = random.randint(1, self.width - 2)
             y = random.randint(1, self.height - 2)
-            if self.grid[y][x] == 0:  # If it's a floor tile
+            if not self.collision_grid[y][x]:  # If it's a walkable tile
                 return x, y
                 
     def is_wall(self, x: int, y: int) -> bool:
@@ -148,7 +255,7 @@ class Map:
             True if the tile is a wall, False otherwise
         """
         if 0 <= x < self.width and 0 <= y < self.height:
-            return self.grid[y][x] == 1
+            return self.collision_grid[y][x]
         return True  # Consider out-of-bounds as walls
         
     def is_valid_position(self, x: int, y: int) -> bool:
@@ -164,7 +271,7 @@ class Map:
         """
         return (0 <= x < self.width and 
                 0 <= y < self.height and 
-                not self.is_wall(x, y))
+                not self.collision_grid[y][x])
                 
     def is_walkable(self, x: int, y: int) -> bool:
         """
@@ -178,71 +285,179 @@ class Map:
             True if the tile is walkable (floor), False otherwise
         """
         if 0 <= x < self.width and 0 <= y < self.height:
-            return self.grid[y][x] == 0  # 0 = floor
+            return not self.collision_grid[y][x]
         return False  # Out of bounds is not walkable
         
     def get_walls(self) -> List[pygame.Rect]:
         """Get the list of wall rectangles for collision detection."""
         return self.walls
         
-    def draw(self, screen: pygame.Surface, camera, assets: Dict[str, pygame.Surface]) -> None:
+    def get_tile_at_position(self, pixel_x: int, pixel_y: int) -> Optional[TileType]:
         """
-        Draw the visible portion of the map.
+        Get the tile type at the given position in pixel coordinates.
         
         Args:
-            screen: The pygame surface to draw on
-            camera: The camera object tracking the player
-            assets: Dictionary of game assets including 'wall' and 'floor' tiles
-        """
-        # Create default surfaces if assets are missing
-        if 'floor' not in assets:
-            floor_surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
-            floor_surface.fill((50, 30, 20))  # Brown for floor
-            pygame.draw.rect(floor_surface, (60, 40, 30), 
-                           (1, 1, TILE_SIZE-2, TILE_SIZE-2))  # Lighter border
-            assets['floor'] = floor_surface
+            pixel_x: X position in pixels
+            pixel_y: Y position in pixels
             
-        if 'wall' not in assets:
-            wall_surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
-            wall_surface.fill((100, 100, 100))  # Gray for walls
-            pygame.draw.rect(wall_surface, (80, 80, 80), 
-                           (1, 1, TILE_SIZE-2, TILE_SIZE-2))  # Darker border
-            assets['wall'] = wall_surface
+        Returns:
+            The tile type at the given position, or None if out of bounds
+        """
+        # Convert pixel coordinates to tile coordinates
+        tile_x = int(pixel_x // TILE_SIZE)
+        tile_y = int(pixel_y // TILE_SIZE)
         
-        # Calculate the range of tiles that are visible
-        # Note: camera.x and camera.y are negative, so we negate them to get the correct range
-        start_x = max(0, int(-camera.x / TILE_SIZE))
-        end_x = min(self.width, int((-camera.x + SCREEN_WIDTH) / TILE_SIZE) + 1)
-        start_y = max(0, int(-camera.y / TILE_SIZE))
-        end_y = min(self.height, int((-camera.y + SCREEN_HEIGHT) / TILE_SIZE) + 1)
+        # Check if in bounds
+        if 0 <= tile_x < self.width and 0 <= tile_y < self.height:
+            return self.base_grid[tile_y][tile_x]
+        return None
         
-        # Draw visible tiles
+    def draw(self, screen, camera, assets):
+        """Draw the map on the screen."""
+        # Debug asset keys
+        print("\n" + "="*50)
+        print("MAP RENDERING")
+        print("Available assets:", list(assets.keys()))
+        print("TileType values for reference:", [t.value for t in TileType])
+        print("="*50 + "\n")
+        
+        # Calculate visible tile range based on camera position and zoom
+        zoom = camera.get_zoom()
+        effective_screen_width = int(SCREEN_WIDTH / zoom)
+        effective_screen_height = int(SCREEN_HEIGHT / zoom)
+        
+        # Calculate the range of tiles to draw
+        start_x = max(0, int((-camera.x) / TILE_SIZE))
+        end_x = min(self.width, start_x + effective_screen_width // TILE_SIZE + 2)
+        start_y = max(0, int((-camera.y) / TILE_SIZE))
+        end_y = min(self.height, start_y + effective_screen_height // TILE_SIZE + 2)
+        
+        # Create a temporary surface for the visible portion of the map
+        map_surface = pygame.Surface((effective_screen_width + 2 * TILE_SIZE, 
+                                    effective_screen_height + 2 * TILE_SIZE), 
+                                   pygame.SRCALPHA)
+        
+        # Draw tiles to the temporary surface
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
-                # Calculate screen position
-                # Since camera.x and camera.y are negative, we add them to get the correct screen position
-                screen_x = x * TILE_SIZE + camera.x
-                screen_y = y * TILE_SIZE + camera.y
+                # Get screen position
+                screen_x = int((x * TILE_SIZE + camera.x))
+                screen_y = int((y * TILE_SIZE + camera.y))
                 
-                # Draw floor tile
-                screen.blit(assets['floor'], (screen_x, screen_y))
+                # Draw base tile
+                base_tile = self.base_grid[y][x]
+                if base_tile.value in assets:
+                    # Debug for specific tiles we're trying to diagnose
+                    if base_tile in [TileType.STONE, TileType.SAND, TileType.DIRT]:
+                        print(f"Drawing {base_tile.value} tile at ({x}, {y}) with asset key: '{base_tile.value}'")
+                    map_surface.blit(assets[base_tile.value], (screen_x, screen_y))
+                else:
+                    print(f"WARNING: Missing asset for {base_tile.value} at ({x}, {y})")
+                    pygame.draw.rect(map_surface, (100, 100, 100),
+                                     (screen_x, screen_y, TILE_SIZE, TILE_SIZE))
                 
-                # Draw wall if present
-                if self.grid[y][x] == 1:
-                    screen.blit(assets['wall'], (screen_x, screen_y))
-                    
+                # Draw decoration
+                decoration = self.decoration_grid[y][x]
+                if decoration and decoration.value in assets:
+                    map_surface.blit(assets[decoration.value], (screen_x, screen_y))
+                elif decoration:
+                    print(f"WARNING: Missing asset for decoration {decoration.value} at ({x}, {y})")
+        
+        # Scale the map surface according to zoom level
+        if zoom != 1.0:
+            scaled_width = int(map_surface.get_width() * zoom)
+            scaled_height = int(map_surface.get_height() * zoom)
+            scaled_surface = pygame.transform.scale(map_surface, (scaled_width, scaled_height))
+            screen.blit(scaled_surface, (0, 0))
+        else:
+            screen.blit(map_surface, (0, 0))
+        
     def to_dict(self) -> Dict:
         """Convert map state to dictionary for serialization."""
         return {
             "width": self.width,
             "height": self.height,
-            "grid": self.grid
+            "collision_grid": self.collision_grid
         }
         
     @classmethod
     def from_dict(cls, data: Dict) -> 'Map':
         """Create a map from dictionary data."""
         map_obj = cls(data["width"], data["height"])
-        map_obj.grid = data["grid"]
+        map_obj.collision_grid = data["collision_grid"]
         map_obj._update_wall_rects()
         return map_obj 
+
+    def _add_terrain_patches(self):
+        """Add distinct patches of specific terrain types"""
+        # Add some stone outcroppings (mountains)
+        for _ in range(10):  # Increase to 10 stone patches
+            patch_x = random.randint(5, self.width - 10)
+            patch_y = random.randint(5, self.height - 10)
+            patch_size = random.randint(4, 10)  # Larger patches
+            
+            for dy in range(-patch_size, patch_size):
+                for dx in range(-patch_size, patch_size):
+                    y = patch_y + dy
+                    x = patch_x + dx
+                    # Check if position is in bounds
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        # Create a jagged circular patch with noise
+                        distance = math.sqrt(dx**2 + dy**2)
+                        noise_factor = random.random() * 2  # Add some randomness
+                        if distance <= patch_size + noise_factor - 1:
+                            self.base_grid[y][x] = TileType.STONE
+        
+        # Add some sand patches (deserts)
+        for _ in range(12):  # Increase to 12 sand patches
+            patch_x = random.randint(5, self.width - 10)
+            patch_y = random.randint(5, self.height - 10)
+            patch_size = random.randint(5, 12)  # Larger patches
+            
+            for dy in range(-patch_size, patch_size):
+                for dx in range(-patch_size, patch_size):
+                    y = patch_y + dy
+                    x = patch_x + dx
+                    # Check if position is in bounds
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        # Create a more organic patch shape
+                        distance = math.sqrt(dx**2 + dy**2)
+                        noise_factor = random.random() * 3  # More randomness
+                        if distance <= patch_size + noise_factor - 2:
+                            self.base_grid[y][x] = TileType.SAND
+                            
+        # Add dirt patches in various places
+        for _ in range(15):  # 15 dirt patches
+            patch_x = random.randint(5, self.width - 10)
+            patch_y = random.randint(5, self.height - 10)
+            patch_size = random.randint(3, 8)
+            
+            for dy in range(-patch_size, patch_size):
+                for dx in range(-patch_size, patch_size):
+                    y = patch_y + dy
+                    x = patch_x + dx
+                    # Check if position is in bounds
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        # Create a circular patch with varied edge
+                        distance = math.sqrt(dx**2 + dy**2)
+                        edge_variation = math.sin(dx * 0.5) + math.cos(dy * 0.5)  # Wavy edge
+                        if distance <= patch_size + edge_variation:
+                            self.base_grid[y][x] = TileType.DIRT
+                            
+        # Add water pools/lakes
+        for _ in range(8):  # 8 water pools
+            patch_x = random.randint(10, self.width - 15)
+            patch_y = random.randint(10, self.height - 15)
+            patch_size = random.randint(3, 6)
+            
+            for dy in range(-patch_size, patch_size):
+                for dx in range(-patch_size, patch_size):
+                    y = patch_y + dy
+                    x = patch_x + dx
+                    # Check if position is in bounds
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        # Create a rounded pool shape
+                        distance = math.sqrt(dx**2 + dy**2)
+                        if distance <= patch_size * 0.8:  # Make it more circular
+                            self.base_grid[y][x] = TileType.WATER
+                            self.collision_grid[y][x] = True  # Make water impassable 

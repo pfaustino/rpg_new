@@ -14,6 +14,7 @@ from rpg_modules.entities.monster import Monster, MonsterType
 from rpg_modules.quests import QuestGenerator, QuestType, QuestLog
 from rpg_modules.core.map import Map
 from rpg_modules.core.camera import Camera
+from rpg_modules.core.assets import load_assets as load_core_assets
 from rpg_modules.core.constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, FPS,
     WHITE, BLACK, RED, GREEN, BLUE, GRAY,
@@ -29,7 +30,7 @@ PLAYER_DEFENSE = 5
 MONSTER_HP = 50
 MONSTER_ATTACK = 5
 MONSTER_DEFENSE = 2
-MAX_MONSTERS = 50  # Maximum number of monsters allowed at once
+MAX_MONSTERS = 30  # Maximum number of monsters allowed at once
 
 # Asset paths
 ASSET_PATH = "assets"
@@ -41,75 +42,52 @@ MONSTER_IMAGE = "monster.png"
 def load_assets():
     """Load all game assets"""
     print("Loading assets...")
-    assets = {}
     
-    # Create placeholder assets if they don't exist
+    # Load assets from the core module
+    assets = load_core_assets()
+    
+    # Now add any game-specific assets that aren't in the core assets
+    
+    # Create placeholder assets directory if it doesn't exist
     if not os.path.exists(ASSET_PATH):
         os.makedirs(ASSET_PATH)
         print(f"Created assets directory at {ASSET_PATH}")
     
-    # Load or create floor image
-    floor_path = os.path.join(ASSET_PATH, FLOOR_IMAGE)
-    if not os.path.exists(floor_path):
-        floor_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        # Create a stone floor pattern
-        floor_surface.fill((120, 120, 120))  # Base gray color
-        for i in range(4):  # Add some random darker spots for texture
-            x = random.randint(0, TILE_SIZE-4)
-            y = random.randint(0, TILE_SIZE-4)
-            pygame.draw.rect(floor_surface, (100, 100, 100), (x, y, 4, 4))
-        pygame.image.save(floor_surface, floor_path)
-        print(f"Created floor image at {floor_path}")
-    assets['floor'] = pygame.image.load(floor_path).convert_alpha()
+    # Add player image if not already in assets
+    if 'player' not in assets:
+        player_path = os.path.join(ASSET_PATH, "animations", "player.png")
+        if not os.path.exists(player_path):
+            # Create the animations directory if it doesn't exist
+            os.makedirs(os.path.dirname(player_path), exist_ok=True)
+            # Create a simple character sprite
+            player_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            pygame.draw.circle(player_surface, (50, 100, 200), (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3)  # Body
+            pygame.draw.circle(player_surface, (200, 150, 100), (TILE_SIZE//2, TILE_SIZE//3), TILE_SIZE//4)  # Head
+            pygame.image.save(player_surface, player_path)
+            print(f"Created player image at {player_path}")
+        assets['player'] = pygame.image.load(player_path).convert_alpha()
     
-    # Load or create wall image
-    wall_path = os.path.join(ASSET_PATH, WALL_IMAGE)
-    if not os.path.exists(wall_path):
-        wall_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        # Create a brick wall pattern
-        wall_surface.fill((80, 80, 80))  # Dark gray base
-        # Add brick pattern
-        for y in range(0, TILE_SIZE, 8):
-            offset = 8 if y % 16 == 0 else 0
-            for x in range(-8 + offset, TILE_SIZE, 16):
-                pygame.draw.rect(wall_surface, (100, 80, 80), (x, y, 14, 6))  # Brick
-                pygame.draw.rect(wall_surface, (60, 60, 60), (x, y, 14, 1))  # Shadow
-        pygame.image.save(wall_surface, wall_path)
-        print(f"Created wall image at {wall_path}")
-    assets['wall'] = pygame.image.load(wall_path).convert_alpha()
-    
-    # Load or create player image
-    player_path = os.path.join(ASSET_PATH, "animations", "player.png")
-    if not os.path.exists(player_path):
-        # Create the animations directory if it doesn't exist
-        os.makedirs(os.path.dirname(player_path), exist_ok=True)
-        # Create a simple character sprite
-        player_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        pygame.draw.circle(player_surface, (50, 100, 200), (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3)  # Body
-        pygame.draw.circle(player_surface, (200, 150, 100), (TILE_SIZE//2, TILE_SIZE//3), TILE_SIZE//4)  # Head
-        pygame.image.save(player_surface, player_path)
-        print(f"Created player image at {player_path}")
-    assets['player'] = pygame.image.load(player_path).convert_alpha()
-    
-    # Load or create monster image
-    monster_path = os.path.join(ASSET_PATH, MONSTER_IMAGE)
-    if not os.path.exists(monster_path):
-        monster_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        # Create a simple monster sprite
-        pygame.draw.polygon(monster_surface, (200, 50, 50),  # Red triangle body
-                          [(TILE_SIZE//2, TILE_SIZE//4),
-                           (TILE_SIZE//4, TILE_SIZE*3//4),
-                           (TILE_SIZE*3//4, TILE_SIZE*3//4)])
-        # Add eyes
-        pygame.draw.circle(monster_surface, (255, 255, 255),
-                         (TILE_SIZE*3//8, TILE_SIZE//2), 2)
-        pygame.draw.circle(monster_surface, (255, 255, 255),
-                         (TILE_SIZE*5//8, TILE_SIZE//2), 2)
-        pygame.image.save(monster_surface, monster_path)
-        print(f"Created monster image at {monster_path}")
-    assets['monster'] = pygame.image.load(monster_path).convert_alpha()
-    
+    # Add monster image if not already in assets
+    if 'monster' not in assets:
+        monster_path = os.path.join(ASSET_PATH, MONSTER_IMAGE)
+        if not os.path.exists(monster_path):
+            monster_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            # Create a simple monster sprite
+            pygame.draw.polygon(monster_surface, (200, 50, 50),  # Red triangle body
+                              [(TILE_SIZE//2, TILE_SIZE//4),
+                               (TILE_SIZE//4, TILE_SIZE*3//4),
+                               (TILE_SIZE*3//4, TILE_SIZE*3//4)])
+            # Add eyes
+            pygame.draw.circle(monster_surface, (255, 255, 255),
+                             (TILE_SIZE*3//8, TILE_SIZE//2), 2)
+            pygame.draw.circle(monster_surface, (255, 255, 255),
+                             (TILE_SIZE*5//8, TILE_SIZE//2), 2)
+            pygame.image.save(monster_surface, monster_path)
+            print(f"Created monster image at {monster_path}")
+        assets['monster'] = pygame.image.load(monster_path).convert_alpha()
+
     print("Assets loaded successfully")
+    print("Available assets:", list(assets.keys()))
     return assets
 
 # Game states
@@ -178,6 +156,33 @@ class GameState:
         
     def update(self, dt):
         """Update game state."""
+        # Store all events so we can process them for both zoom and UI
+        events = pygame.event.get()
+        
+        # Handle zoom and other events first
+        for event in events:
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.MOUSEWHEEL:
+                # Handle zoom immediately
+                if event.y > 0:  # Scroll up to zoom in
+                    self.camera.zoom_in()
+                elif event.y < 0:  # Scroll down to zoom out
+                    self.camera.zoom_out()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:  # Reset zoom with 'R' key
+                    self.camera.reset_zoom()
+                elif event.key == pygame.K_i:
+                    self.inventory_ui.toggle()
+                elif event.key == pygame.K_e:
+                    self.equipment_ui.toggle()
+                elif event.key == pygame.K_q:
+                    self.quest_ui.toggle()
+                elif event.key == pygame.K_g:
+                    self.generator_ui.toggle()
+                elif event.key == pygame.K_ESCAPE:
+                    self.running = False
+        
         # Handle player input
         keys = pygame.key.get_pressed()
         self.player.handle_input(keys, self.map.get_walls())
@@ -185,20 +190,14 @@ class GameState:
         # Update player
         self.player.update(dt)
         
-        # Print debug info every second
-        current_time = pygame.time.get_ticks()
-        if not hasattr(self, 'last_debug_time'):
-            self.last_debug_time = 0
-        if current_time - self.last_debug_time >= 1000:  # Every 1 second
-            tile_x = int(self.player.x / TILE_SIZE)
-            tile_y = int(self.player.y / TILE_SIZE)
-            print(f"\n=== Game State ===")
-            print(f"Player at: tile ({tile_x}, {tile_y}), pixel ({int(self.player.x)}, {int(self.player.y)})")
-            print(f"Active monsters: {len(self.monsters)}")
-            for monster_type in MonsterType:
-                if self.monster_counts[monster_type] > 0:
-                    print(f"- {monster_type.name}: {self.monster_counts[monster_type]}")
-            self.last_debug_time = current_time
+        # Pass events to UI elements after handling zoom
+        for event in events:
+            if event.type != pygame.MOUSEWHEEL:  # Skip wheel events for UI
+                self.inventory_ui.handle_event(event)
+                self.equipment_ui.handle_event(event)
+                self.quest_ui.handle_event(event)
+                if self.generator_ui.visible:  # Only handle events when visible
+                    self.generator_ui.handle_event(event, self.player)
         
         # Update monsters
         for monster in self.monsters[:]:
@@ -242,19 +241,45 @@ class GameState:
         # Draw player
         self.player.draw(screen, self.camera)
         
-        # Draw coordinates in top-left corner
+        # Get current tile type at player position
+        current_tile = self.map.get_tile_at_position(self.player.x, self.player.y)
+        
+        # Draw coordinates and terrain in top-left corner
         font = pygame.font.Font(None, 24)
         tile_x = int(self.player.x / TILE_SIZE)
         tile_y = int(self.player.y / TILE_SIZE)
         pixel_x = int(self.player.x)
         pixel_y = int(self.player.y)
+        
+        # Format tile name for display
+        terrain_type = "unknown"
+        if current_tile:
+            terrain_type = current_tile.value.replace('_', ' ').title()
+        
+        # Display player position info
         coord_text = f"Player Position - Tile: ({tile_x}, {tile_y}) Pixel: ({pixel_x}, {pixel_y})"
         text_surface = font.render(coord_text, True, (255, 255, 255))
         screen.blit(text_surface, (10, 10))
         
+        # Display terrain type - this is the one we're adding
+        terrain_text = f"Player is on [{terrain_type}]"
+        terrain_surface = font.render(terrain_text, True, (255, 255, 255))
+        screen.blit(terrain_surface, (10, 35))
+        
+        # Display monster count
         monster_text = f"Active Monsters: {len(self.monsters)}"
         monster_surface = font.render(monster_text, True, (255, 255, 255))
-        screen.blit(monster_surface, (10, 35))
+        screen.blit(monster_surface, (10, 60))
+        
+        # Draw zoom message if active
+        zoom_msg, timer = self.camera.get_zoom_message()
+        if zoom_msg and timer > 0:
+            msg_font = pygame.font.Font(None, 36)
+            msg_surface = msg_font.render(zoom_msg, True, (255, 255, 255))
+            msg_rect = msg_surface.get_rect()
+            msg_rect.centerx = SCREEN_WIDTH // 2
+            msg_rect.top = 10
+            screen.blit(msg_surface, msg_rect)
         
         # Draw UI elements
         self.inventory_ui.draw(screen)
@@ -289,35 +314,46 @@ class GameState:
         ]
         spawn_count = 0
         
-        # Try to spawn 2-3 of each type
-        for monster_type in monster_types:
-            print(f"\nSpawning {monster_type.name} monsters...")
-            for _ in range(random.randint(2, 3)):  # Random number of each type
-                # Generate position away from player
-                tile_x = random.randint(5, self.map.width - 6)
-                tile_y = random.randint(5, self.map.height - 6)
-                pixel_x = tile_x * TILE_SIZE
-                pixel_y = tile_y * TILE_SIZE
-                
-                # Check distance from player
-                dx = pixel_x - self.player.x
-                dy = pixel_y - self.player.y
-                distance = math.sqrt(dx * dx + dy * dy)
-                
-                if distance < 200:  # Minimum spawn distance
-                    print(f"Skip: Too close to player at ({tile_x}, {tile_y})")
-                    continue
-                
-                if self.map.is_wall(tile_x, tile_y):
-                    print(f"Skip: Wall at ({tile_x}, {tile_y})")
-                    continue
-                
-                # Spawn monster
-                monster = Monster(pixel_x, pixel_y, monster_type)
-                self.monsters.append(monster)
-                self.monster_counts[monster_type] += 1
-                spawn_count += 1
-                print(f"Spawned {monster_type.name} at ({tile_x}, {tile_y})")
+        # Shuffle the monster types to randomize which ones get spawned
+        random.shuffle(monster_types)
+        
+        print("\nStarting initial monster spawn...")
+        # Try to spawn monsters until we reach MAX_MONSTERS
+        while spawn_count < MAX_MONSTERS and monster_types:
+            monster_type = monster_types.pop(0)  # Get next monster type
+            print(f"Attempting to spawn {monster_type.name}...")
+            
+            # Generate position away from player
+            tile_x = random.randint(5, self.map.width - 6)
+            tile_y = random.randint(5, self.map.height - 6)
+            pixel_x = tile_x * TILE_SIZE
+            pixel_y = tile_y * TILE_SIZE
+            
+            # Check distance from player
+            dx = pixel_x - self.player.x
+            dy = pixel_y - self.player.y
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            if distance < 200:  # Minimum spawn distance
+                print(f"Skip: Too close to player at ({tile_x}, {tile_y})")
+                monster_types.append(monster_type)  # Put back in pool
+                continue
+            
+            if self.map.is_wall(tile_x, tile_y):
+                print(f"Skip: Wall at ({tile_x}, {tile_y})")
+                monster_types.append(monster_type)  # Put back in pool
+                continue
+            
+            # Spawn monster
+            monster = Monster(pixel_x, pixel_y, monster_type)
+            self.monsters.append(monster)
+            self.monster_counts[monster_type] += 1
+            spawn_count += 1
+            print(f"Spawned {monster_type.name} at ({tile_x}, {tile_y})")
+            
+            # Put the monster type back in the pool if we haven't reached MAX_MONSTERS
+            if spawn_count < MAX_MONSTERS:
+                monster_types.append(monster_type)
         
         print(f"\nInitial spawn complete - {spawn_count} monsters spawned")
 
