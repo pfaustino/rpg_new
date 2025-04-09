@@ -65,7 +65,7 @@ def load_assets():
             pygame.draw.circle(player_surface, (200, 150, 100), (TILE_SIZE//2, TILE_SIZE//3), TILE_SIZE//4)  # Head
             pygame.image.save(player_surface, player_path)
             print(f"Created player image at {player_path}")
-        assets['player'] = pygame.image.load(player_path).convert_alpha()
+            assets['player'] = pygame.image.load(player_path).convert_alpha()
     
     # Add monster image if not already in assets
     if 'monster' not in assets:
@@ -84,8 +84,8 @@ def load_assets():
                              (TILE_SIZE*5//8, TILE_SIZE//2), 2)
             pygame.image.save(monster_surface, monster_path)
             print(f"Created monster image at {monster_path}")
-        assets['monster'] = pygame.image.load(monster_path).convert_alpha()
-
+            assets['monster'] = pygame.image.load(monster_path).convert_alpha()
+    
     print("Assets loaded successfully")
     print("Available assets:", list(assets.keys()))
     return assets
@@ -412,7 +412,7 @@ class GameState:
             if self.monster_counts[monster_type] >= max_count:
                 print(f"Max count reached for {monster_type.name}")
                 return False
-                
+            
             # Valid position found, spawn the monster
             monster = Monster(pixel_x, pixel_y, monster_type)
             self.monsters.append(monster)
@@ -422,7 +422,7 @@ class GameState:
             
         print(f"Failed to find valid spawn position for {monster_type.name}")
         return False
-        
+
     def _handle_monster_death(self, monster: Monster):
         """Handle monster death and potential item drops."""
         self.monster_counts[monster.monster_type] -= 1
@@ -498,7 +498,7 @@ class Inventory:
                 self.items[i] = item
                 return True
         return False
-        
+            
     def remove_item(self, item: Item) -> bool:
         """Remove the first occurrence of an item. Returns True if successful."""
         for i in range(len(self.items)):
@@ -506,7 +506,7 @@ class Inventory:
                 self.items[i] = None
                 return True
         return False
-        
+
     def get_item_at(self, index: int) -> Optional[Item]:
         """Get the item at the given index."""
         if 0 <= index < len(self.items):

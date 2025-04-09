@@ -112,36 +112,53 @@ class MonsterAnimation:
         else:
             monster_type_str = monster_type.name.lower()
         self.icon = MonsterIcon(monster_type_str)  # Create icon for this monster type
-        self.frame_size = (32, 32)
-        self.surface = pygame.Surface(self.frame_size, pygame.SRCALPHA)
+        self.base_size = 32  # Base size for scaling
+        self.frame_size = (self.base_size, self.base_size)
+        self.current_frame = None  # Store the current frame
+        self.current_size = None  # Store the current size
         self.last_update = pygame.time.get_ticks()
         self.update_interval = 50  # Update animation every 50ms
         logger.debug(f"Created MonsterAnimation for {monster_type_str}")
 
-    def get_frame(self, direction, frame_index):
+    def get_frame(self, direction, frame_index, size=None):
         """Get the current animation frame."""
         current_time = pygame.time.get_ticks()
         
+        # Ensure direction is a Direction enum
+        if not isinstance(direction, Direction):
+            print(f"Warning: Invalid direction type {type(direction)}, defaulting to Direction.DOWN")
+            direction = Direction.DOWN
+        
+        # Use provided size or default to base_size
+        render_size = size if size is not None else self.base_size
+        
+        # Only create new surface if size changed or no current frame
+        if self.current_frame is None or self.current_size != render_size:
+            self.current_frame = pygame.Surface((render_size, render_size), pygame.SRCALPHA)
+            self.current_size = render_size
+        
         # Update animation if enough time has passed
         if current_time - self.last_update > self.update_interval:
-            # Clear with transparent background
-            self.surface.fill((0, 0, 0, 0))
-            
             try:
-                # Update and render the monster icon
+                # Clear the surface with transparency
+                self.current_frame.fill((0, 0, 0, 0))
+                
+                # Update the monster icon's animation state
                 self.icon.update(self.update_interval / 1000.0)  # Convert to seconds
-                self.icon.render(self.surface, self.frame_size[0])
+                
+                # Let the MonsterIcon handle all the rendering
+                self.icon.render(self.current_frame, render_size, direction)
+                
+                self.last_update = current_time
             except Exception as e:
                 logger.error(f"Error rendering monster {self.monster_type}: {e}")
                 # Fallback rendering - draw a simple shape if rendering fails
                 color = self._get_fallback_color()
-                pygame.draw.circle(self.surface, color,
-                                (self.frame_size[0]//2, self.frame_size[1]//2), 
-                                self.frame_size[0]//3)
+                pygame.draw.circle(self.current_frame, color,
+                                (render_size//2, render_size//2), 
+                                render_size//3)
             
-            self.last_update = current_time
-            
-        return self.surface
+        return self.current_frame
 
     def _get_fallback_color(self):
         """Get a color for fallback rendering based on monster type."""
@@ -235,42 +252,30 @@ class MonsterAnimation:
         # The actual update is handled in get_frame to ensure smooth animation
         pass
 
-    def draw(self, screen, x, y, direction):
-        """Draw the monster at the specified position."""
+    def draw(self, screen, x, y, direction, size=None):
+        """Draw the monster at the specified position with optional size."""
         try:
-            frame = self.get_frame(direction, 0)
-            screen.blit(frame, (x - self.frame_size[0] // 2, y - self.frame_size[1] // 2))
+            # Ensure direction is a Direction enum
+            if not isinstance(direction, Direction):
+                print(f"Warning: Invalid direction type {type(direction)}, defaulting to Direction.DOWN")
+                direction = Direction.DOWN
+                
+            # Get the properly sized frame
+            frame = self.get_frame(direction, 0, size)
+            frame_size = frame.get_width()  # Use actual frame size
             
-            # Add visual effects based on monster type
-            color = self._get_fallback_color()
+            # Calculate position to center the frame
+            pos_x = x - frame_size // 2
+            pos_y = y - frame_size // 2
             
-            # Draw additional effects based on monster category
-            if any(k in self.monster_type.name for k in ['ELEMENTAL', 'SPIRIT']):
-                # Add glowing effect
-                glow_surf = pygame.Surface((self.frame_size[0], self.frame_size[1]), pygame.SRCALPHA)
-                pygame.draw.circle(glow_surf, (*color, 64), 
-                                (self.frame_size[0]//2, self.frame_size[1]//2),
-                                self.frame_size[0]//2)
-                screen.blit(glow_surf, (x - self.frame_size[0] // 2, y - self.frame_size[1] // 2))
-                
-            elif 'UNDEAD' in self.monster_type.name or 'WRAITH' in self.monster_type.name:
-                # Add ghostly transparency
-                frame.set_alpha(180)
-                
-            elif 'CRYSTAL' in self.monster_type.name or 'GEM' in self.monster_type.name:
-                # Add crystalline facets
-                points = []
-                for i in range(6):
-                    angle = i * (2 * math.pi / 6)
-                    px = x + math.cos(angle) * self.frame_size[0]//3
-                    py = y + math.sin(angle) * self.frame_size[0]//3
-                    points.append((px, py))
-                pygame.draw.polygon(screen, (*color, 128), points)
-                
+            # Draw the frame
+            screen.blit(frame, (pos_x, pos_y))
+            
         except Exception as e:
             logger.error(f"Error drawing monster {self.monster_type} at ({x}, {y}): {e}")
             # Fallback to simple shape if rendering fails
             color = self._get_fallback_color()
+            render_size = size if size is not None else self.base_size
             pygame.draw.circle(screen, color,
                              (x, y),
-                             self.frame_size[0]//3) 
+                             render_size//3) 
