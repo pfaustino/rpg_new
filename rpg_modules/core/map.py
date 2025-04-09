@@ -30,7 +30,9 @@ class TileType(Enum):
     BUSH = "bush"
     ROCK = "rock"
     REED = "reed"
-    
+    # Structure tiles
+    STONE_WALL = "stone_wall"
+
 class Map:
     """Class for managing the game world map with biomes and varied terrain."""
     
@@ -460,4 +462,172 @@ class Map:
                         distance = math.sqrt(dx**2 + dy**2)
                         if distance <= patch_size * 0.8:  # Make it more circular
                             self.base_grid[y][x] = TileType.WATER
-                            self.collision_grid[y][x] = True  # Make water impassable 
+                            self.collision_grid[y][x] = True  # Make water impassable
+                            
+        # Add stone wall structures
+        self._add_stone_walls()
+    
+    def _add_stone_walls(self):
+        """Add stone wall structures like ruins, small buildings, and walls."""
+        # Add several wall structures
+        num_structures = random.randint(5, 10)
+        
+        for _ in range(num_structures):
+            structure_type = random.choice(['room', 'ruin', 'wall'])
+            
+            if structure_type == 'room':
+                # Create a rectangular room with walls
+                self._create_room()
+            elif structure_type == 'ruin':
+                # Create ruins with incomplete walls
+                self._create_ruins()
+            elif structure_type == 'wall':
+                # Create a straight or L-shaped wall
+                self._create_wall()
+    
+    def _create_room(self):
+        """Create a rectangular room with stone walls."""
+        # Choose random position that's not too close to the borders
+        room_x = random.randint(10, self.width - 15)
+        room_y = random.randint(10, self.height - 15)
+        
+        # Room dimensions
+        width = random.randint(5, 8)
+        height = random.randint(5, 8)
+        
+        # Create top and bottom walls
+        for x in range(room_x, room_x + width):
+            # Check if position is valid
+            if 0 <= x < self.width and 0 <= room_y < self.height:
+                self.base_grid[room_y][x] = TileType.STONE_WALL
+                self.collision_grid[room_y][x] = True
+            
+            if 0 <= x < self.width and 0 <= room_y + height - 1 < self.height:
+                self.base_grid[room_y + height - 1][x] = TileType.STONE_WALL
+                self.collision_grid[room_y + height - 1][x] = True
+        
+        # Create left and right walls
+        for y in range(room_y, room_y + height):
+            if 0 <= room_x < self.width and 0 <= y < self.height:
+                self.base_grid[y][room_x] = TileType.STONE_WALL
+                self.collision_grid[y][room_x] = True
+            
+            if 0 <= room_x + width - 1 < self.width and 0 <= y < self.height:
+                self.base_grid[y][room_x + width - 1] = TileType.STONE_WALL
+                self.collision_grid[y][room_x + width - 1] = True
+        
+        # Add a doorway (entrance)
+        door_wall = random.choice(['top', 'bottom', 'left', 'right'])
+        
+        if door_wall == 'top' and width > 2:
+            door_x = room_x + random.randint(1, width - 2)
+            if 0 <= door_x < self.width and 0 <= room_y < self.height:
+                self.base_grid[room_y][door_x] = self.base_grid[room_y+1][door_x]  # Match the floor inside
+                self.collision_grid[room_y][door_x] = False
+        
+        elif door_wall == 'bottom' and width > 2:
+            door_x = room_x + random.randint(1, width - 2)
+            if 0 <= door_x < self.width and 0 <= room_y + height - 1 < self.height:
+                self.base_grid[room_y + height - 1][door_x] = self.base_grid[room_y + height - 2][door_x]
+                self.collision_grid[room_y + height - 1][door_x] = False
+        
+        elif door_wall == 'left' and height > 2:
+            door_y = room_y + random.randint(1, height - 2)
+            if 0 <= room_x < self.width and 0 <= door_y < self.height:
+                self.base_grid[door_y][room_x] = self.base_grid[door_y][room_x + 1]
+                self.collision_grid[door_y][room_x] = False
+        
+        elif door_wall == 'right' and height > 2:
+            door_y = room_y + random.randint(1, height - 2)
+            if 0 <= room_x + width - 1 < self.width and 0 <= door_y < self.height:
+                self.base_grid[door_y][room_x + width - 1] = self.base_grid[door_y][room_x + width - 2]
+                self.collision_grid[door_y][room_x + width - 1] = False
+    
+    def _create_ruins(self):
+        """Create ruins with incomplete walls."""
+        # Choose random position that's not too close to the borders
+        ruin_x = random.randint(10, self.width - 15)
+        ruin_y = random.randint(10, self.height - 15)
+        
+        # Ruin dimensions
+        width = random.randint(6, 10)
+        height = random.randint(6, 10)
+        
+        # Create partial walls with gaps
+        for x in range(ruin_x, ruin_x + width):
+            # Top and bottom walls with gaps
+            if random.random() < 0.7:  # 70% chance to place a wall segment
+                if 0 <= x < self.width and 0 <= ruin_y < self.height:
+                    self.base_grid[ruin_y][x] = TileType.STONE_WALL
+                    self.collision_grid[ruin_y][x] = True
+            
+            if random.random() < 0.7:
+                if 0 <= x < self.width and 0 <= ruin_y + height - 1 < self.height:
+                    self.base_grid[ruin_y + height - 1][x] = TileType.STONE_WALL
+                    self.collision_grid[ruin_y + height - 1][x] = True
+        
+        # Left and right walls with gaps
+        for y in range(ruin_y, ruin_y + height):
+            if random.random() < 0.7:
+                if 0 <= ruin_x < self.width and 0 <= y < self.height:
+                    self.base_grid[y][ruin_x] = TileType.STONE_WALL
+                    self.collision_grid[y][ruin_x] = True
+            
+            if random.random() < 0.7:
+                if 0 <= ruin_x + width - 1 < self.width and 0 <= y < self.height:
+                    self.base_grid[y][ruin_x + width - 1] = TileType.STONE_WALL
+                    self.collision_grid[y][ruin_x + width - 1] = True
+    
+    def _create_wall(self):
+        """Create a straight or L-shaped wall."""
+        # Choose random position and direction
+        wall_x = random.randint(10, self.width - 15)
+        wall_y = random.randint(10, self.height - 15)
+        wall_length = random.randint(5, 12)
+        
+        # Choose wall type and direction
+        wall_type = random.choice(['straight', 'L-shaped'])
+        direction = random.choice(['horizontal', 'vertical'])
+        
+        if wall_type == 'straight':
+            if direction == 'horizontal':
+                # Create horizontal wall
+                for x in range(wall_x, wall_x + wall_length):
+                    if 0 <= x < self.width and 0 <= wall_y < self.height:
+                        self.base_grid[wall_y][x] = TileType.STONE_WALL
+                        self.collision_grid[wall_y][x] = True
+            else:
+                # Create vertical wall
+                for y in range(wall_y, wall_y + wall_length):
+                    if 0 <= wall_x < self.width and 0 <= y < self.height:
+                        self.base_grid[y][wall_x] = TileType.STONE_WALL
+                        self.collision_grid[y][wall_x] = True
+        
+        elif wall_type == 'L-shaped':
+            # First leg length
+            leg1_length = wall_length // 2
+            
+            if direction == 'horizontal':
+                # First leg horizontal
+                for x in range(wall_x, wall_x + leg1_length):
+                    if 0 <= x < self.width and 0 <= wall_y < self.height:
+                        self.base_grid[wall_y][x] = TileType.STONE_WALL
+                        self.collision_grid[wall_y][x] = True
+                
+                # Second leg vertical (down)
+                for y in range(wall_y, wall_y + wall_length - leg1_length):
+                    if 0 <= wall_x + leg1_length - 1 < self.width and 0 <= y < self.height:
+                        self.base_grid[y][wall_x + leg1_length - 1] = TileType.STONE_WALL
+                        self.collision_grid[y][wall_x + leg1_length - 1] = True
+            else:
+                # First leg vertical
+                for y in range(wall_y, wall_y + leg1_length):
+                    if 0 <= wall_x < self.width and 0 <= y < self.height:
+                        self.base_grid[y][wall_x] = TileType.STONE_WALL
+                        self.collision_grid[y][wall_x] = True
+                
+                # Second leg horizontal (right)
+                for x in range(wall_x, wall_x + wall_length - leg1_length):
+                    if 0 <= x < self.width and 0 <= wall_y + leg1_length - 1 < self.height:
+                        self.base_grid[wall_y + leg1_length - 1][x] = TileType.STONE_WALL
+                        self.collision_grid[wall_y + leg1_length - 1][x] = True 

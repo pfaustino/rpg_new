@@ -31,6 +31,8 @@ def load_assets() -> Dict[str, pygame.Surface]:
         TileType.BUSH: (0, 120, 0),       # Medium green
         TileType.ROCK: (169, 169, 169),   # Dark gray
         TileType.REED: (205, 133, 63),    # Peru brown
+        # Structure tiles
+        TileType.STONE_WALL: (90, 90, 90),  # Dark gray for stone walls
     }
     
     # Create procedural surfaces for any missing tile type
@@ -169,6 +171,43 @@ def load_assets() -> Dict[str, pygame.Surface]:
                 # Add reed head
                 pygame.draw.ellipse(surface, (139, 69, 19),
                                   (x-2, TILE_SIZE//3-4, 4, 8))
+        
+        elif tile_type == TileType.STONE_WALL:
+            # Create a stone wall texture with bricks
+            wall_base_color = (90, 90, 90)  # Dark gray base
+            surface.fill(wall_base_color)
+            
+            # Draw brick pattern
+            brick_color = (70, 70, 70)  # Slightly darker for contrast
+            highlight_color = (120, 120, 120)  # Lighter for top/side highlights
+            
+            # Brick dimensions
+            brick_height = 6
+            brick_rows = TILE_SIZE // brick_height
+            
+            # Draw brick rows with alternating offsets
+            for row in range(brick_rows):
+                offset = 0 if row % 2 == 0 else TILE_SIZE // 4
+                y = row * brick_height
+                
+                # Draw horizontal mortar line
+                pygame.draw.line(surface, (130, 130, 130), 
+                               (0, y), (TILE_SIZE, y), 1)
+                
+                # Draw bricks in this row
+                for brick_start in range(offset, TILE_SIZE, TILE_SIZE // 2):
+                    # Draw brick
+                    brick_width = min(TILE_SIZE // 2 - 2, TILE_SIZE - brick_start)
+                    brick_rect = pygame.Rect(brick_start, y + 1, brick_width, brick_height - 1)
+                    pygame.draw.rect(surface, brick_color, brick_rect)
+                    
+                    # Draw highlight on top/left edges
+                    pygame.draw.line(surface, highlight_color, 
+                                   (brick_start, y + 1), 
+                                   (brick_start + brick_width, y + 1), 1)
+                    pygame.draw.line(surface, highlight_color, 
+                                   (brick_start, y + 1), 
+                                   (brick_start, y + brick_height - 1), 1)
         
         assets[tile_type.value] = surface
     
