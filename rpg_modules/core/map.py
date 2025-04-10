@@ -178,13 +178,16 @@ class Map:
                 # Update collision grid - only decorations block movement, not water
                 self.collision_grid[y][x] = (self.decoration_grid[y][x] in {TileType.TREE, TileType.ROCK})
         
-        # Ensure distinct terrain patches
+        # Ensure distinct terrain patches and add walls
         self._add_terrain_patches()
         
         # Add border walls
         self._add_border_walls()
         
-        # Update wall collision rectangles
+        # Create a safe spawn area AFTER all terrain and walls are created
+        self._create_spawn_area()
+        
+        # Update wall collision rectangles one last time
         self._update_wall_rects()
         
     def _get_biome(self, elevation: float, moisture: float) -> BiomeType:
@@ -514,7 +517,7 @@ class Map:
         # Add stone wall structures
         self._add_stone_walls()
         
-        # Update wall rectangles after all terrain modifications
+        # Update wall rectangles after terrain modifications
         self._update_wall_rects()
     
     def _add_stone_walls(self):
@@ -566,10 +569,12 @@ class Map:
             if 0 <= room_x < self.width and 0 <= y < self.height:
                 self.base_grid[y][room_x] = TileType.STONE_WALL
                 self.collision_grid[y][room_x] = True
+                wall_count += 1
             
             if 0 <= room_x + width - 1 < self.width and 0 <= y < self.height:
                 self.base_grid[y][room_x + width - 1] = TileType.STONE_WALL
                 self.collision_grid[y][room_x + width - 1] = True
+                wall_count += 1
         
         # Add a doorway (entrance)
         door_wall = random.choice(['top', 'bottom', 'left', 'right'])
@@ -688,3 +693,50 @@ class Map:
                     if 0 <= x < self.width and 0 <= wall_y + leg1_length - 1 < self.height:
                         self.base_grid[wall_y + leg1_length - 1][x] = TileType.STONE_WALL
                         self.collision_grid[wall_y + leg1_length - 1][x] = True 
+
+    def _create_spawn_area(self):
+        """Create a safe grassy area at the center of the map for player spawn."""
+        center_x = self.width // 2
+        center_y = self.height // 2
+        spawn_radius = random.randint(8, 10)  # Safe area with 8-10 tile radius
+        
+        print(f"Creating safe spawn area at center ({center_x}, {center_y}) with radius {spawn_radius}")
+        
+        # Create a circular grassy area
+        for y in range(center_y - spawn_radius, center_y + spawn_radius + 1):
+            for x in range(center_x - spawn_radius, center_x + spawn_radius + 1):
+                # Check if position is in bounds
+                if (0 <= x < self.width and 0 <= y < self.height):
+                    # Calculate distance from center
+                    dx = x - center_x
+                    dy = y - center_y
+                    distance = math.sqrt(dx**2 + dy**2)
+                    
+                    # Set the base tile to grass and clear any decorations or walls
+                    if distance <= spawn_radius:
+                        # First, clear any walls or obstacles
+                        self.collision_grid[y][x] = False
+                        
+                        # Then set to grass tile
+                        self.base_grid[y][x] = TileType.GRASS
+                        
+                        # Remove any decorations
+                        self.decoration_grid[y][x] = None
+                        
+                        # Set to plains biome
+                        self.biome_grid[y][x] = BiomeType.PLAINS
+        
+        # Add a small flower decoration pattern around the center for visual appeal
+        for radius in range(3, 6):
+            num_flowers = radius * 2
+            for i in range(num_flowers):
+                angle = 2 * math.pi * i / num_flowers
+                x = int(center_x + radius * math.cos(angle))
+                y = int(center_y + radius * math.sin(angle))
+                
+                if 0 <= x < self.width and 0 <= y < self.height:
+                    # 40% chance to add a flower in a circle pattern
+                    if random.random() < 0.4:
+                        self.decoration_grid[y][x] = TileType.FLOWER
+        
+        print(f"Safe spawn area created with {spawn_radius} tile radius") 
