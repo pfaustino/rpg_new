@@ -9,15 +9,19 @@ from opensimplex import OpenSimplex
 from typing import List, Tuple, Dict, Optional, Set
 from enum import Enum
 from .constants import TILE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT
+from .camera import Camera
 
 class BiomeType(Enum):
-    GRASSLAND = "grassland"
+    """Enum for different biome types."""
+    PLAINS = "plains"
     FOREST = "forest"
     DESERT = "desert"
     SWAMP = "swamp"
+    TUNDRA = "tundra"
     MOUNTAIN = "mountain"
 
 class TileType(Enum):
+    """Enum for different tile types."""
     # Base tiles
     GRASS = "grass"
     DIRT = "dirt"
@@ -37,7 +41,7 @@ class Map:
     """Class for managing the game world map with biomes and varied terrain."""
     
     BIOME_CONFIG = {
-        BiomeType.GRASSLAND: {
+        BiomeType.PLAINS: {
             "base_tiles": [(TileType.GRASS, 0.7), (TileType.DIRT, 0.3)],
             "decorations": [(TileType.FLOWER, 0.1), (TileType.BUSH, 0.05)],
             "elevation_range": (0.2, 0.5),
@@ -82,7 +86,7 @@ class Map:
         self.moisture_noise = OpenSimplex(seed=self.seed + 1)
         
         # Initialize map layers
-        self.biome_grid = [[BiomeType.GRASSLAND for _ in range(width)] for _ in range(height)]
+        self.biome_grid = [[BiomeType.PLAINS for _ in range(width)] for _ in range(height)]
         self.base_grid = [[TileType.GRASS for _ in range(width)] for _ in range(height)]
         self.decoration_grid = [[None for _ in range(width)] for _ in range(height)]
         self.collision_grid = [[False for _ in range(width)] for _ in range(height)]
@@ -182,7 +186,7 @@ class Map:
                 moist_min <= moisture <= moist_max):
                 return biome
         
-        return BiomeType.GRASSLAND  # Default biome
+        return BiomeType.PLAINS  # Default biome
     
     def _get_base_tile(self, biome: BiomeType) -> TileType:
         """Get a random base tile type based on biome configuration."""
@@ -316,13 +320,6 @@ class Map:
         
     def draw(self, screen, camera, assets):
         """Draw the map on the screen."""
-        # Debug asset keys
-        print("\n" + "="*50)
-        print("MAP RENDERING")
-        print("Available assets:", list(assets.keys()))
-        print("TileType values for reference:", [t.value for t in TileType])
-        print("="*50 + "\n")
-        
         # Calculate visible tile range based on camera position and zoom
         zoom = camera.get_zoom()
         effective_screen_width = int(SCREEN_WIDTH / zoom)
@@ -349,12 +346,8 @@ class Map:
                 # Draw base tile
                 base_tile = self.base_grid[y][x]
                 if base_tile.value in assets:
-                    # Debug for specific tiles we're trying to diagnose
-                    if base_tile in [TileType.STONE, TileType.SAND, TileType.DIRT]:
-                        print(f"Drawing {base_tile.value} tile at ({x}, {y}) with asset key: '{base_tile.value}'")
                     map_surface.blit(assets[base_tile.value], (screen_x, screen_y))
                 else:
-                    print(f"WARNING: Missing asset for {base_tile.value} at ({x}, {y})")
                     pygame.draw.rect(map_surface, (100, 100, 100),
                                      (screen_x, screen_y, TILE_SIZE, TILE_SIZE))
                 
@@ -362,8 +355,6 @@ class Map:
                 decoration = self.decoration_grid[y][x]
                 if decoration and decoration.value in assets:
                     map_surface.blit(assets[decoration.value], (screen_x, screen_y))
-                elif decoration:
-                    print(f"WARNING: Missing asset for decoration {decoration.value} at ({x}, {y})")
         
         # Scale the map surface according to zoom level
         if zoom != 1.0:

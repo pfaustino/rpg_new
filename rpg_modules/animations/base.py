@@ -195,9 +195,18 @@ class PlayerIcon(AnimatedIcon):
         self._draw_particles(surface)
 
 class MonsterIcon(AnimatedIcon):
-    def __init__(self, monster_type: str):
+    def __init__(self, monster_type):
+        """Initialize the monster icon with a type.
+        
+        Args:
+            monster_type: Either a string or MonsterType enum
+        """
         super().__init__()
-        self.monster_type = monster_type
+        # If it's an enum, get its value, otherwise use the string
+        if hasattr(monster_type, 'value'):
+            self.monster_type = monster_type.value
+        else:
+            self.monster_type = str(monster_type).lower()
         self._particles = []
         self._animation_state = {
             'time': 0,
@@ -374,75 +383,61 @@ class MonsterIcon(AnimatedIcon):
 
     def render(self, surface, size, direction=None):
         """Render the monster icon based on its type."""
-        monster_type_lower = str(self.monster_type).lower().strip()
-        monster_parts = monster_type_lower.split('_')
+        # Monster type is already stored as a lowercase string from __init__
+        monster_parts = self.monster_type.split('_')
         anim = self._get_animation_values()
         direction = self._ensure_direction_compatibility(direction)
         
         try:
             # Check for specific monster types first
-            if any(x in monster_parts for x in ['ice', 'frost']):
-                print("Using Ice Elemental Render Method")
+            if self.monster_type == 'clockwork_knight':
+                self._render_clockwork_knight(surface, size, direction, anim)
+            elif any(x in monster_parts for x in ['ice', 'frost']):
                 self._render_ice_elemental(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['fire', 'flame']):
-                print("Using Fire Elemental Render Method")
                 self._render_fire_elemental(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['phoenix', 'dragon']):
-                print("Using Dragon/Phoenix Render Method")
                 self._render_dragon(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['prism', 'crystal', 'gem']):
-                print("Using Crystal Render Method")
                 self._render_crystal(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['basilisk', 'snake']):
-                print("Using Basilisk Render Method")
                 self._render_basilisk(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['dryad', 'nature']):
-                print("Using Dryad Render Method")
                 self._render_dryad(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['storm', 'lightning', 'thunder']):
-                print("Using Storm Elemental Render Method")
                 self._render_storm_elemental(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['earth', 'stone', 'rock']):
-                print("Using Earth Elemental Render Method")
                 self._render_earth_elemental(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['void', 'shade', 'phantom', 'shadow', 'stalker']):
-                print("Using Shadow Render Method")
                 self._render_shadow(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['zombie', 'undead']):
-                print("Using Zombie Render Method")
                 self._render_zombie(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['spider']):
-                print("Using Spider Render Method")
                 self._render_spider(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['unicorn']):
-                print("Using Unicorn Render Method")
                 self._render_unicorn(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['nightmare']):
-                print("Using Nightmare Render Method")
                 self._render_nightmare(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['demon']):
-                print("Using Demon Render Method")
                 self._render_demon(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['treant', 'tree']):
-                print("Using Treant Render Method")
                 self._render_treant(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['steam', 'golem', 'mechanical']):
-                print("Using Mechanical Render Method")
                 self._render_mechanical(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['slime', 'ooze']):
-                print("Using Slime Render Method")
                 self._render_slime(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['wraith', 'ghost', 'spirit']):
-                print("Using Spirit Render Method")
                 self._render_spirit(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['wolf', 'bear']):
-                print("Using Bear/Wolf Render Method")
                 self._render_bear(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['turret', 'arcane']):
-                print("Using Construct Render Method")
                 self._render_construct(surface, size, direction, anim)
+            elif any(x in monster_parts for x in ['vampire']):
+                self._render_vampire(surface, size, direction, anim)
+            elif any(x in monster_parts for x in ['pixie']):
+                self._render_pixie(surface, size, direction, anim)
             else:
-                print(f"No specific render method found for {monster_type_lower}, using default")
+                print(f"No specific render method found for {self.monster_type}, using default")
                 self._render_default(surface, size, direction, anim)
         except Exception as e:
             print(f"ERROR: Error rendering monster {self.monster_type}: {str(e)}")
@@ -450,7 +445,6 @@ class MonsterIcon(AnimatedIcon):
         
         self._update_particles(size)
         self._draw_particles(surface)
-        print(f"Finished rendering monster type: {self.monster_type}")
 
     def draw(self, surface, position, size, direction=None):
         """Draw the monster at the given position with the specified size."""
@@ -2105,4 +2099,86 @@ class MonsterIcon(AnimatedIcon):
             return True
         except Exception as e:
             print(f"Error in _render_basilisk: {e}")
+            return False
+
+    def _render_clockwork_knight(self, surface: pygame.Surface, size: int, direction: Direction = None, anim: dict = None) -> bool:
+        """Render a clockwork knight with mechanical details."""
+        try:
+            # Handle both integer and tuple sizes
+            if isinstance(size, int):
+                width = height = size
+            else:
+                width, height = size
+            
+            # Draw the base mechanical body
+            self._render_mechanical(surface, size, direction, anim)
+            
+            # Add knight-specific details
+            center_x = width // 2
+            center_y = height // 2
+            
+            # Draw a helmet-like structure
+            helmet_color = (100, 100, 100)  # Steel gray
+            helmet_rect = pygame.Rect(
+                center_x - width // 4,
+                center_y - height // 3,
+                width // 2,
+                height // 4
+            )
+            pygame.draw.rect(surface, helmet_color, helmet_rect)
+            
+            # Draw a visor
+            visor_color = (50, 50, 50)  # Dark gray
+            visor_rect = pygame.Rect(
+                center_x - width // 6,
+                center_y - height // 4,
+                width // 3,
+                height // 8
+            )
+            pygame.draw.rect(surface, visor_color, visor_rect)
+            
+            # Add steam particles
+            if random.random() < 0.3:  # 30% chance of steam
+                particle_x = random.randint(width//4, 3*width//4)
+                particle_y = random.randint(height//4, 3*height//4)
+                particle_size = random.randint(2, 4)
+                pygame.draw.circle(surface, (200, 200, 200, 150), (particle_x, particle_y), particle_size)
+            
+            return True
+        except Exception as e:
+            print(f"Error in clockwork knight render: {e}")
+            return False
+
+    def _render_vampire(self, surface: pygame.Surface, size: int, direction: Direction = None, anim: dict = None) -> bool:
+        """Render a vampire monster."""
+        try:
+            # Draw dark body
+            pygame.draw.circle(surface, (40, 0, 40), (size//2, size//2), size//2)
+            
+            # Draw cape
+            cape_points = [
+                (size//2, size//2),
+                (size//2 - size//3, size//2 + size//3),
+                (size//2 + size//3, size//2 + size//3)
+            ]
+            pygame.draw.polygon(surface, (20, 0, 20), cape_points)
+            
+            # Draw glowing red eyes
+            eye_color = (255, 0, 0)
+            eye_size = size//8
+            left_eye = (size//2 - size//4, size//2 - size//6)
+            right_eye = (size//2 + size//4, size//2 - size//6)
+            pygame.draw.circle(surface, eye_color, left_eye, eye_size)
+            pygame.draw.circle(surface, eye_color, right_eye, eye_size)
+            
+            # Add blood mist particles
+            if random.random() < 0.2:  # 20% chance of blood mist
+                particle_x = random.randint(size//4, 3*size//4)
+                particle_y = random.randint(size//4, 3*size//4)
+                particle_size = random.randint(2, 4)
+                pygame.draw.circle(surface, (255, 0, 0, 100), (particle_x, particle_y), particle_size)
+            
+            return True
+        except Exception as e:
+            print(f"Error in vampire render: {e}")
             return False
