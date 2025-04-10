@@ -2,7 +2,7 @@
 Armor item class for RPG games.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from .base import Item
 
 class Armor(Item):
@@ -26,14 +26,25 @@ class Armor(Item):
             material: Material the armor is made from
             prefix: Special prefix that adds effects
         """
-        super().__init__(quality, material, prefix)
+        super().__init__(armor_type, quality, prefix)
         self.armor_type = armor_type
         self.defense = defense
+        self.material = material
         
     @property
     def base_name(self) -> str:
         """Get the base name of the armor."""
         return self.armor_type.capitalize()
+        
+    def get_stats_display(self) -> List[str]:
+        """Get a list of stat strings to display in tooltips."""
+        stats = super().get_stats_display()
+        stats.extend([
+            f"Type: {self.armor_type}",
+            f"Defense: {self.defense}",
+            f"Material: {self.material}"
+        ])
+        return stats
         
     def to_dict(self) -> Dict[str, Any]:
         """Convert armor to dictionary for serialization."""

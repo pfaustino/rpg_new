@@ -2,7 +2,7 @@
 Weapon item class for RPG games.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from .base import Item
 
 class Weapon(Item):
@@ -26,14 +26,25 @@ class Weapon(Item):
             material: Material the weapon is made from
             prefix: Special prefix that adds effects
         """
-        super().__init__(quality, material, prefix)
+        super().__init__(weapon_type, quality, prefix)
         self.weapon_type = weapon_type
         self.attack_power = attack_power
+        self.material = material
         
     @property
     def base_name(self) -> str:
         """Get the base name of the weapon."""
         return self.weapon_type.capitalize()
+        
+    def get_stats_display(self) -> List[str]:
+        """Get a list of stat strings to display in tooltips."""
+        stats = super().get_stats_display()
+        stats.extend([
+            f"Type: {self.weapon_type}",
+            f"Attack: {self.attack_power}",
+            f"Material: {self.material}"
+        ])
+        return stats
         
     def to_dict(self) -> Dict[str, Any]:
         """Convert weapon to dictionary for serialization."""

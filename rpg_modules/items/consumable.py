@@ -2,7 +2,7 @@
 Consumable item class for RPG games.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from .base import Item
 
 class Consumable(Item):
@@ -24,7 +24,9 @@ class Consumable(Item):
             quality: Quality level of the consumable
             prefix: Special prefix that adds effects
         """
-        super().__init__(quality, None, prefix)  # Consumables don't have materials
+        # Use the type as part of the name
+        name = f"{consumable_type.capitalize()} Potion"
+        super().__init__(name, quality, prefix)  # Consumables don't have materials
         self.consumable_type = consumable_type
         self.effect_value = effect_value
         
@@ -32,6 +34,15 @@ class Consumable(Item):
     def base_name(self) -> str:
         """Get the base name of the consumable."""
         return f"{self.consumable_type.capitalize()} Potion"
+        
+    def get_stats_display(self) -> List[str]:
+        """Get a list of stat strings to display in tooltips."""
+        stats = super().get_stats_display()
+        stats.extend([
+            f"Type: {self.consumable_type.capitalize()} Potion",
+            f"Effect: +{self.effect_value} {self.consumable_type.capitalize()}"
+        ])
+        return stats
         
     def to_dict(self) -> Dict[str, Any]:
         """Convert consumable to dictionary for serialization."""
