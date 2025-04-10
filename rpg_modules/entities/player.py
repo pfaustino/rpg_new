@@ -118,22 +118,28 @@ class Player:
             screen: The pygame surface to draw on
             camera: The camera object tracking the player
         """
-        # Calculate screen position
-        screen_x = int(self.x + camera.x)
-        screen_y = int(self.y + camera.y)
+        # Get zoom level
+        zoom = camera.get_zoom()
+        
+        # Calculate screen position with zoom
+        screen_x = int((self.x + camera.x) * zoom)
+        screen_y = int((self.y + camera.y) * zoom)
+        
+        # Scale the size based on zoom
+        scaled_size = int(TILE_SIZE * zoom)
         
         # Draw player using animation system
-        self.animation.draw(screen, (screen_x, screen_y), TILE_SIZE)
+        self.animation.draw(screen, (screen_x, screen_y), scaled_size)
         
         # Draw debug info if needed
         if hasattr(self, 'DEBUG') and self.DEBUG:
             # Draw hitbox
             pygame.draw.rect(screen, (255, 0, 0), 
-                            (screen_x, screen_y, TILE_SIZE, TILE_SIZE), 1)
+                            (screen_x, screen_y, scaled_size, scaled_size), 1)
             # Draw coordinates
-            font = pygame.font.Font(None, 24)
+            font = pygame.font.Font(None, int(24 * zoom))
             text = font.render(f"({int(self.x)}, {int(self.y)})", True, (255, 255, 255))
-            screen.blit(text, (screen_x, screen_y - 20))
+            screen.blit(text, (screen_x, screen_y - int(20 * zoom)))
         
     def move(self, dx: int, dy: int, walls: List[pygame.Rect]) -> None:
         """

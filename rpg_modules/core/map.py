@@ -74,7 +74,14 @@ class Map:
     }
     
     def __init__(self, width: int = 50, height: int = 50, seed: Optional[int] = None):
-        """Initialize the map with biomes and varied terrain."""
+        """
+        Initialize the map with the given dimensions.
+        
+        Args:
+            width: Map width in tiles
+            height: Map height in tiles
+            seed: Optional seed for random generation
+        """
         self.width = width
         self.height = height
         self.pixel_width = width * TILE_SIZE
@@ -92,10 +99,15 @@ class Map:
         self.collision_grid = [[False for _ in range(width)] for _ in range(height)]
         
         # List of wall rectangles for collision detection
-        self.walls: List[pygame.Rect] = []
+        self.walls = []
         
-        # Generate the map
+        # Add a variety of biomes and terrain features
         self._generate_map()
+        self._update_wall_rects()
+        
+        # Add image caching for better zoom performance
+        self.scaled_images_cache = {}
+        self.last_zoom = 1.0
         
     def _generate_map(self) -> None:
         """Generate a varied terrain map with different biomes."""
@@ -320,50 +332,83 @@ class Map:
         
     def draw(self, screen, camera, assets):
         """Draw the map on the screen."""
-        # Calculate visible tile range based on camera position and zoom
+        # Get camera zoom level
         zoom = camera.get_zoom()
-        effective_screen_width = int(SCREEN_WIDTH / zoom)
-        effective_screen_height = int(SCREEN_HEIGHT / zoom)
         
-        # Calculate the range of tiles to draw
-        start_x = max(0, int((-camera.x) / TILE_SIZE))
-        end_x = min(self.width, start_x + effective_screen_width // TILE_SIZE + 2)
-        start_y = max(0, int((-camera.y) / TILE_SIZE))
-        end_y = min(self.height, start_y + effective_screen_height // TILE_SIZE + 2)
+        # Calculate the visible tile range with a much larger buffer to avoid black areas
+        # First, determine the actual visible area in world space
+        visible_width = SCREEN_WIDTH / zoom
+        visible_height = SCREEN_HEIGHT / zoom
         
-        # Create a temporary surface for the visible portion of the map
-        map_surface = pygame.Surface((effective_screen_width + 2 * TILE_SIZE, 
-                                    effective_screen_height + 2 * TILE_SIZE), 
-                                   pygame.SRCALPHA)
+        # Calculate the visible tiles with a significant margin (8 tiles in each direction)
+        # This ensures we don't see black areas even during quick zooms
+        start_x = max(0, int((-camera.x / zoom) / TILE_SIZE) - 8)
+        end_x = min(self.width, int((-camera.x / zoom + visible_width) / TILE_SIZE) + 8)
+        start_y = max(0, int((-camera.y / zoom) / TILE_SIZE) - 8)
+        end_y = min(self.height, int((-camera.y / zoom + visible_height) / TILE_SIZE) + 8)
         
-        # Draw tiles to the temporary surface
+        # Add debug output to track drawing area
+        # print(f"Drawing tiles from ({start_x},{start_y}) to ({end_x},{end_y}) - Zoom: {zoom:.2f}")
+        
+        # Scale tile size once - use ceil to prevent gaps between tiles
+        scaled_size = math.ceil(TILE_SIZE * zoom)
+        
+        # Clear the image cache if zoom level changed
+        if abs(zoom - self.last_zoom) > 0.01:  # Only clear when zoom changes significantly
+            self.scaled_images_cache = {}
+            self.last_zoom = zoom
+            print(f"DEBUG: Cleared image cache at zoom level {zoom:.2f}")
+        
+        # Draw tiles directly to the screen with zoom scaling
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
-                # Get screen position
-                screen_x = int((x * TILE_SIZE + camera.x))
-                screen_y = int((y * TILE_SIZE + camera.y))
+                # Calculate screen position with zoom - ensure we use exact pixel positions
+                screen_x = int((x * TILE_SIZE + camera.x) * zoom)
+                screen_y = int((y * TILE_SIZE + camera.y) * zoom)
                 
                 # Draw base tile
                 base_tile = self.base_grid[y][x]
                 if base_tile.value in assets:
-                    map_surface.blit(assets[base_tile.value], (screen_x, screen_y))
+                    # Get the original tile image
+                    orig_img = assets[base_tile.value]
+                    
+                    # Scale the image if zoom isn't 1.0
+                    if abs(zoom - 1.0) > 0.01:  # Only scale if zoom is significantly different from 1.0
+                        # Use cached version if available
+                        cache_key = f"{base_tile.value}_{scaled_size}"
+                        if cache_key not in self.scaled_images_cache:
+                            # Create and cache a smoothly scaled version
+                            self.scaled_images_cache[cache_key] = pygame.transform.scale(orig_img, (scaled_size, scaled_size))
+                        
+                        # Use the cached scaled image
+                        screen.blit(self.scaled_images_cache[cache_key], (screen_x, screen_y))
+                    else:
+                        # Use the original image for better performance at 1.0 zoom
+                        screen.blit(orig_img, (screen_x, screen_y))
                 else:
-                    pygame.draw.rect(map_surface, (100, 100, 100),
-                                     (screen_x, screen_y, TILE_SIZE, TILE_SIZE))
+                    # Fallback for missing textures
+                    pygame.draw.rect(screen, (100, 100, 100), 
+                                   (screen_x, screen_y, scaled_size, scaled_size))
                 
-                # Draw decoration
+                # Draw decoration on top if present
                 decoration = self.decoration_grid[y][x]
                 if decoration and decoration.value in assets:
-                    map_surface.blit(assets[decoration.value], (screen_x, screen_y))
-        
-        # Scale the map surface according to zoom level
-        if zoom != 1.0:
-            scaled_width = int(map_surface.get_width() * zoom)
-            scaled_height = int(map_surface.get_height() * zoom)
-            scaled_surface = pygame.transform.scale(map_surface, (scaled_width, scaled_height))
-            screen.blit(scaled_surface, (0, 0))
-        else:
-            screen.blit(map_surface, (0, 0))
+                    # Get the original decoration image
+                    orig_decor = assets[decoration.value]
+                    
+                    # Scale the image if zoom isn't 1.0
+                    if abs(zoom - 1.0) > 0.01:  # Only scale if zoom is significantly different from 1.0
+                        # Use cached version if available
+                        cache_key = f"{decoration.value}_{scaled_size}"
+                        if cache_key not in self.scaled_images_cache:
+                            # Create and cache a smoothly scaled version
+                            self.scaled_images_cache[cache_key] = pygame.transform.scale(orig_decor, (scaled_size, scaled_size))
+                        
+                        # Use the cached scaled image
+                        screen.blit(self.scaled_images_cache[cache_key], (screen_x, screen_y))
+                    else:
+                        # Use the original image for better performance at 1.0 zoom
+                        screen.blit(orig_decor, (screen_x, screen_y))
         
     def to_dict(self) -> Dict:
         """Convert map state to dictionary for serialization."""

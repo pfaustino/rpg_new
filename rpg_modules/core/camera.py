@@ -33,25 +33,76 @@ class Camera:
         return self.zoom
         
     def zoom_in(self) -> None:
-        """Increase zoom level (up to 2.0x)."""
-        if self.zoom < 2.0:
-            self.zoom = min(2.0, self.zoom + 0.1)
-            self.zoom_message = f"Zoom: {self.zoom:.1f}x"
-            self.zoom_message_timer = 60  # Show message for 1 second at 60fps
+        """Increase zoom level (up to 4.0x)."""
+        if not self.can_zoom_in():
+            return
             
+        old_zoom = self.zoom
+        
+        # Store the target's center position before changing zoom
+        if self.target:
+            target_center = self.target.get_center_position()
+            
+        # Apply zoom - ensure we scale by a good amount for responsiveness
+        self.zoom = min(4.0, self.zoom + 0.25)
+        self.zoom_message = f"Zoom: {self.zoom:.1f}x"
+        self.zoom_message_timer = 30  # Show message for 0.5 seconds at 60fps
+        print(f"DEBUG: Zoom in detected! Old zoom: {old_zoom:.2f}, New zoom: {self.zoom:.2f}")
+        
+        # Force update to recenter on the target
+        if self.target:
+            self.update()
+        
     def zoom_out(self) -> None:
-        """Decrease zoom level (down to 0.5x)."""
-        if self.zoom > 0.5:
-            self.zoom = max(0.5, self.zoom - 0.1)
-            self.zoom_message = f"Zoom: {self.zoom:.1f}x"
-            self.zoom_message_timer = 60  # Show message for 1 second at 60fps
+        """Decrease zoom level (down to 0.75x)."""
+        if not self.can_zoom_out():
+            return
             
+        old_zoom = self.zoom
+        
+        # Store the target's center position before changing zoom
+        if self.target:
+            target_center = self.target.get_center_position()
+            
+        # Apply zoom - ensure we scale by a good amount for responsiveness
+        self.zoom = max(0.75, self.zoom - 0.25)
+        self.zoom_message = f"Zoom: {self.zoom:.1f}x"
+        self.zoom_message_timer = 30  # Show message for 0.5 seconds at 60fps
+        print(f"DEBUG: Zoom out detected! Old zoom: {old_zoom:.2f}, New zoom: {self.zoom:.2f}")
+        
+        # Force update to recenter on the target
+        if self.target:
+            self.update()
+        
+    def can_zoom_in(self) -> bool:
+        """Check if the camera can zoom in further."""
+        return self.zoom < 4.0
+        
+    def can_zoom_out(self) -> bool:
+        """Check if the camera can zoom out further."""
+        return self.zoom > 0.75
+    
+    def is_zoom_in_progress(self) -> bool:
+        """Check if zoom animation is in progress."""
+        return self.zoom_message_timer > 0
+        
     def reset_zoom(self) -> None:
         """Reset zoom level to 1.0x."""
-        if self.zoom != 1.0:
-            self.zoom = 1.0
-            self.zoom_message = "Zoom Reset"
-            self.zoom_message_timer = 60  # Show message for 1 second at 60fps
+        old_zoom = self.zoom
+        
+        # Store the target's center position before changing zoom
+        if self.target:
+            target_center = self.target.get_center_position()
+            
+        # Apply zoom - always set to 1.0 regardless of current value
+        self.zoom = 1.0
+        self.zoom_message = "Zoom Reset"
+        self.zoom_message_timer = 60  # Show message for 1 second at 60fps
+        print(f"DEBUG: Zoom reset detected! Old zoom: {old_zoom:.2f}, New zoom: {self.zoom:.2f}")
+        
+        # Force update to recenter on the target
+        if self.target:
+            self.update()
             
     def get_zoom_message(self) -> Tuple[Optional[str], int]:
         """Get the current zoom message and its remaining display time."""
@@ -76,14 +127,21 @@ class Camera:
             target = self.target
             
         if target:
-            # Center the camera on the target
+            # Get target's center position
+            target_center = target.get_center_position()
+            
+            # Center the camera on the target, accounting for zoom
             # The camera position is negated because we want to move the world
             # in the opposite direction of the player's movement
-            target_center = target.get_center_position()
-            self.x = -(target_center[0] - SCREEN_WIDTH // 2)
-            self.y = -(target_center[1] - SCREEN_HEIGHT // 2)
+            self.x = -(target_center[0] - SCREEN_WIDTH // 2 / self.zoom)
+            self.y = -(target_center[1] - SCREEN_HEIGHT // 2 / self.zoom)
             
-            # Keep camera within map bounds
+            # Keep camera within map bounds, accounting for zoom
             if self.map_width > 0 and self.map_height > 0:
-                self.x = min(0, max(self.x, -(self.map_width - SCREEN_WIDTH)))
-                self.y = min(0, max(self.y, -(self.map_height - SCREEN_HEIGHT))) 
+                # Calculate effective bounds based on zoom
+                effective_width = self.map_width * self.zoom
+                effective_height = self.map_height * self.zoom
+                
+                # Adjust bounds to prevent seeing outside the map
+                self.x = min(0, max(self.x, -(effective_width - SCREEN_WIDTH) / self.zoom))
+                self.y = min(0, max(self.y, -(effective_height - SCREEN_HEIGHT) / self.zoom)) 

@@ -256,21 +256,32 @@ class Monster:
 
     def draw(self, screen, camera):
         """Draw the monster on the screen."""
-        # Calculate screen position
-        screen_x = int(self.x + camera.x)
-        screen_y = int(self.y + camera.y)
+        # Get camera zoom level
+        zoom = camera.get_zoom()
         
-        # Only draw if on screen
-        if -TILE_SIZE <= screen_x <= SCREEN_WIDTH and -TILE_SIZE <= screen_y <= SCREEN_HEIGHT:
+        # Calculate screen position with zoom
+        screen_x = int((self.x + camera.x) * zoom)
+        screen_y = int((self.y + camera.y) * zoom)
+        
+        # Calculate scaled size
+        scaled_size = int(TILE_SIZE * zoom)
+        
+        # Only draw if on screen (with margin)
+        if -scaled_size <= screen_x <= SCREEN_WIDTH and -scaled_size <= screen_y <= SCREEN_HEIGHT:
             # Draw the monster using its animation system
-            self.animation.draw(screen, screen_x + TILE_SIZE // 2, screen_y + TILE_SIZE // 2, self.direction)
+            self.animation.draw(screen, 
+                               screen_x + scaled_size // 2, 
+                               screen_y + scaled_size // 2, 
+                               self.direction,
+                               size=scaled_size)
             
             # Draw monster type text above monster
-            font = pygame.font.Font(None, 20)
+            font_size = max(10, int(20 * zoom))
+            font = pygame.font.Font(None, font_size)
             text = self.monster_type.name
             text_surface = font.render(text, True, (255, 255, 255))
-            text_x = screen_x + (TILE_SIZE - text_surface.get_width()) // 2
-            text_y = screen_y - 20
+            text_x = screen_x + (scaled_size - text_surface.get_width()) // 2
+            text_y = screen_y - int(20 * zoom)
             screen.blit(text_surface, (text_x, text_y))
 
     def _get_monster_color(self):
