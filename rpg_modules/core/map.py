@@ -175,9 +175,8 @@ class Map:
                 if random.random() < 0.1:  # 10% chance for decoration
                     self.decoration_grid[y][x] = self._get_decoration(self.biome_grid[y][x])
                     
-                # Update collision grid
-                self.collision_grid[y][x] = (self.base_grid[y][x] == TileType.WATER or 
-                                           self.decoration_grid[y][x] in {TileType.TREE, TileType.ROCK})
+                # Update collision grid - only decorations block movement, not water
+                self.collision_grid[y][x] = (self.decoration_grid[y][x] in {TileType.TREE, TileType.ROCK})
         
         # Ensure distinct terrain patches
         self._add_terrain_patches()
@@ -229,8 +228,11 @@ class Map:
     def _update_wall_rects(self) -> None:
         """Update the list of wall rectangles for collision detection."""
         self.walls.clear()
+        wall_count = 0
         for y in range(self.height):
             for x in range(self.width):
+                # Only add wall-type tiles (not water) to collision rects
+                base_tile = self.base_grid[y][x]
                 if self.collision_grid[y][x]:
                     self.walls.append(pygame.Rect(
                         x * TILE_SIZE,
@@ -238,7 +240,12 @@ class Map:
                         TILE_SIZE,
                         TILE_SIZE
                     ))
-                    
+                    wall_count += 1
+        
+        # Only print wall count during map generation, not for every update
+        if wall_count > 0 and len(self.walls) > 0:
+            print(f"DEBUG: Updated wall rectangles - {wall_count} walls added to collision list")
+        
     def get_spawn_position(self) -> Tuple[int, int]:
         """Find a valid spawn position for the player (floor tile)."""
         # Try to spawn near the center of the map
@@ -502,10 +509,13 @@ class Map:
                         distance = math.sqrt(dx**2 + dy**2)
                         if distance <= patch_size * 0.8:  # Make it more circular
                             self.base_grid[y][x] = TileType.WATER
-                            self.collision_grid[y][x] = True  # Make water impassable
+                            self.collision_grid[y][x] = False  # Make water walkable
                             
         # Add stone wall structures
         self._add_stone_walls()
+        
+        # Update wall rectangles after all terrain modifications
+        self._update_wall_rects()
     
     def _add_stone_walls(self):
         """Add stone wall structures like ruins, small buildings, and walls."""
@@ -535,16 +545,21 @@ class Map:
         width = random.randint(5, 8)
         height = random.randint(5, 8)
         
+        wall_count = 0
+        print(f"DEBUG: Creating room at ({room_x}, {room_y}) with dimensions {width}x{height}")
+        
         # Create top and bottom walls
         for x in range(room_x, room_x + width):
             # Check if position is valid
             if 0 <= x < self.width and 0 <= room_y < self.height:
                 self.base_grid[room_y][x] = TileType.STONE_WALL
                 self.collision_grid[room_y][x] = True
+                wall_count += 1
             
             if 0 <= x < self.width and 0 <= room_y + height - 1 < self.height:
                 self.base_grid[room_y + height - 1][x] = TileType.STONE_WALL
                 self.collision_grid[room_y + height - 1][x] = True
+                wall_count += 1
         
         # Create left and right walls
         for y in range(room_y, room_y + height):
@@ -582,6 +597,8 @@ class Map:
             if 0 <= room_x + width - 1 < self.width and 0 <= door_y < self.height:
                 self.base_grid[door_y][room_x + width - 1] = self.base_grid[door_y][room_x + width - 2]
                 self.collision_grid[door_y][room_x + width - 1] = False
+        
+        print(f"DEBUG: Room created with {wall_count} wall tiles")
     
     def _create_ruins(self):
         """Create ruins with incomplete walls."""

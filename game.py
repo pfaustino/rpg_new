@@ -185,7 +185,11 @@ class GameState:
         
         # Handle player input
         keys = pygame.key.get_pressed()
-        self.player.handle_input(keys, self.map.get_walls())
+        walls = self.map.get_walls()
+        # Only print wall count occasionally to reduce console spam
+        if random.random() < 0.005:
+            print(f"DEBUG: Passing {len(walls)} walls to player.handle_input()")
+        self.player.handle_input(keys, walls)
             
         # Update player
         self.player.update(dt)
@@ -286,7 +290,7 @@ class GameState:
         self.equipment_ui.draw(screen)
         self.quest_ui.draw(screen)
         if self.generator_ui.visible:
-            self.generator_ui.draw(screen)
+            self.generator_ui.draw(screen, self.player)
             
         # Update display
         pygame.display.flip()

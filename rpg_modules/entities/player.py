@@ -8,6 +8,7 @@ from ..items import Item, Inventory, Equipment
 from ..quests import QuestLog
 from ..core.constants import TILE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT
 from ..animations.base import PlayerIcon
+import random
 
 class Player:
     """Class representing the player character."""
@@ -50,6 +51,9 @@ class Player:
             keys: The current state of keyboard keys
             walls: List of wall rectangles for collision detection
         """
+        # Store the walls list for use in update and move methods
+        self.walls = walls
+        
         # Calculate target velocity based on input
         target_dx = 0
         target_dy = 0
@@ -105,7 +109,7 @@ class Player:
             move_y = self.dy * dt
             
             # Apply movement with collision check
-            self.move(move_x, move_y, [])  # We'll handle wall collisions in move()
+            self.move(move_x, move_y, self.walls)  # Use the walls list stored from handle_input
             
         # Update animation
         self.animation.update(dt)
@@ -197,8 +201,15 @@ class Player:
         Returns:
             True if there is a collision, False otherwise
         """
+        # Only print wall count every 100 frames to reduce console spam
+        if random.random() < 0.01:
+            print(f"DEBUG: Checking collision with {len(walls)} walls")
+            
         for wall in walls:
             if self.rect.colliderect(wall):
+                # Only print collision detection occasionally to reduce console spam
+                if random.random() < 0.05:
+                    print(f"DEBUG: Collision detected with wall at ({wall.x/64:.1f}, {wall.y/64:.1f})")
                 return True
         return False
         
