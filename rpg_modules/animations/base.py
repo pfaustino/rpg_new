@@ -436,6 +436,16 @@ class MonsterIcon(AnimatedIcon):
                 self._render_vampire(surface, size, direction, anim)
             elif any(x in monster_parts for x in ['pixie']):
                 self._render_pixie(surface, size, direction, anim)
+            elif any(x in monster_parts for x in ['merfolk', 'mermaid']):
+                self._render_mermaid(surface, size, direction, anim)
+            elif any(x in monster_parts for x in ['kraken']):
+                self._render_kraken(surface, size, direction, anim)
+            elif any(x in monster_parts for x in ['siren']):
+                self._render_siren(surface, size, direction, anim)
+            elif any(x in monster_parts for x in ['leviathan']):
+                self._render_leviathan(surface, size, direction, anim)
+            elif any(x in monster_parts for x in ['water', 'spirit']):
+                self._render_water_spirit(surface, size, direction, anim)
             else:
                 print(f"No specific render method found for {self.monster_type}, using default")
                 self._render_default(surface, size, direction, anim)
@@ -2181,4 +2191,318 @@ class MonsterIcon(AnimatedIcon):
             return True
         except Exception as e:
             print(f"Error in vampire render: {e}")
+            return False
+
+    def _render_mermaid(self, surface: pygame.Surface, size: int, direction: Direction, anim: dict):
+        """Render mermaid monsters with aquatic features."""
+        try:
+            mermaid_color = self._sanitize_color((0, 100, 100))  # Teal
+            center = (size//2, size//2)
+            
+            # Draw main body (fish-like)
+            body_rect = pygame.Rect(
+                center[0] - size//4,
+                center[1] - size//6,
+                size//2,
+                size//3
+            )
+            pygame.draw.ellipse(surface, mermaid_color, body_rect)
+            
+            # Draw fins
+            fin_color = (255, 255, 255, 128)
+            for i in range(4):
+                angle = math.pi * i / 4 + (math.pi / 8)  # Offset by 22.5 degrees
+                fin_points = [
+                    center,
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//12),
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//6),
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//4)
+                ]
+                pygame.draw.polygon(surface, fin_color, fin_points)
+            
+            # Draw eyes
+            eye_color = (255, 255, 255)
+            eye_positions = [
+                (center[0] - size//6, center[1] - size//8),
+                (center[0] + size//6, center[1] - size//8)
+            ]
+            
+            for pos in eye_positions:
+                pygame.draw.circle(surface, eye_color, pos, size//12)
+                pygame.draw.circle(surface, (0, 0, 0), pos, size//16)
+            
+            # Add water splash particles
+            if random.random() < 0.1:
+                splash_pos = (
+                    random.randint(center[0] - size//4, center[0] + size//4),
+                    random.randint(center[1] - size//6, center[1] + size//6)
+                )
+                self._particles.append(Particle(
+                    x=splash_pos[0],
+                    y=splash_pos[1],
+                    dx=random.uniform(-1, 1),
+                    dy=random.uniform(-1, 1),
+                    color=(100, 150, 200, 128),
+                    life=random.uniform(0.5, 1.0),
+                    size=random.uniform(2, 4)
+                ))
+            
+            self._draw_particles(surface)
+            return True
+        except Exception as e:
+            print(f"Error in _render_mermaid: {e}")
+            return False
+
+    def _render_kraken(self, surface: pygame.Surface, size: int, direction: Direction, anim: dict):
+        """Render kraken monsters with tentacle-like features."""
+        try:
+            kraken_color = self._sanitize_color((100, 100, 100))  # Gray
+            center = (size//2, size//2)
+            
+            # Draw main body (cylinder)
+            body_rect = pygame.Rect(
+                center[0] - size//4,
+                center[1] - size//6,
+                size//2,
+                size//3
+            )
+            pygame.draw.ellipse(surface, kraken_color, body_rect)
+            
+            # Draw tentacles
+            tentacle_color = (255, 255, 255, 128)
+            for i in range(6):
+                angle = math.pi * i / 6 + (math.pi / 8)  # Offset by 22.5 degrees
+                tentacle_points = [
+                    center,
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//12),
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//6),
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//4)
+                ]
+                pygame.draw.polygon(surface, tentacle_color, tentacle_points)
+            
+            # Draw eyes
+            eye_color = (255, 255, 255)
+            eye_positions = [
+                (center[0] - size//6, center[1] - size//8),
+                (center[0] + size//6, center[1] - size//8)
+            ]
+            
+            for pos in eye_positions:
+                pygame.draw.circle(surface, eye_color, pos, size//12)
+                pygame.draw.circle(surface, (0, 0, 0), pos, size//16)
+            
+            # Add water splash particles
+            if random.random() < 0.1:
+                splash_pos = (
+                    random.randint(center[0] - size//4, center[0] + size//4),
+                    random.randint(center[1] - size//6, center[1] + size//6)
+                )
+                self._particles.append(Particle(
+                    x=splash_pos[0],
+                    y=splash_pos[1],
+                    dx=random.uniform(-1, 1),
+                    dy=random.uniform(-1, 1),
+                    color=(100, 150, 200, 128),
+                    life=random.uniform(0.5, 1.0),
+                    size=random.uniform(2, 4)
+                ))
+            
+            self._draw_particles(surface)
+            return True
+        except Exception as e:
+            print(f"Error in _render_kraken: {e}")
+            return False
+
+    def _render_siren(self, surface: pygame.Surface, size: int, direction: Direction, anim: dict):
+        """Render siren monsters with enchanting voice and aquatic features."""
+        try:
+            siren_color = self._sanitize_color((255, 100, 100))  # Pink
+            center = (size//2, size//2)
+            
+            # Draw main body (fish-like)
+            body_rect = pygame.Rect(
+                center[0] - size//4,
+                center[1] - size//6,
+                size//2,
+                size//3
+            )
+            pygame.draw.ellipse(surface, siren_color, body_rect)
+            
+            # Draw fins
+            fin_color = (255, 255, 255, 128)
+            for i in range(4):
+                angle = math.pi * i / 4 + (math.pi / 8)  # Offset by 22.5 degrees
+                fin_points = [
+                    center,
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//12),
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//6),
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//4)
+                ]
+                pygame.draw.polygon(surface, fin_color, fin_points)
+            
+            # Draw eyes
+            eye_color = (255, 255, 255)
+            eye_positions = [
+                (center[0] - size//6, center[1] - size//8),
+                (center[0] + size//6, center[1] - size//8)
+            ]
+            
+            for pos in eye_positions:
+                pygame.draw.circle(surface, eye_color, pos, size//12)
+                pygame.draw.circle(surface, (0, 0, 0), pos, size//16)
+            
+            # Add water splash particles
+            if random.random() < 0.1:
+                splash_pos = (
+                    random.randint(center[0] - size//4, center[0] + size//4),
+                    random.randint(center[1] - size//6, center[1] + size//6)
+                )
+                self._particles.append(Particle(
+                    x=splash_pos[0],
+                    y=splash_pos[1],
+                    dx=random.uniform(-1, 1),
+                    dy=random.uniform(-1, 1),
+                    color=(100, 150, 200, 128),
+                    life=random.uniform(0.5, 1.0),
+                    size=random.uniform(2, 4)
+                ))
+            
+            self._draw_particles(surface)
+            return True
+        except Exception as e:
+            print(f"Error in _render_siren: {e}")
+            return False
+
+    def _render_leviathan(self, surface: pygame.Surface, size: int, direction: Direction, anim: dict):
+        """Render leviathan monsters with massive size and aquatic features."""
+        try:
+            leviathan_color = self._sanitize_color((100, 100, 100))  # Gray
+            center = (size//2, size//2)
+            
+            # Draw main body (cylinder)
+            body_rect = pygame.Rect(
+                center[0] - size//4,
+                center[1] - size//6,
+                size//2,
+                size//3
+            )
+            pygame.draw.ellipse(surface, leviathan_color, body_rect)
+            
+            # Draw tentacles
+            tentacle_color = (255, 255, 255, 128)
+            for i in range(6):
+                angle = math.pi * i / 6 + (math.pi / 8)  # Offset by 22.5 degrees
+                tentacle_points = [
+                    center,
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//12),
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//6),
+                    (center[0] + size//4 * math.cos(angle),
+                     center[1] - size//6 + size//4)
+                ]
+                pygame.draw.polygon(surface, tentacle_color, tentacle_points)
+            
+            # Draw eyes
+            eye_color = (255, 255, 255)
+            eye_positions = [
+                (center[0] - size//6, center[1] - size//8),
+                (center[0] + size//6, center[1] - size//8)
+            ]
+            
+            for pos in eye_positions:
+                pygame.draw.circle(surface, eye_color, pos, size//12)
+                pygame.draw.circle(surface, (0, 0, 0), pos, size//16)
+            
+            # Add water splash particles
+            if random.random() < 0.1:
+                splash_pos = (
+                    random.randint(center[0] - size//4, center[0] + size//4),
+                    random.randint(center[1] - size//6, center[1] + size//6)
+                )
+                self._particles.append(Particle(
+                    x=splash_pos[0],
+                    y=splash_pos[1],
+                    dx=random.uniform(-1, 1),
+                    dy=random.uniform(-1, 1),
+                    color=(100, 150, 200, 128),
+                    life=random.uniform(0.5, 1.0),
+                    size=random.uniform(2, 4)
+                ))
+            
+            self._draw_particles(surface)
+            return True
+        except Exception as e:
+            print(f"Error in _render_leviathan: {e}")
+            return False
+
+    def _render_water_spirit(self, surface: pygame.Surface, size: int, direction: Direction, anim: dict):
+        """Render water spirit monsters with ethereal aquatic effects."""
+        try:
+            water_spirit_color = self._sanitize_color((0, 100, 100))  # Teal
+            center = (size//2, size//2)
+            
+            # Create a pulsing, transparent form
+            pulse = (math.sin(self._time * 2) + 1) / 2
+            for i in range(3):
+                alpha = int(128 * (1 - i/3) * (0.5 + pulse * 0.5))
+                radius = size//3 * (1 + i * 0.2)
+                ghost_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+                pygame.draw.circle(ghost_surface, (*water_spirit_color[:3], alpha), center, int(radius))
+                surface.blit(ghost_surface, (0, 0))
+            
+            # Add floating movement
+            float_y = math.sin(self._time * 3) * size//10
+            
+            # Draw main form
+            main_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+            main_points = [
+                (center[0], center[1] - size//3 + float_y),
+                (center[0] - size//3, center[1] + size//3 + float_y),
+                (center[0] + size//3, center[1] + size//3 + float_y)
+            ]
+            pygame.draw.polygon(main_surface, (*water_spirit_color[:3], 192), main_points)
+            surface.blit(main_surface, (0, 0))
+            
+            # Draw glowing eyes
+            eye_color = (255, 255, 255)
+            eye_spacing = size//6
+            eye_y = center[1] - size//6 + float_y
+            
+            for x_offset in [-eye_spacing, eye_spacing]:
+                eye_x = center[0] + x_offset
+                # Outer glow
+                pygame.draw.circle(surface, (*eye_color, 64), (eye_x, eye_y), size//10)
+                # Inner glow
+                pygame.draw.circle(surface, (*eye_color, 128), (eye_x, eye_y), size//16)
+                # Core
+                pygame.draw.circle(surface, eye_color, (eye_x, eye_y), size//24)
+            
+            # Add ethereal particles
+            if random.random() < 0.2:
+                angle = random.uniform(0, math.pi * 2)
+                distance = random.uniform(size//6, size//3)
+                self._particles.append(Particle(
+                    x=center[0] + math.cos(angle) * distance,
+                    y=center[1] + math.sin(angle) * distance + float_y,
+                    dx=random.uniform(-0.5, 0.5),
+                    dy=random.uniform(-0.5, 0.5),
+                    color=(*water_spirit_color[:3], 128),
+                    life=random.uniform(0.5, 1.0),
+                    size=random.uniform(3, 6)
+                ))
+            
+            self._draw_particles(surface)
+            return True
+        except Exception as e:
+            print(f"Error in _render_water_spirit: {e}")
             return False
