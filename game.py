@@ -20,6 +20,7 @@ from rpg_modules.core.constants import (
     WHITE, BLACK, RED, GREEN, BLUE, GRAY,
     QUALITY_COLORS, UI_DIMENSIONS
 )
+from rpg_modules.core.map import TileType
 
 # Player stats
 PLAYER_HP = 100
@@ -298,7 +299,7 @@ class GameState:
     def _spawn_initial_monsters(self):
         """Spawn initial set of monsters."""
         # Use a wider variety of monster types for initial spawn
-        monster_types = [
+        land_monster_types = [
             # Original monsters
             MonsterType.SLIME, MonsterType.SPIDER, MonsterType.WOLF,
             # Elemental creatures
@@ -316,48 +317,85 @@ class GameState:
             # Crystal Creatures
             MonsterType.CRYSTAL_GOLEM, MonsterType.PRISM_ELEMENTAL, MonsterType.GEM_BASILISK
         ]
+        
+        water_monster_types = [
+            MonsterType.WATER_SPIRIT, 
+            MonsterType.MERFOLK, 
+            MonsterType.KRAKEN, 
+            MonsterType.SIREN, 
+            MonsterType.LEVIATHAN
+        ]
+        
         spawn_count = 0
         
         # Shuffle the monster types to randomize which ones get spawned
-        random.shuffle(monster_types)
+        random.shuffle(land_monster_types)
+        random.shuffle(water_monster_types)
         
         print("\nStarting initial monster spawn...")
         # Try to spawn monsters until we reach MAX_MONSTERS
-        while spawn_count < MAX_MONSTERS and monster_types:
-            monster_type = monster_types.pop(0)  # Get next monster type
+        while spawn_count < MAX_MONSTERS and (land_monster_types or water_monster_types):
+            # Alternate between water and land monsters to ensure diversity
+            if spawn_count % 2 == 0 and land_monster_types:
+                monster_type = land_monster_types.pop(0)  # Get next land monster type
+                is_water_monster = False
+            elif water_monster_types:
+                monster_type = water_monster_types.pop(0)  # Get next water monster type
+                is_water_monster = True
+            elif land_monster_types:
+                monster_type = land_monster_types.pop(0)  # Fallback to land if no water types left
+                is_water_monster = False
+            else:
+                break  # No more monster types available
+            
             print(f"Attempting to spawn {monster_type.name}...")
             
-            # Generate position away from player
-            tile_x = random.randint(5, self.map.width - 6)
-            tile_y = random.randint(5, self.map.height - 6)
-            pixel_x = tile_x * TILE_SIZE
-            pixel_y = tile_y * TILE_SIZE
+            # Try up to 20 positions for each monster type
+            spawn_successful = False
+            for _ in range(20):
+                # Generate position away from player
+                tile_x = random.randint(5, self.map.width - 6)
+                tile_y = random.randint(5, self.map.height - 6)
+                
+                # Get the tile type at this location (directly access the base_grid)
+                tile_type = self.map.base_grid[tile_y][tile_x]
+                is_water_tile = tile_type == TileType.WATER
+                
+                # Skip if water type mismatch
+                if is_water_monster != is_water_tile:
+                    continue
+                    
+                pixel_x = tile_x * TILE_SIZE
+                pixel_y = tile_y * TILE_SIZE
+                
+                # Check distance from player
+                dx = pixel_x - self.player.x
+                dy = pixel_y - self.player.y
+                distance = math.sqrt(dx * dx + dy * dy)
+                
+                if distance < 200:  # Minimum spawn distance
+                    continue
+                
+                if self.map.is_wall(tile_x, tile_y):
+                    continue
+                
+                # Spawn monster
+                monster = Monster(pixel_x, pixel_y, monster_type)
+                self.monsters.append(monster)
+                self.monster_counts[monster_type] += 1
+                spawn_count += 1
+                spawn_location = "water" if is_water_tile else "land"
+                print(f"Spawned {monster_type.name} at ({tile_x}, {tile_y}) on {spawn_location}")
+                spawn_successful = True
+                break
             
-            # Check distance from player
-            dx = pixel_x - self.player.x
-            dy = pixel_y - self.player.y
-            distance = math.sqrt(dx * dx + dy * dy)
-            
-            if distance < 200:  # Minimum spawn distance
-                print(f"Skip: Too close to player at ({tile_x}, {tile_y})")
-                monster_types.append(monster_type)  # Put back in pool
-                continue
-            
-            if self.map.is_wall(tile_x, tile_y):
-                print(f"Skip: Wall at ({tile_x}, {tile_y})")
-                monster_types.append(monster_type)  # Put back in pool
-                continue
-            
-            # Spawn monster
-            monster = Monster(pixel_x, pixel_y, monster_type)
-            self.monsters.append(monster)
-            self.monster_counts[monster_type] += 1
-            spawn_count += 1
-            print(f"Spawned {monster_type.name} at ({tile_x}, {tile_y})")
-            
-            # Put the monster type back in the pool if we haven't reached MAX_MONSTERS
-            if spawn_count < MAX_MONSTERS:
-                monster_types.append(monster_type)
+            # If spawn was unsuccessful, put the monster type back but at the end
+            if not spawn_successful:
+                print(f"Failed to find valid spawn position for {monster_type.name}")
+                if is_water_monster:
+                    water_monster_types.append(monster_type)
+                else:
+                    land_monster_types.append(monster_type)
         
         print(f"\nInitial spawn complete - {spawn_count} monsters spawned")
 
@@ -385,14 +423,33 @@ class GameState:
                 # Constructs
                 MonsterType.CLOCKWORK_KNIGHT, MonsterType.STEAM_GOLEM, MonsterType.ARCANE_TURRET,
                 # Crystal Creatures
-                MonsterType.CRYSTAL_GOLEM, MonsterType.PRISM_ELEMENTAL, MonsterType.GEM_BASILISK
+                MonsterType.CRYSTAL_GOLEM, MonsterType.PRISM_ELEMENTAL, MonsterType.GEM_BASILISK,
+                # Water Creatures
+                MonsterType.WATER_SPIRIT, MonsterType.MERFOLK, MonsterType.KRAKEN, MonsterType.SIREN, MonsterType.LEVIATHAN
             ])
 
+        # Determine if this is a water monster
+        is_water_monster = monster_type in [
+            MonsterType.WATER_SPIRIT, 
+            MonsterType.MERFOLK, 
+            MonsterType.KRAKEN, 
+            MonsterType.SIREN, 
+            MonsterType.LEVIATHAN
+        ]
+        
         # Try multiple positions until we find a valid one
-        for _ in range(10):  # Try up to 10 different positions
+        for _ in range(20):  # Increased attempts to 20 to handle water-specific spawning
             # Generate random position in tile coordinates
             tile_x = random.randint(2, self.map.width - 3)
             tile_y = random.randint(2, self.map.height - 3)
+            
+            # Get the tile type at this location (directly access the base_grid)
+            tile_type = self.map.base_grid[tile_y][tile_x]
+            is_water_tile = tile_type == TileType.WATER
+            
+            # Skip if water type mismatch (water monsters should only spawn in water, non-water monsters not in water)
+            if is_water_monster != is_water_tile:
+                continue
             
             # Convert to pixel coordinates
             pixel_x = tile_x * TILE_SIZE
@@ -401,7 +458,7 @@ class GameState:
             # Check if position is walkable
             if self.map.is_wall(tile_x, tile_y):
                 continue
-                
+            
             # Check distance from player
             dx = pixel_x - self.player.x
             dy = pixel_y - self.player.y
@@ -410,7 +467,7 @@ class GameState:
             min_distance = 200  # Increased minimum spawn distance
             if distance < min_distance:
                 continue
-                
+            
             # Check if we've reached max count for this type
             max_count = 10  # Default max count per type
             if self.monster_counts[monster_type] >= max_count:
@@ -421,9 +478,10 @@ class GameState:
             monster = Monster(pixel_x, pixel_y, monster_type)
             self.monsters.append(monster)
             self.monster_counts[monster_type] += 1
-            print(f"Spawned {monster_type.name} at tile ({tile_x}, {tile_y})")
+            spawn_location = "water" if is_water_tile else "land"
+            print(f"Spawned {monster_type.name} at tile ({tile_x}, {tile_y}) on {spawn_location}")
             return True
-            
+        
         print(f"Failed to find valid spawn position for {monster_type.name}")
         return False
 
