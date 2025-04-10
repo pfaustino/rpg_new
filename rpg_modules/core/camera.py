@@ -3,7 +3,7 @@ Camera management for the RPG game.
 """
 
 import pygame
-from typing import Tuple
+from typing import Tuple, Optional
 from rpg_modules.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class Camera:
@@ -21,9 +21,44 @@ class Camera:
         self.y = 0
         self.map_width = 0
         self.map_height = 0
+        self.zoom = 1.0  # Current zoom level
+        self.zoom_message = None  # Current zoom message
+        self.zoom_message_timer = 0  # Timer for zoom message display
         # Initialize camera position if target is provided
         if target:
             self.update(target)
+        
+    def get_zoom(self) -> float:
+        """Get the current zoom level."""
+        return self.zoom
+        
+    def zoom_in(self) -> None:
+        """Increase zoom level (up to 2.0x)."""
+        if self.zoom < 2.0:
+            self.zoom = min(2.0, self.zoom + 0.1)
+            self.zoom_message = f"Zoom: {self.zoom:.1f}x"
+            self.zoom_message_timer = 60  # Show message for 1 second at 60fps
+            
+    def zoom_out(self) -> None:
+        """Decrease zoom level (down to 0.5x)."""
+        if self.zoom > 0.5:
+            self.zoom = max(0.5, self.zoom - 0.1)
+            self.zoom_message = f"Zoom: {self.zoom:.1f}x"
+            self.zoom_message_timer = 60  # Show message for 1 second at 60fps
+            
+    def reset_zoom(self) -> None:
+        """Reset zoom level to 1.0x."""
+        if self.zoom != 1.0:
+            self.zoom = 1.0
+            self.zoom_message = "Zoom Reset"
+            self.zoom_message_timer = 60  # Show message for 1 second at 60fps
+            
+    def get_zoom_message(self) -> Tuple[Optional[str], int]:
+        """Get the current zoom message and its remaining display time."""
+        if self.zoom_message_timer > 0:
+            self.zoom_message_timer -= 1
+            return self.zoom_message, self.zoom_message_timer
+        return None, 0
         
     def set_map_bounds(self, map_width: int, map_height: int) -> None:
         """Set the map bounds for camera movement."""
