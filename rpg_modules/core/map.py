@@ -340,15 +340,19 @@ class Map:
         visible_width = SCREEN_WIDTH / zoom
         visible_height = SCREEN_HEIGHT / zoom
         
-        # Calculate the visible tiles with a significant margin (8 tiles in each direction)
-        # This ensures we don't see black areas even during quick zooms
-        start_x = max(0, int((-camera.x / zoom) / TILE_SIZE) - 8)
-        end_x = min(self.width, int((-camera.x / zoom + visible_width) / TILE_SIZE) + 8)
-        start_y = max(0, int((-camera.y / zoom) / TILE_SIZE) - 8)
-        end_y = min(self.height, int((-camera.y / zoom + visible_height) / TILE_SIZE) + 8)
+        # Calculate the margin based on zoom level - higher zoom needs larger margins
+        # Use a scaling factor that increases with zoom to prevent gray areas
+        margin = int(16 * max(1, zoom / 2))
         
-        # Add debug output to track drawing area
-        # print(f"Drawing tiles from ({start_x},{start_y}) to ({end_x},{end_y}) - Zoom: {zoom:.2f}")
+        # Calculate the visible tiles with a significant margin in each direction
+        # This ensures we don't see black/gray areas even during quick zooms or at high zoom levels
+        start_x = max(0, int((-camera.x / zoom) / TILE_SIZE) - margin)
+        end_x = min(self.width, int((-camera.x / zoom + visible_width) / TILE_SIZE) + margin)
+        start_y = max(0, int((-camera.y / zoom) / TILE_SIZE) - margin)
+        end_y = min(self.height, int((-camera.y / zoom + visible_height) / TILE_SIZE) + margin)
+        
+        # Debug output to track drawing area - commented out to avoid console flooding
+        # print(f"Drawing tiles from ({start_x},{start_y}) to ({end_x},{end_y}) - Zoom: {zoom:.2f}, Margin: {margin}")
         
         # Scale tile size once - use ceil to prevent gaps between tiles
         scaled_size = math.ceil(TILE_SIZE * zoom)

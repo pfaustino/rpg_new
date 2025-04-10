@@ -133,15 +133,20 @@ class Camera:
             # Center the camera on the target, accounting for zoom
             # The camera position is negated because we want to move the world
             # in the opposite direction of the player's movement
-            self.x = -(target_center[0] - SCREEN_WIDTH // 2 / self.zoom)
-            self.y = -(target_center[1] - SCREEN_HEIGHT // 2 / self.zoom)
+            
+            # Fixed calculation for proper centering - divide screen dimensions by zoom first
+            center_x = SCREEN_WIDTH / (2 * self.zoom)
+            center_y = SCREEN_HEIGHT / (2 * self.zoom)
+            
+            self.x = -(target_center[0] - center_x)
+            self.y = -(target_center[1] - center_y)
             
             # Keep camera within map bounds, accounting for zoom
             if self.map_width > 0 and self.map_height > 0:
-                # Calculate effective bounds based on zoom
-                effective_width = self.map_width * self.zoom
-                effective_height = self.map_height * self.zoom
+                # Calculate map boundaries with zoom considered
+                min_x = -(self.map_width - SCREEN_WIDTH / self.zoom)
+                min_y = -(self.map_height - SCREEN_HEIGHT / self.zoom)
                 
                 # Adjust bounds to prevent seeing outside the map
-                self.x = min(0, max(self.x, -(effective_width - SCREEN_WIDTH) / self.zoom))
-                self.y = min(0, max(self.y, -(effective_height - SCREEN_HEIGHT) / self.zoom)) 
+                self.x = min(0, max(self.x, min_x))
+                self.y = min(0, max(self.y, min_y)) 
