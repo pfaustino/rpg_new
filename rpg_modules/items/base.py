@@ -141,17 +141,39 @@ class Equipment:
         Equip an item in its appropriate slot.
         Returns True if successful, False if no appropriate slot.
         """
+        # Adding debug prints
+        print(f"DEBUG: Attempting to equip item: {item.display_name}")
+        print(f"DEBUG: Item type: {type(item).__name__}")
+        
         slot = None
-        if isinstance(item, Weapon):
+        
+        # Check for Weapon type
+        if hasattr(item, 'weapon_type'):
             slot = 'weapon'
-        elif isinstance(item, Hands):
+            print(f"DEBUG: Item identified as weapon, using slot '{slot}'")
+        # Check for armor type
+        elif hasattr(item, 'armor_type'):
+            armor_type = item.armor_type.lower()
+            if armor_type in self.slots:
+                slot = armor_type
+                print(f"DEBUG: Item identified as armor with type '{armor_type}', using slot '{slot}'")
+            else:
+                print(f"DEBUG: Armor type '{armor_type}' not found in available slots")
+        # Check for hands item
+        elif hasattr(item, 'is_hands') and getattr(item, 'is_hands'):
             slot = 'hands'
-        elif isinstance(item, Armor):
-            slot = item.armor_type.lower()
+            print(f"DEBUG: Item identified as hands equipment, using slot '{slot}'")
+        else:
+            print(f"DEBUG: Could not determine appropriate slot for item {item.display_name}")
+            print(f"DEBUG: Available slots: {list(self.slots.keys())}")
+            print(f"DEBUG: Item attributes: {dir(item)}")
             
         if slot and slot in self.slots:
             self.slots[slot] = item
+            print(f"DEBUG: Successfully equipped {item.display_name} in slot '{slot}'")
             return True
+            
+        print(f"DEBUG: Failed to equip {item.display_name} - no suitable slot found")
         return False
         
     def unequip_item(self, slot: str) -> Optional[Item]:

@@ -32,6 +32,11 @@ class Hands(Item):
         self.material = material
         
     @property
+    def is_hands(self) -> bool:
+        """Identify this as a hands item for equipment purposes."""
+        return True
+        
+    @property
     def base_name(self) -> str:
         """Get the base name of the gauntlets."""
         return "Gauntlets"

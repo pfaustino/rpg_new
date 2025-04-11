@@ -134,7 +134,10 @@ class GameState:
         self.inventory_ui = InventoryUI(screen, self.player.inventory.items)
         self.equipment_ui = EquipmentUI(screen, self.player.equipment.slots)  # Use player's equipment
         self.generator_ui = GeneratorUI(SCREEN_WIDTH - 400, 10)
-        self.quest_ui = QuestUI(screen)
+        
+        # Create quest log and initialize quest UI with it
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(screen, self.quest_log)
         print("UI elements created")
         
         # Load assets
@@ -573,109 +576,156 @@ class GameState:
 
     def equip_item_from_inventory(self, inventory_index):
         """Equip an item from the inventory to the appropriate equipment slot."""
+        print(f"\nDEBUG: ==== EQUIP ATTEMPT START ====")
+        print(f"DEBUG: Attempting to equip item from inventory index {inventory_index}")
+        print(f"DEBUG: Total items in inventory: {len(self.player.inventory.items)}")
+        print(f"DEBUG: Equipment instance: {self.player.equipment}")
+        print(f"DEBUG: Available equipment slots: {self.player.equipment.slots.keys()}")
+        
         if not (0 <= inventory_index < len(self.player.inventory.items)):
             print(f"DEBUG: Invalid inventory index: {inventory_index}")
+            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - INVALID INDEX ====\n")
             return False
         
         item = self.player.inventory.items[inventory_index]
         if item is None:
             print("DEBUG: No item at this inventory index")
+            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - NO ITEM ====\n")
             return False
         
         print(f"DEBUG: Attempting to equip {item.display_name} from inventory slot {inventory_index}")
+        print(f"DEBUG: Item type: {type(item).__name__}")
         
         # Handle consumable items differently - use them immediately
         if hasattr(item, 'consumable_type'):
             # Apply consumable effect to player
+            print(f"DEBUG: Item is a consumable of type: {item.consumable_type}")
             print(f"Using {item.display_name}...")
             if item.consumable_type == 'health':
+                old_health = self.player.health
                 self.player.health = min(self.player.max_health, self.player.health + item.effect_value)
-                print(f"Restored {item.effect_value} health. Player health: {self.player.health}/{self.player.max_health}")
+                print(f"Restored {self.player.health - old_health} health. Player health: {self.player.health}/{self.player.max_health}")
             elif item.consumable_type == 'mana':
+                old_mana = self.player.mana
                 self.player.mana = min(self.player.max_mana, self.player.mana + item.effect_value)
-                print(f"Restored {item.effect_value} mana. Player mana: {self.player.mana}/{self.player.max_mana}")
+                print(f"Restored {self.player.mana - old_mana} mana. Player mana: {self.player.mana}/{self.player.max_mana}")
             elif item.consumable_type == 'stamina':
+                old_stamina = self.player.stamina
                 self.player.stamina = min(self.player.max_stamina, self.player.stamina + item.effect_value)
-                print(f"Restored {item.effect_value} stamina. Player stamina: {self.player.stamina}/{self.player.max_stamina}")
+                print(f"Restored {self.player.stamina - old_stamina} stamina. Player stamina: {self.player.stamina}/{self.player.max_stamina}")
             
             # Remove the consumable from inventory
             self.player.inventory.items[inventory_index] = None
+            print(f"DEBUG: Removed consumable from inventory slot {inventory_index}")
             
-            # Update UI
+            # Update UI immediately
             self.inventory_ui.inventory = self.player.inventory.items
-            
+            print(f"DEBUG: Updated inventory UI after consuming item")
+            print(f"DEBUG: ==== EQUIP ATTEMPT SUCCESS - CONSUMED ITEM ====\n")
             return True
         
-        # Determine equipment slot based on item type
+        # Get the current item from the slot this item would go into before equipping
+        # This allows us to swap the items
         slot = None
+        
+        # Determine which slot this item belongs in
         if hasattr(item, 'weapon_type'):
             slot = 'weapon'
-            print(f"DEBUG: Item is a weapon, using slot '{slot}'")
+            print(f"DEBUG: Item is a weapon of type {item.weapon_type}, will use slot '{slot}'")
         elif hasattr(item, 'armor_type'):
             slot = item.armor_type.lower()
-            print(f"DEBUG: Item is armor type {item.armor_type}, using slot '{slot}'")
+            print(f"DEBUG: Item is armor of type {item.armor_type}, will use slot '{slot}'")
+        elif hasattr(item, 'is_hands'):
+            slot = 'hands'
+            print(f"DEBUG: Item is hands armor, will use slot '{slot}'")
+            
+        if slot is None:
+            print(f"DEBUG: Could not determine appropriate slot for item")
+            print(f"DEBUG: Item has attributes: {dir(item)}")
+            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - UNKNOWN ITEM TYPE ====\n")
+            return False
+            
+        # Verify slot exists in equipment
+        if slot not in self.player.equipment.slots:
+            print(f"DEBUG: Determined slot '{slot}' not found in equipment slots")
+            print(f"DEBUG: Available slots: {list(self.player.equipment.slots.keys())}")
+            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - INVALID SLOT ====\n")
+            return False
+            
+        # Get the current item in that slot before equipping
+        current_equipped_item = self.player.equipment.slots[slot]
+        if current_equipped_item:
+            print(f"DEBUG: Current item in slot '{slot}': {current_equipped_item.display_name}")
         else:
-            print(f"DEBUG: Item has no recognized type for equipment")
+            print(f"DEBUG: No item currently in slot '{slot}'")
         
-        print(f"DEBUG: Player equipment type: {type(self.player.equipment)}")
+        # Use Equipment.equip_item method instead of direct slot manipulation
+        equip_success = self.player.equipment.equip_item(item)
+        if not equip_success:
+            print(f"DEBUG: Equipment.equip_item failed to equip the item")
+            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - EQUIP_ITEM FAILED ====\n")
+            return False
+            
+        print(f"DEBUG: Successfully equipped '{item.display_name}' in slot '{slot}'")
         
-        # Make sure the player's equipment is properly initialized
-        if not hasattr(self.player, 'equipment') or not isinstance(self.player.equipment, Equipment):
-            print("DEBUG: Player equipment not properly initialized, creating new Equipment object")
-            self.player.equipment = Equipment()
-        
-        if slot and slot in self.player.equipment.slots:
-            print(f"DEBUG: Found slot '{slot}' in equipment slots")
-            # Get the currently equipped item in this slot
-            current_item = self.player.equipment.slots[slot]
-            if current_item:
-                print(f"DEBUG: Current item in slot: {current_item.display_name}")
-            else:
-                print("DEBUG: No item currently in this slot")
-            
-            # Equip the new item
-            self.player.equipment.slots[slot] = item
-            print(f"DEBUG: Equipped '{item.display_name}' in slot '{slot}'")
-            
-            # Put the previously equipped item in the inventory slot
-            self.player.inventory.items[inventory_index] = current_item
-            if current_item:
-                print(f"DEBUG: Returned '{current_item.display_name}' to inventory slot {inventory_index}")
-            else:
-                print(f"DEBUG: Cleared inventory slot {inventory_index}")
-            
-            # Update UI
-            self.inventory_ui.inventory = self.player.inventory.items
-            self.equipment_ui.equipment = self.player.equipment.slots
-            
-            return True
+        # Return the previously equipped item to inventory
+        self.player.inventory.items[inventory_index] = current_equipped_item
+        if current_equipped_item:
+            print(f"DEBUG: Returned '{current_equipped_item.display_name}' to inventory slot {inventory_index}")
         else:
-            print(f"DEBUG: No suitable slot found for item. Available slots: {list(self.player.equipment.slots.keys()) if hasattr(self.player.equipment, 'slots') else 'none'}")
-        return False
+            print(f"DEBUG: Cleared inventory slot {inventory_index}")
+            
+        # Update UI immediately
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        print(f"DEBUG: Updated inventory and equipment UIs")
+        print(f"DEBUG: ==== EQUIP ATTEMPT SUCCESS ====\n")
+        return True
         
     def unequip_item(self, slot):
         """Unequip an item from equipment to the first available inventory slot."""
+        print(f"\nDEBUG: ==== UNEQUIP ATTEMPT START ====")
+        print(f"DEBUG: Attempting to unequip item from slot '{slot}'")
+        
         if slot not in self.player.equipment.slots:
+            print(f"DEBUG: Invalid equipment slot: '{slot}'")
+            print(f"DEBUG: Valid slots are: {self.player.equipment.slots.keys()}")
+            print(f"DEBUG: ==== UNEQUIP ATTEMPT FAILED - INVALID SLOT ====\n")
             return False
             
         item = self.player.equipment.slots[slot]
         if item is None:
+            print(f"DEBUG: No item in equipment slot '{slot}'")
+            print(f"DEBUG: ==== UNEQUIP ATTEMPT FAILED - NO ITEM ====\n")
             return False
             
+        print(f"DEBUG: Found item '{item.display_name}' in slot '{slot}'")
+        
         # Find first empty inventory slot
+        empty_slot_found = False
         for i in range(len(self.player.inventory.items)):
             if self.player.inventory.items[i] is None:
                 # Move item from equipment to inventory
+                print(f"DEBUG: Found empty inventory slot at index {i}")
                 self.player.inventory.items[i] = item
                 self.player.equipment.slots[slot] = None
+                
+                print(f"DEBUG: Moved '{item.display_name}' from equipment slot '{slot}' to inventory slot {i}")
                 
                 # Update UI
                 self.inventory_ui.inventory = self.player.inventory.items
                 self.equipment_ui.equipment = self.player.equipment.slots
+                print(f"DEBUG: Updated inventory and equipment UIs")
                 
+                empty_slot_found = True
+                print(f"DEBUG: ==== UNEQUIP ATTEMPT SUCCESS ====\n")
                 return True
-        
+                
         # No empty slot found
+        if not empty_slot_found:
+            print(f"DEBUG: No empty inventory slots available")
+            print(f"DEBUG: ==== UNEQUIP ATTEMPT FAILED - INVENTORY FULL ====\n")
+            
         return False
 
 class Equipment:
