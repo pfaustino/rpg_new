@@ -122,7 +122,42 @@ class EquipmentUI:
         if not self.visible:
             return False
             
-        if event.type == pygame.MOUSEMOTION:
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = pygame.mouse.get_pos()
+            
+            # Check if clicking on equipment slots
+            for slot_name, slot_rect in self.slots.items():
+                if slot_rect.collidepoint(mouse_pos):
+                    if slot_name in self.equipment and self.equipment[slot_name]:
+                        # Get the equipped item
+                        item = self.equipment[slot_name]
+                        print(f"Clicked on equipped item: {item.display_name}")
+                        
+                        # Use the global GameState object to unequip the item
+                        import sys
+                        game_module = sys.modules.get('game')
+                        if game_module:
+                            # Find GameState instance - usually stored in game_state variable
+                            game_state = getattr(game_module, 'game_state', None)
+                            if not game_state:
+                                # Try looking through the module attributes
+                                for attr_name in dir(game_module):
+                                    attr = getattr(game_module, attr_name)
+                                    if hasattr(attr, 'player') and hasattr(attr, 'unequip_item'):
+                                        game_state = attr
+                                        break
+                                    
+                            if game_state:
+                                # Try to unequip the item
+                                success = game_state.unequip_item(slot_name)
+                                if success:
+                                    print(f"Successfully unequipped {item.display_name}")
+                                else:
+                                    print("Inventory is full, cannot unequip item")
+                        
+                        return True
+        
+        elif event.type == pygame.MOUSEMOTION:
             mouse_pos = pygame.mouse.get_pos()
             # Reset tooltip state by default
             new_hovered_item = None
@@ -139,7 +174,7 @@ class EquipmentUI:
                 self.hovered_item = new_hovered_item
                 self.hover_timer = 0
                 self.tooltip_visible = False
-                
+            
         return False
         
     def update(self):

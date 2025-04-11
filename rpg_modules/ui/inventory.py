@@ -105,8 +105,31 @@ class InventoryUI:
                 if cell_index is not None and cell_index < len(self.inventory):
                     item = self.inventory[cell_index]
                     if item:
+                        print(f"Clicked on item: {item.display_name}")
                         self.selected_item = item
-                return True
+                        
+                        # Use the global GameState object to equip the item
+                        import sys
+                        game_module = sys.modules.get('game')
+                        if game_module:
+                            # Find GameState instance - usually stored in game_state variable
+                            game_state = getattr(game_module, 'game_state', None)
+                            if not game_state:
+                                # Try looking through the module attributes
+                                for attr_name in dir(game_module):
+                                    attr = getattr(game_module, attr_name)
+                                    if hasattr(attr, 'player') and hasattr(attr, 'equip_item_from_inventory'):
+                                        game_state = attr
+                                        break
+                                    
+                            if game_state:
+                                # Try to equip the item
+                                success = game_state.equip_item_from_inventory(cell_index)
+                                if success:
+                                    print(f"Successfully equipped {item.display_name}")
+                                else:
+                                    print(f"Could not equip {item.display_name} - no suitable slot")
+                    return True
                 
         elif event.type == pygame.MOUSEMOTION:
             mouse_pos = pygame.mouse.get_pos()
@@ -164,55 +187,87 @@ class InventoryUI:
             border_color = QUALITY_COLORS.get(self.hovered_item.quality, QUALITY_COLORS['Common'])
             pygame.draw.rect(self.screen, border_color, self.tooltip_rect, 3)
             
-            # Draw item sprite
-            sprite = self.hovered_item.get_equipment_sprite()
-            scaled_sprite = pygame.transform.scale(sprite, (128, 128))
-            self.screen.blit(scaled_sprite, (tooltip_x + 10, tooltip_y + 10))
-            
-            # Draw item name
-            name_text = self.font.render(self.hovered_item.display_name, True, UI_COLORS['text'])
-            self.screen.blit(name_text, (tooltip_x + 10, tooltip_y + 150))
-            
-            # Draw item stats
-            y_offset = 180
-            stats = []
-            
-            if isinstance(self.hovered_item, Weapon):
-                stats = [
-                    f"Type: {self.hovered_item.weapon_type}",
-                    f"Attack: {self.hovered_item.attack_power}",
-                    f"Material: {self.hovered_item.material}",
-                    f"Quality: {self.hovered_item.quality}"
-                ]
-            elif isinstance(self.hovered_item, Hands):
-                stats = [
-                    "Type: Gauntlets",
-                    f"Defense: {self.hovered_item.defense}",
-                    f"Dexterity: {self.hovered_item.dexterity}",
-                    f"Material: {self.hovered_item.material}",
-                    f"Quality: {self.hovered_item.quality}"
-                ]
-            elif isinstance(self.hovered_item, Consumable):
-                stats = [
-                    f"Type: {self.hovered_item.consumable_type}",
-                    f"Effect Value: {self.hovered_item.effect_value}",
-                    f"Quality: {self.hovered_item.quality}"
-                ]
-            elif isinstance(self.hovered_item, Armor):
-                stats = [
-                    f"Type: {self.hovered_item.armor_type}",
-                    f"Defense: {self.hovered_item.defense}",
-                    f"Material: {self.hovered_item.material}",
-                    f"Quality: {self.hovered_item.quality}"
-                ]
+            try:
+                # Try to get the item sprite with fallback for missing sprites
+                try:
+                    sprite = self.hovered_item.get_equipment_sprite()
+                except (FileNotFoundError, pygame.error, AttributeError) as e:
+                    # Create a fallback sprite based on item type
+                    sprite = pygame.Surface((64, 64), pygame.SRCALPHA)
+                    
+                    # Determine item type and set appropriate color
+                    if hasattr(self.hovered_item, 'weapon_type'):
+                        # Weapon placeholder (sword shape)
+                        color = QUALITY_COLORS.get(self.hovered_item.quality, (200, 200, 200))
+                        pygame.draw.polygon(sprite, color, [(20, 10), (44, 10), (44, 54), (32, 54), (20, 40)])
+                        pygame.draw.rect(sprite, (100, 100, 100), (25, 10, 14, 25))  # handle
+                    elif hasattr(self.hovered_item, 'armor_type'):
+                        # Armor placeholder (shield/chest shape)
+                        color = QUALITY_COLORS.get(self.hovered_item.quality, (200, 200, 200))
+                        pygame.draw.ellipse(sprite, color, (10, 10, 44, 44))
+                        pygame.draw.ellipse(sprite, (100, 100, 100), (15, 15, 34, 34), 2)
+                    else:
+                        # Consumable placeholder (potion shape)
+                        color = (200, 50, 50) if self.hovered_item.consumable_type == 'health' else \
+                               (50, 50, 200) if self.hovered_item.consumable_type == 'mana' else \
+                               (50, 200, 50)  # stamina
+                        pygame.draw.rect(sprite, (200, 200, 200), (25, 15, 14, 35))
+                        pygame.draw.rect(sprite, color, (20, 25, 24, 25))
+                        pygame.draw.ellipse(sprite, (200, 200, 200), (20, 10, 24, 20))
                 
-            if self.hovered_item.prefix:
-                stats.insert(1, f"Effect: {self.hovered_item.prefix}")
+                # Scale the sprite
+                scaled_sprite = pygame.transform.scale(sprite, (128, 128))
+                self.screen.blit(scaled_sprite, (tooltip_x + 10, tooltip_y + 10))
                 
-            for stat in stats:
-                stat_text = self.small_font.render(stat, True, UI_COLORS['text'])
-                self.screen.blit(stat_text, (tooltip_x + 10, tooltip_y + y_offset))
-                y_offset += 20
+                # Draw item name
+                name_text = self.font.render(self.hovered_item.display_name, True, UI_COLORS['text'])
+                self.screen.blit(name_text, (tooltip_x + 10, tooltip_y + 150))
+                
+                # Draw item stats
+                y_offset = 180
+                stats = []
+                
+                if isinstance(self.hovered_item, Weapon):
+                    stats = [
+                        f"Type: {self.hovered_item.weapon_type}",
+                        f"Attack: {self.hovered_item.attack_power}",
+                        f"Material: {self.hovered_item.material}",
+                        f"Quality: {self.hovered_item.quality}"
+                    ]
+                elif isinstance(self.hovered_item, Hands):
+                    stats = [
+                        "Type: Gauntlets",
+                        f"Defense: {self.hovered_item.defense}",
+                        f"Dexterity: {self.hovered_item.dexterity}",
+                        f"Material: {self.hovered_item.material}",
+                        f"Quality: {self.hovered_item.quality}"
+                    ]
+                elif isinstance(self.hovered_item, Consumable):
+                    stats = [
+                        f"Type: {self.hovered_item.consumable_type}",
+                        f"Effect Value: {self.hovered_item.effect_value}",
+                        f"Quality: {self.hovered_item.quality}"
+                    ]
+                elif isinstance(self.hovered_item, Armor):
+                    stats = [
+                        f"Type: {self.hovered_item.armor_type}",
+                        f"Defense: {self.hovered_item.defense}",
+                        f"Material: {self.hovered_item.material}",
+                        f"Quality: {self.hovered_item.quality}"
+                    ]
+                    
+                if hasattr(self.hovered_item, 'prefix') and self.hovered_item.prefix:
+                    stats.insert(1, f"Effect: {self.hovered_item.prefix}")
+                    
+                for stat in stats:
+                    stat_text = self.small_font.render(stat, True, UI_COLORS['text'])
+                    self.screen.blit(stat_text, (tooltip_x + 10, tooltip_y + y_offset))
+                    y_offset += 20
+            except Exception as e:
+                # Handle errors when drawing tooltip
+                error_text = self.small_font.render(f"Error displaying item: {str(e)}", True, (255, 100, 100))
+                self.screen.blit(error_text, (tooltip_x + 10, tooltip_y + 150))
+                print(f"Error drawing tooltip: {e}")
         
     def draw(self, screen: pygame.Surface):
         """Draw the inventory UI."""
@@ -256,10 +311,48 @@ class InventoryUI:
             if i < len(self.inventory) and self.inventory[i]:
                 try:
                     item = self.inventory[i]
-                    sprite = item.get_equipment_sprite()
+                    
+                    # Create placeholder sprite if item sprite can't be loaded
+                    try:
+                        sprite = item.get_equipment_sprite()
+                    except (FileNotFoundError, pygame.error, AttributeError) as e:
+                        # Create a fallback sprite based on item type
+                        sprite = pygame.Surface((64, 64), pygame.SRCALPHA)
+                        
+                        # Determine item type and set appropriate color
+                        if hasattr(item, 'weapon_type'):
+                            # Weapon placeholder (sword shape)
+                            color = QUALITY_COLORS.get(item.quality, (200, 200, 200))
+                            pygame.draw.polygon(sprite, color, [(20, 10), (44, 10), (44, 54), (32, 54), (20, 40)])
+                            pygame.draw.rect(sprite, (100, 100, 100), (25, 10, 14, 25))  # handle
+                        elif hasattr(item, 'armor_type'):
+                            # Armor placeholder (shield/chest shape)
+                            color = QUALITY_COLORS.get(item.quality, (200, 200, 200))
+                            pygame.draw.ellipse(sprite, color, (10, 10, 44, 44))
+                            pygame.draw.ellipse(sprite, (100, 100, 100), (15, 15, 34, 34), 2)
+                        else:
+                            # Consumable placeholder (potion shape)
+                            color = (200, 50, 50) if item.consumable_type == 'health' else \
+                                   (50, 50, 200) if item.consumable_type == 'mana' else \
+                                   (50, 200, 50)  # stamina
+                            pygame.draw.rect(sprite, (200, 200, 200), (25, 15, 14, 35))
+                            pygame.draw.rect(sprite, color, (20, 25, 24, 25))
+                            pygame.draw.ellipse(sprite, (200, 200, 200), (20, 10, 24, 20))
+                    
+                    # Scale and draw the sprite
                     scaled_sprite = pygame.transform.scale(sprite, (cell.width - 8, cell.height - 8))
                     screen.blit(scaled_sprite, (cell.x + 4, cell.y + 4))
+                    
+                    # Draw a quality-colored border around the item
+                    border_color = QUALITY_COLORS.get(item.quality, QUALITY_COLORS['Common'])
+                    inner_rect = pygame.Rect(cell.x + 3, cell.y + 3, cell.width - 6, cell.height - 6)
+                    pygame.draw.rect(screen, border_color, inner_rect, 2)
+                    
                 except Exception as e:
+                    # Draw a placeholder for error cases
+                    error_surface = pygame.Surface((cell.width - 8, cell.height - 8))
+                    error_surface.fill((100, 0, 0))  # Red color for error
+                    screen.blit(error_surface, (cell.x + 4, cell.y + 4))
                     print(f"Error drawing inventory item: {e}")
                     
         # Draw tooltip

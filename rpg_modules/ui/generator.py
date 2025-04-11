@@ -127,63 +127,81 @@ class ItemGeneratorUI:
                         quality = random.choice(QUALITIES)
                     
                     # Generate the item
+                    print(f"\nGenerating new {quality} {item_type}...")
                     self.preview_item = self.item_generator.generate_item(item_type.lower(), quality)
                     
-                    # Add to player's inventory if successful - check if it's a list or has add_item method
                     if self.preview_item:
-                        # Make sure we have the player object
+                        print(f"Successfully generated: {self.preview_item.display_name}")
+                        # Debug info about the item
+                        if hasattr(self.preview_item, 'weapon_type'):
+                            print(f"Weapon Type: {self.preview_item.weapon_type}, Attack: {self.preview_item.attack_power}")
+                        elif hasattr(self.preview_item, 'armor_type'):
+                            print(f"Armor Type: {self.preview_item.armor_type}, Defense: {self.preview_item.defense}")
+                        elif hasattr(self.preview_item, 'consumable_type'):
+                            print(f"Consumable Type: {self.preview_item.consumable_type}, Effect: {self.preview_item.effect_value}")
+                            
+                        # Add to player's inventory if successful
                         if player is None:
                             print("Error: Player object is None")
                             return True
                             
                         # Try to add to player inventory
                         try:
-                            success = False
+                            print(f"Player inventory type: {type(player.inventory)}")
+                            print(f"Player inventory has add_item method: {hasattr(player.inventory, 'add_item')}")
+                            print(f"Player inventory has items attribute: {hasattr(player.inventory, 'items')}")
+                            
                             # Check if player has Inventory class with add_item method
                             if hasattr(player, 'inventory') and hasattr(player.inventory, 'add_item'):
                                 # Use the add_item method
-                                print(f"Adding {self.preview_item.display_name} to player inventory")
+                                print(f"Adding {self.preview_item.display_name} to inventory via add_item()")
                                 success = player.inventory.add_item(self.preview_item)
-                            # Check if player has Inventory class with items list
+                                if success:
+                                    print(f"Item successfully added to inventory with add_item()")
+                                else:
+                                    print(f"Failed to add item - inventory may be full")
+                                    
+                            # Check if inventory items list is directly accessible
                             elif hasattr(player, 'inventory') and hasattr(player.inventory, 'items'):
+                                print(f"Inventory items count: {len(player.inventory.items)}")
+                                print(f"Empty slots: {player.inventory.items.count(None)}")
+                                
                                 # Find first empty slot
                                 inventory_items = player.inventory.items
-                                print(f"Adding {self.preview_item.display_name} to inventory items list")
+                                success = False
+                                
+                                # Print the first few slots for debugging
+                                for i in range(min(5, len(inventory_items))):
+                                    print(f"Slot {i}: {inventory_items[i]}")
+                                    
+                                # Find an empty slot
                                 for i in range(len(inventory_items)):
                                     if inventory_items[i] is None:
+                                        print(f"Adding item to empty slot {i}")
                                         inventory_items[i] = self.preview_item
                                         success = True
                                         break
-                            # Check if player has direct add_item method
-                            elif hasattr(player, 'add_item'):
-                                # Use player's add_item method
-                                print(f"Using player.add_item() for {self.preview_item.display_name}")
-                                success = player.add_item(self.preview_item)
-                            # Check if player has list-based inventory
-                            elif hasattr(player, 'inventory') and isinstance(player.inventory, list):
-                                # Find first empty slot
-                                print(f"Adding {self.preview_item.display_name} to inventory list")
-                                for i in range(len(player.inventory)):
-                                    if player.inventory[i] is None:
-                                        player.inventory[i] = self.preview_item
-                                        success = True
-                                        break
+                                        
+                                if success:
+                                    print(f"Item successfully added to inventory at empty slot")
+                                else:
+                                    print(f"Failed to add item - no empty slots found")
                             else:
-                                print(f"Unknown inventory type: {type(player.inventory)}")
+                                print(f"Unknown inventory type, cannot add item: {type(player.inventory)}")
                                 success = False
                                 
-                            if success:
-                                print(f"Successfully added {self.preview_item.display_name} to inventory")
-                            else:
-                                print(f"Failed to add {self.preview_item.display_name} to inventory - may be full")
                         except Exception as e:
                             print(f"Error adding item to inventory: {str(e)}")
+                            import traceback
+                            traceback.print_exc()
                             
                         return True
                     else:
-                        print("Failed to generate item")
+                        print("Failed to generate item - item generator returned None")
                 except Exception as e:
                     print(f"Error generating item: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
         return False
 
     def draw(self, screen: pygame.Surface, player):

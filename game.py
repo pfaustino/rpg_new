@@ -239,6 +239,8 @@ class GameState:
                 self.quest_ui.handle_event(event)
                 if self.generator_ui.visible:  # Only handle events when visible
                     self.generator_ui.handle_event(event, self.player)
+                    # Re-sync inventory after possible item generation
+                    self.inventory_ui.inventory = self.player.inventory.items
         
         # Update monsters
         for monster in self.monsters[:]:
@@ -576,6 +578,86 @@ class GameState:
                     self.monsters.append(new_slime)
                     self.monster_counts[MonsterType.SLIME] += 1
 
+    def equip_item_from_inventory(self, inventory_index):
+        """Equip an item from the inventory to the appropriate equipment slot."""
+        if not (0 <= inventory_index < len(self.player.inventory.items)):
+            return False
+            
+        item = self.player.inventory.items[inventory_index]
+        if item is None:
+            return False
+            
+        # Handle consumable items differently - use them immediately
+        if hasattr(item, 'consumable_type'):
+            # Apply consumable effect to player
+            print(f"Using {item.display_name}...")
+            if item.consumable_type == 'health':
+                self.player.health = min(self.player.max_health, self.player.health + item.effect_value)
+                print(f"Restored {item.effect_value} health. Player health: {self.player.health}/{self.player.max_health}")
+            elif item.consumable_type == 'mana':
+                self.player.mana = min(self.player.max_mana, self.player.mana + item.effect_value)
+                print(f"Restored {item.effect_value} mana. Player mana: {self.player.mana}/{self.player.max_mana}")
+            elif item.consumable_type == 'stamina':
+                self.player.stamina = min(self.player.max_stamina, self.player.stamina + item.effect_value)
+                print(f"Restored {item.effect_value} stamina. Player stamina: {self.player.stamina}/{self.player.max_stamina}")
+            
+            # Remove the consumable from inventory
+            self.player.inventory.items[inventory_index] = None
+            
+            # Update UI
+            self.inventory_ui.inventory = self.player.inventory.items
+            
+            return True
+            
+        # Determine equipment slot based on item type
+        slot = None
+        if hasattr(item, 'weapon_type'):
+            slot = 'weapon'
+        elif hasattr(item, 'armor_type'):
+            slot = item.armor_type.lower()
+            
+        if slot in self.player.equipment.slots:
+            # Get the currently equipped item in this slot
+            current_item = self.player.equipment.slots[slot]
+            
+            # Equip the new item
+            self.player.equipment.slots[slot] = item
+            
+            # Put the previously equipped item in the inventory slot
+            self.player.inventory.items[inventory_index] = current_item
+            
+            # Update UI
+            self.inventory_ui.inventory = self.player.inventory.items
+            self.equipment_ui.equipment = self.player.equipment.slots
+            
+            return True
+        return False
+        
+    def unequip_item(self, slot):
+        """Unequip an item from equipment to the first available inventory slot."""
+        if slot not in self.player.equipment.slots:
+            return False
+            
+        item = self.player.equipment.slots[slot]
+        if item is None:
+            return False
+            
+        # Find first empty inventory slot
+        for i in range(len(self.player.inventory.items)):
+            if self.player.inventory.items[i] is None:
+                # Move item from equipment to inventory
+                self.player.inventory.items[i] = item
+                self.player.equipment.slots[slot] = None
+                
+                # Update UI
+                self.inventory_ui.inventory = self.player.inventory.items
+                self.equipment_ui.equipment = self.player.equipment.slots
+                
+                return True
+        
+        # No empty slot found
+        return False
+
 class Equipment:
     """Class to manage equipped items."""
     def __init__(self):
@@ -760,6 +842,7 @@ def main():
     print("Clock created")
     
     # Create game state (it will create all other components)
+    global game_state  # Make the game_state globally accessible
     game_state = GameState(screen)
     print("Game state created")
     
@@ -787,4 +870,5 @@ def main():
     pygame.quit()
 
 if __name__ == "__main__":
+    game_state = None  # Define the game_state variable at module level
     main() 
