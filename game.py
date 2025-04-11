@@ -161,10 +161,9 @@ class GameState:
         
         print("\n=== Game State Initialized ===")
         
-    def update(self, dt):
+    def update(self, dt, events):
         """Update game state."""
-        # Store all events so we can process them for both zoom and UI
-        events = pygame.event.get()
+        # Process events passed from main loop (not calling pygame.event.get() again)
         
         # Handle zoom and other events first
         for event in events:
@@ -180,44 +179,36 @@ class GameState:
                 if event.key == pygame.K_r:  # Reset zoom with 'R' key
                     self.camera.reset_zoom()
                 elif event.key == pygame.K_i:
-                    # Toggle ONLY the inventory UI
+                    # Toggle inventory UI
                     self.inventory_ui.toggle()
-                    # Hide generator and equipment UI if inventory is closed
-                    if not self.inventory_ui.visible:
-                        if self.equipment_ui.visible:
-                            self.equipment_ui.toggle()
-                        if self.generator_ui.visible:
-                            self.generator_ui.toggle()
+                    # Show equipment UI when inventory is shown, hide when inventory is hidden
+                    if self.equipment_ui.visible != self.inventory_ui.visible:
+                        self.equipment_ui.toggle()
+                    # Hide generator UI if inventory is closed
+                    if not self.inventory_ui.visible and self.generator_ui.visible:
+                        self.generator_ui.toggle()
                 elif event.key == pygame.K_e:
-                    # Toggle equipment UI and ensure inventory is visible
+                    # Toggle equipment UI and ensure inventory is visible too
                     self.equipment_ui.toggle()
-                    # Show inventory if equipment is shown, hide if equipment is hidden
-                    if self.equipment_ui.visible and not self.inventory_ui.visible:
+                    # Show/hide inventory with equipment
+                    if self.equipment_ui.visible != self.inventory_ui.visible:
                         self.inventory_ui.toggle()
-                    elif not self.equipment_ui.visible and self.inventory_ui.visible and not self.generator_ui.visible:
-                        self.inventory_ui.toggle()
+                    # Hide generator UI when viewing equipment
+                    if self.equipment_ui.visible and self.generator_ui.visible:
+                        self.generator_ui.toggle()
                 elif event.key == pygame.K_q:
                     self.quest_ui.toggle()
                 elif event.key == pygame.K_g:
                     # Toggle generator UI
                     self.generator_ui.toggle()
                     
-                    # Ensure generator UI is properly positioned when visible
-                    if self.generator_ui.visible:
-                        self.generator_ui.x = SCREEN_WIDTH - self.generator_ui.width - 10
-                        self.generator_ui.y = 10
-                        self.generator_ui.rect.topleft = (self.generator_ui.x, self.generator_ui.y)
-                        
-                        # Show inventory UI if it's not already visible
-                        if not self.inventory_ui.visible:
-                            self.inventory_ui.toggle()
-                        
-                        # Hide equipment UI if it's visible
-                        if self.equipment_ui.visible:
-                            self.equipment_ui.toggle()
-                    # Hide inventory if both generator and equipment are hidden
-                    elif not self.equipment_ui.visible and self.inventory_ui.visible:
+                    # When generator is visible, ensure inventory is visible too
+                    if self.generator_ui.visible and not self.inventory_ui.visible:
                         self.inventory_ui.toggle()
+                        
+                    # Hide equipment when generator is shown
+                    if self.generator_ui.visible and self.equipment_ui.visible:
+                        self.equipment_ui.toggle()
                 elif event.key == pygame.K_ESCAPE:
                     self.running = False
         
@@ -344,7 +335,7 @@ class GameState:
         # Next check if equipment should be drawn    
         if self.equipment_ui.visible:
             # Position equipment UI on the right
-            self.equipment_ui.x = SCREEN_WIDTH - self.equipment_ui.width - 10
+            self.equipment_ui.x = SCREEN_WIDTH - self.equipment_ui.rect.width - 10
             self.equipment_ui.y = 10
             self.equipment_ui.rect.topleft = (self.equipment_ui.x, self.equipment_ui.y)
             self.equipment_ui.draw(screen)
@@ -352,7 +343,7 @@ class GameState:
         # Finally check if generator should be drawn
         if self.generator_ui.visible:
             # Position generator UI on the right
-            self.generator_ui.x = SCREEN_WIDTH - self.generator_ui.width - 10
+            self.generator_ui.x = SCREEN_WIDTH - self.generator_ui.rect.width - 10
             self.generator_ui.y = 10
             # Ensure the rect is updated with the new position
             self.generator_ui.rect.x = self.generator_ui.x
@@ -775,14 +766,15 @@ def main():
     # Main game loop
     running = True
     while running:
-        # Handle events
-        for event in pygame.event.get():
+        # Handle events - collect events ONLY ONCE
+        events = pygame.event.get()
+        for event in events:
             if event.type == pygame.QUIT:
                 running = False
                 
-        # Update game state
+        # Update game state - pass the events
         dt = clock.tick(60) / 1000.0  # Convert to seconds
-        game_state.update(dt)
+        game_state.update(dt, events)
         
         # Draw everything
         game_state.draw(screen)
