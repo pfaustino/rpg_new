@@ -23,13 +23,21 @@ class Player:
         self.animation = PlayerIcon()
         self.hp = 100
         self.max_hp = 100
+        self.health = 100
+        self.max_health = 100
+        self.mana = 50
+        self.max_mana = 50
+        self.stamina = 100
+        self.max_stamina = 100
         self.attack = 10
         self.defense = 5
         self.level = 1
         self.experience = 0
         self.gold = 0
-        self.inventory = []  # List of items
-        self.equipment = {}  # Dictionary of equipped items
+        
+        # Create proper inventory and equipment objects
+        self.inventory = Inventory(40)  # Inventory with 40 slots
+        self.equipment = Equipment()    # Equipment with slots for different item types
         self.quest_log = []  # List of active quests
         self.size = TILE_SIZE  # Default size for player icon
         

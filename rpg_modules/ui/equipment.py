@@ -131,29 +131,26 @@ class EquipmentUI:
                     if slot_name in self.equipment and self.equipment[slot_name]:
                         # Get the equipped item
                         item = self.equipment[slot_name]
-                        print(f"Clicked on equipped item: {item.display_name}")
+                        print(f"Equipment: Clicked on equipped item: {item.display_name} in slot {slot_name}")
                         
                         # Use the global GameState object to unequip the item
                         import sys
-                        game_module = sys.modules.get('game')
-                        if game_module:
-                            # Find GameState instance - usually stored in game_state variable
-                            game_state = getattr(game_module, 'game_state', None)
-                            if not game_state:
-                                # Try looking through the module attributes
-                                for attr_name in dir(game_module):
-                                    attr = getattr(game_module, attr_name)
-                                    if hasattr(attr, 'player') and hasattr(attr, 'unequip_item'):
-                                        game_state = attr
-                                        break
-                                    
-                            if game_state:
+                        if 'game' in sys.modules:
+                            game_module = sys.modules.get('game')
+                            if hasattr(game_module, 'game_state'):
+                                game_state = game_module.game_state
+                                print(f"Found global game_state: {game_state}")
+                                
                                 # Try to unequip the item
                                 success = game_state.unequip_item(slot_name)
                                 if success:
-                                    print(f"Successfully unequipped {item.display_name}")
+                                    print(f"Successfully unequipped {item.display_name} from {slot_name}")
                                 else:
-                                    print("Inventory is full, cannot unequip item")
+                                    print(f"Failed to unequip {item.display_name} - inventory may be full")
+                            else:
+                                print("Could not find game_state in game module")
+                        else:
+                            print("Could not find game module")
                         
                         return True
         

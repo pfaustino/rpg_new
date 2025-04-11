@@ -105,30 +105,27 @@ class InventoryUI:
                 if cell_index is not None and cell_index < len(self.inventory):
                     item = self.inventory[cell_index]
                     if item:
-                        print(f"Clicked on item: {item.display_name}")
+                        print(f"Inventory: Clicked on item: {item.display_name} in slot {cell_index}")
                         self.selected_item = item
                         
                         # Use the global GameState object to equip the item
                         import sys
-                        game_module = sys.modules.get('game')
-                        if game_module:
-                            # Find GameState instance - usually stored in game_state variable
-                            game_state = getattr(game_module, 'game_state', None)
-                            if not game_state:
-                                # Try looking through the module attributes
-                                for attr_name in dir(game_module):
-                                    attr = getattr(game_module, attr_name)
-                                    if hasattr(attr, 'player') and hasattr(attr, 'equip_item_from_inventory'):
-                                        game_state = attr
-                                        break
-                                    
-                            if game_state:
+                        if 'game' in sys.modules:
+                            game_module = sys.modules.get('game')
+                            if hasattr(game_module, 'game_state'):
+                                game_state = game_module.game_state
+                                print(f"Found global game_state: {game_state}")
+                                
                                 # Try to equip the item
                                 success = game_state.equip_item_from_inventory(cell_index)
                                 if success:
                                     print(f"Successfully equipped {item.display_name}")
                                 else:
-                                    print(f"Could not equip {item.display_name} - no suitable slot")
+                                    print(f"Failed to equip {item.display_name}")
+                            else:
+                                print("Could not find game_state in game module")
+                        else:
+                            print("Could not find game module")
                     return True
                 
         elif event.type == pygame.MOUSEMOTION:

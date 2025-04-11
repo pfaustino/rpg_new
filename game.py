@@ -96,68 +96,61 @@ def load_assets():
 class GameState:
     """Manages the global game state."""
     
-    def __init__(self, screen):
+    def __init__(self, screen: pygame.Surface):
         """Initialize the game state."""
         print("\n=== Initializing Game State ===")
-        self.screen = screen
-        self.running = True
-        self.clock = pygame.time.Clock()
-        self.fps = 60
         
-        # Create game map
+        # Create map
         print("Creating game map...")
-        self.map = Map()
+        self.map = Map(50, 50)
         print(f"Map created with dimensions: {self.map.width}x{self.map.height}")
         
-        # Create player at center of map
+        # Create player
         print("Creating player...")
-        spawn_pos = (self.map.width * TILE_SIZE // 2, self.map.height * TILE_SIZE // 2)  # Center of map in pixels
-        print(f"Player spawn position: ({spawn_pos[0] // TILE_SIZE}, {spawn_pos[1] // TILE_SIZE})")
-        self.player = Player(spawn_pos[0], spawn_pos[1])
-        # Initialize the inventory with empty slots instead of empty list
-        self.player.inventory = Inventory()
-        # Initialize the equipment as Equipment instance instead of empty dict
-        self.player.equipment = Equipment()
+        self.player = Player(self.map.width * TILE_SIZE // 2, self.map.height * TILE_SIZE // 2)
+        print(f"Player spawn position: ({self.player.x // TILE_SIZE}, {self.player.y // TILE_SIZE})")
+        
+        # Make sure player's inventory is set up properly
+        if not hasattr(self.player, 'inventory') or not isinstance(self.player.inventory, Inventory):
+            self.player.inventory = Inventory()
+        
+        # Make sure player's equipment is set up properly
+        if not hasattr(self.player, 'equipment') or not isinstance(self.player.equipment, Equipment):
+            self.player.equipment = Equipment()
         print("Player created with proper inventory")
         
         # Create camera
         print("Creating camera...")
         self.camera = Camera(self.player)
-        self.camera.set_map_bounds(self.map.width * TILE_SIZE, self.map.height * TILE_SIZE)
         print("Camera created")
         
-        # Initialize monsters list and counts
+        # Initialize monster system
         print("\nInitializing monster system...")
         self.monsters = []
         self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
         
-        # Create UI elements with empty containers
+        # Create UI elements
         print("\nCreating UI elements...")
-        self.quest_log = QuestLog()  # Create empty quest log
-        # Connect UI to the player's inventory and equipment
-        self.inventory_ui = InventoryUI(screen, self.player.inventory.items)  # Use player's inventory
+        self.inventory_ui = InventoryUI(screen, self.player.inventory.items)
         self.equipment_ui = EquipmentUI(screen, self.player.equipment.slots)  # Use player's equipment
-        self.quest_ui = QuestUI(screen, self.quest_log)  # Quest UI with empty log
-        
-        # Position the generator UI - position on right side when visible
-        generator_x = SCREEN_WIDTH - UI_DIMENSIONS['generator_width'] - 10
-        generator_y = 10  # Top of screen
-        self.generator_ui = GeneratorUI(generator_x, generator_y)
+        self.generator_ui = GeneratorUI(SCREEN_WIDTH - 400, 10)
+        self.quest_ui = QuestUI(screen)
         print("UI elements created")
         
         # Load assets
         print("\nLoading assets...")
         self.assets = load_assets()
-        self.camera.assets = self.assets
         print("Assets loaded")
         
-        # Spawn initial monsters
-        print("\n=== Spawning Initial Monsters ===")
+        # Initial monster spawn
         self._spawn_initial_monsters()
         print(f"Total monsters spawned: {len(self.monsters)}")
         for monster_type in MonsterType:
             if self.monster_counts[monster_type] > 0:
                 print(f"- {monster_type.name}: {self.monster_counts[monster_type]}")
+            
+        # Game running state
+        self.running = True
         
         print("\n=== Game State Initialized ===")
         
@@ -581,12 +574,16 @@ class GameState:
     def equip_item_from_inventory(self, inventory_index):
         """Equip an item from the inventory to the appropriate equipment slot."""
         if not (0 <= inventory_index < len(self.player.inventory.items)):
+            print(f"DEBUG: Invalid inventory index: {inventory_index}")
             return False
-            
+        
         item = self.player.inventory.items[inventory_index]
         if item is None:
+            print("DEBUG: No item at this inventory index")
             return False
-            
+        
+        print(f"DEBUG: Attempting to equip {item.display_name} from inventory slot {inventory_index}")
+        
         # Handle consumable items differently - use them immediately
         if hasattr(item, 'consumable_type'):
             # Apply consumable effect to player
@@ -608,29 +605,52 @@ class GameState:
             self.inventory_ui.inventory = self.player.inventory.items
             
             return True
-            
+        
         # Determine equipment slot based on item type
         slot = None
         if hasattr(item, 'weapon_type'):
             slot = 'weapon'
+            print(f"DEBUG: Item is a weapon, using slot '{slot}'")
         elif hasattr(item, 'armor_type'):
             slot = item.armor_type.lower()
-            
-        if slot in self.player.equipment.slots:
+            print(f"DEBUG: Item is armor type {item.armor_type}, using slot '{slot}'")
+        else:
+            print(f"DEBUG: Item has no recognized type for equipment")
+        
+        print(f"DEBUG: Player equipment type: {type(self.player.equipment)}")
+        
+        # Make sure the player's equipment is properly initialized
+        if not hasattr(self.player, 'equipment') or not isinstance(self.player.equipment, Equipment):
+            print("DEBUG: Player equipment not properly initialized, creating new Equipment object")
+            self.player.equipment = Equipment()
+        
+        if slot and slot in self.player.equipment.slots:
+            print(f"DEBUG: Found slot '{slot}' in equipment slots")
             # Get the currently equipped item in this slot
             current_item = self.player.equipment.slots[slot]
+            if current_item:
+                print(f"DEBUG: Current item in slot: {current_item.display_name}")
+            else:
+                print("DEBUG: No item currently in this slot")
             
             # Equip the new item
             self.player.equipment.slots[slot] = item
+            print(f"DEBUG: Equipped '{item.display_name}' in slot '{slot}'")
             
             # Put the previously equipped item in the inventory slot
             self.player.inventory.items[inventory_index] = current_item
+            if current_item:
+                print(f"DEBUG: Returned '{current_item.display_name}' to inventory slot {inventory_index}")
+            else:
+                print(f"DEBUG: Cleared inventory slot {inventory_index}")
             
             # Update UI
             self.inventory_ui.inventory = self.player.inventory.items
             self.equipment_ui.equipment = self.player.equipment.slots
             
             return True
+        else:
+            print(f"DEBUG: No suitable slot found for item. Available slots: {list(self.player.equipment.slots.keys()) if hasattr(self.player.equipment, 'slots') else 'none'}")
         return False
         
     def unequip_item(self, slot):
