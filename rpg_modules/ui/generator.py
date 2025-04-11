@@ -134,6 +134,19 @@ class ItemGeneratorUI:
                         if hasattr(player, 'add_item'):
                             # Modern Player class with add_item method
                             success = player.add_item(self.preview_item)
+                        elif hasattr(player, 'inventory') and hasattr(player.inventory, 'add_item'):
+                            # Player has inventory with add_item method (Inventory class)
+                            success = player.inventory.add_item(self.preview_item)
+                        elif hasattr(player, 'inventory') and hasattr(player.inventory, 'items'):
+                            # Player has Inventory class with items list
+                            # Find first empty slot
+                            inventory_items = player.inventory.items
+                            success = False
+                            for i in range(len(inventory_items)):
+                                if inventory_items[i] is None:
+                                    inventory_items[i] = self.preview_item
+                                    success = True
+                                    break
                         elif isinstance(player.inventory, list):
                             # Legacy Player class with inventory list
                             # Find first empty slot
@@ -160,7 +173,24 @@ class ItemGeneratorUI:
         """Draw the generator UI."""
         if not self.visible:
             return
+        
+        # Update rect and UI element positions if x,y coordinates have changed
+        if (self.rect.x, self.rect.y) != (self.rect.topleft):
+            self.rect.topleft = (self.rect.x, self.rect.y)
             
+            # Update dropdown positions
+            self.type_dropdown.x = self.rect.x + 10
+            self.type_dropdown.y = self.rect.y + 50
+            
+            self.quality_dropdown.x = self.rect.x + 10
+            self.quality_dropdown.y = self.rect.y + 120
+            
+            self.generate_button.x = self.rect.x + 10
+            self.generate_button.y = self.rect.y + 190
+            
+            self.preview_rect.x = self.rect.x + 10
+            self.preview_rect.y = self.rect.y + 250
+        
         # Draw background
         pygame.draw.rect(screen, UI_COLORS['background'], self.rect)
         pygame.draw.rect(screen, UI_COLORS['border'], self.rect, 2)

@@ -8,6 +8,7 @@ import math
 import os
 from typing import Dict, List, Tuple, Optional, Union
 from rpg_modules.items import ItemGenerator, Item, Weapon, Armor, Hands, Consumable
+from rpg_modules.items.base import Inventory, Equipment
 from rpg_modules.ui import InventoryUI, EquipmentUI, ItemGeneratorUI as GeneratorUI, QuestUI
 from rpg_modules.entities import Player
 from rpg_modules.entities.monster import Monster, MonsterType
@@ -113,7 +114,11 @@ class GameState:
         spawn_pos = (self.map.width * TILE_SIZE // 2, self.map.height * TILE_SIZE // 2)  # Center of map in pixels
         print(f"Player spawn position: ({spawn_pos[0] // TILE_SIZE}, {spawn_pos[1] // TILE_SIZE})")
         self.player = Player(spawn_pos[0], spawn_pos[1])
-        print("Player created")
+        # Initialize the inventory with empty slots instead of empty list
+        self.player.inventory = Inventory()
+        # Initialize the equipment as Equipment instance instead of empty dict
+        self.player.equipment = Equipment()
+        print("Player created with proper inventory")
         
         # Create camera
         print("Creating camera...")
@@ -129,13 +134,14 @@ class GameState:
         # Create UI elements with empty containers
         print("\nCreating UI elements...")
         self.quest_log = QuestLog()  # Create empty quest log
-        self.inventory_ui = InventoryUI(screen, [])  # Empty inventory
-        self.equipment_ui = EquipmentUI(screen, {})  # Empty equipment
+        # Connect UI to the player's inventory and equipment
+        self.inventory_ui = InventoryUI(screen, self.player.inventory.items)  # Use player's inventory
+        self.equipment_ui = EquipmentUI(screen, self.player.equipment.slots)  # Use player's equipment
         self.quest_ui = QuestUI(screen, self.quest_log)  # Quest UI with empty log
         
-        # Position the generator UI in the center of the screen
-        generator_x = (SCREEN_WIDTH - UI_DIMENSIONS['generator_width']) // 2
-        generator_y = (SCREEN_HEIGHT - UI_DIMENSIONS['generator_height']) // 2
+        # Position the generator UI - position on right side when visible
+        generator_x = SCREEN_WIDTH - UI_DIMENSIONS['generator_width'] - 10
+        generator_y = 10  # Top of screen
         self.generator_ui = GeneratorUI(generator_x, generator_y)
         print("UI elements created")
         
@@ -174,13 +180,30 @@ class GameState:
                 if event.key == pygame.K_r:  # Reset zoom with 'R' key
                     self.camera.reset_zoom()
                 elif event.key == pygame.K_i:
+                    # Toggle inventory and equipment together
                     self.inventory_ui.toggle()
-                elif event.key == pygame.K_e:
                     self.equipment_ui.toggle()
+                    # Hide generator UI when viewing inventory
+                    if self.generator_ui.visible:
+                        self.generator_ui.toggle()
+                elif event.key == pygame.K_e:
+                    # Toggle equipment and inventory together
+                    self.equipment_ui.toggle()
+                    self.inventory_ui.toggle()
+                    # Hide generator UI when viewing equipment
+                    if self.generator_ui.visible:
+                        self.generator_ui.toggle()
                 elif event.key == pygame.K_q:
                     self.quest_ui.toggle()
                 elif event.key == pygame.K_g:
+                    # Toggle generator UI and show inventory for items
                     self.generator_ui.toggle()
+                    # Always ensure inventory is visible with generator
+                    if self.generator_ui.visible and not self.inventory_ui.visible:
+                        self.inventory_ui.toggle()
+                    # Hide equipment UI when viewing generator
+                    if self.equipment_ui.visible and self.generator_ui.visible:
+                        self.equipment_ui.toggle()
                 elif event.key == pygame.K_ESCAPE:
                     self.running = False
         
@@ -194,6 +217,14 @@ class GameState:
             
         # Update player
         self.player.update(dt)
+        
+        # Update UI elements
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        self.inventory_ui.update()
+        self.equipment_ui.update()
+        self.quest_ui.update()
+        self.generator_ui.update()
         
         # Pass events to UI elements after handling zoom
         for event in events:
@@ -286,12 +317,36 @@ class GameState:
             msg_rect.top = 10
             screen.blit(msg_surface, msg_rect)
         
-        # Draw UI elements
-        self.inventory_ui.draw(screen)
-        self.equipment_ui.draw(screen)
+        # Draw UI elements - adjust positioning to improve layout
+        if self.inventory_ui.visible:
+            # Position inventory UI on the left
+            self.inventory_ui.x = 10
+            self.inventory_ui.y = 10
+            self.inventory_ui.rect.topleft = (self.inventory_ui.x, self.inventory_ui.y)
+            self.inventory_ui.draw(screen)
+            
+            # Position equipment UI on the right when visible together with inventory
+            if self.equipment_ui.visible:
+                self.equipment_ui.x = SCREEN_WIDTH - self.equipment_ui.width - 10
+                self.equipment_ui.y = 10
+                self.equipment_ui.rect.topleft = (self.equipment_ui.x, self.equipment_ui.y)
+                self.equipment_ui.draw(screen)
+                
+            # Position generator UI on right side when visible
+            if self.generator_ui.visible:
+                self.generator_ui.draw(screen, self.player)
+        
+        # Quest UI is independent
         self.quest_ui.draw(screen)
-        if self.generator_ui.visible:
-            self.generator_ui.draw(screen, self.player)
+        
+        # Draw keyboard controls at the bottom of the screen
+        controls_font = pygame.font.Font(None, 20)
+        controls_text = "Controls: I-Inventory | E-Equipment | G-Generator | Q-Quests | WASD-Movement | R-Reset Zoom | Mouse Wheel-Zoom"
+        controls_surface = controls_font.render(controls_text, True, (200, 200, 200))
+        controls_rect = controls_surface.get_rect()
+        controls_rect.centerx = SCREEN_WIDTH // 2
+        controls_rect.bottom = SCREEN_HEIGHT - 10
+        screen.blit(controls_surface, controls_rect)
             
         # Update display
         pygame.display.flip()
