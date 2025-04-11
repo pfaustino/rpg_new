@@ -22,6 +22,7 @@ from rpg_modules.core.constants import (
     QUALITY_COLORS, UI_DIMENSIONS
 )
 from rpg_modules.core.map import TileType
+import sys
 
 # Player stats
 PLAYER_HP = 100
@@ -40,6 +41,9 @@ FLOOR_IMAGE = "floor.png"
 WALL_IMAGE = "wall.png"
 PLAYER_IMAGE = "player.png"
 MONSTER_IMAGE = "monster.png"
+
+# Define the game_state at module level
+game_state = None
 
 def load_assets():
     """Load all game assets"""
@@ -728,75 +732,6 @@ class GameState:
             
         return False
 
-class Equipment:
-    """Class to manage equipped items."""
-    def __init__(self):
-        self.slots = {
-            'head': None,
-            'chest': None,
-            'legs': None,
-            'feet': None,
-            'hands': None,
-            'weapon': None
-        }
-        
-    def get_equipped_item(self, slot: str) -> Optional[Item]:
-        """Get the item equipped in the given slot."""
-        return self.slots.get(slot)
-        
-    def equip_item(self, item: Item) -> bool:
-        """
-        Equip an item in its appropriate slot.
-        Returns True if successful, False if no appropriate slot.
-        """
-        slot = None
-        if isinstance(item, Weapon):
-            slot = 'weapon'
-        elif isinstance(item, Hands):
-            slot = 'hands'
-        elif isinstance(item, Armor):
-            slot = item.armor_type.lower()
-            
-        if slot and slot in self.slots:
-            self.slots[slot] = item
-            return True
-        return False
-        
-    def unequip_item(self, slot: str) -> Optional[Item]:
-        """Unequip and return the item in the given slot."""
-        if slot in self.slots:
-            item = self.slots[slot]
-            self.slots[slot] = None
-            return item
-        return None
-
-class Inventory:
-    """Class to manage the player's inventory."""
-    def __init__(self, capacity: int = 40):  # Changed from 32 to 40 to match 5x8 grid
-        self.items = [None] * capacity
-        
-    def add_item(self, item: Item) -> bool:
-        """Add an item to the first empty slot. Returns True if successful."""
-        for i in range(len(self.items)):
-            if self.items[i] is None:
-                self.items[i] = item
-                return True
-        return False
-            
-    def remove_item(self, item: Item) -> bool:
-        """Remove the first occurrence of an item. Returns True if successful."""
-        for i in range(len(self.items)):
-            if self.items[i] is item:
-                self.items[i] = None
-                return True
-        return False
-
-    def get_item_at(self, index: int) -> Optional[Item]:
-        """Get the item at the given index."""
-        if 0 <= index < len(self.items):
-            return self.items[index]
-        return None
-
 class Wall(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int):
         super().__init__()
@@ -876,9 +811,17 @@ def initialize_game():
         
         # Create game state
         print("Creating game state...")
+        global game_state  # Make the game_state globally accessible
         game_state = GameState(screen)
-        if not game_state:
-            raise RuntimeError("Failed to initialize game state")
+        
+        # Expose game_state to other modules
+        def get_game_state():
+            return game_state
+        
+        # Add the function to the module's namespace
+        module = sys.modules[__name__]
+        setattr(module, 'get_game_state', get_game_state)
+        
         print("Game state created")
         
         # Initialize player quests
@@ -895,25 +838,43 @@ def initialize_game():
         raise
 
 def main():
-    """Main game loop."""
-    print("Starting main function...")
-    
-    # Initialize Pygame
+    """Main game function."""
+    # Initialize pygame
     pygame.init()
     print("Pygame initialized")
     
-    # Set up display
+    # Set up the screen
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("RPG Game")
-    print("Display mode set")
+    pygame.display.set_caption("Python RPG Game")
+    print("Display created")
     
     # Create clock for timing
     clock = pygame.time.Clock()
     print("Clock created")
     
     # Create game state (it will create all other components)
-    global game_state  # Make the game_state globally accessible
+    global game_state  # Make sure we use the module-level variable
     game_state = GameState(screen)
+    
+    # Expose game_state to other modules directly (in multiple ways to ensure it's accessible)
+    sys.modules[__name__].game_state = game_state
+    
+    # Also store it directly in the 'game' module to make sure it's found
+    if 'game' in sys.modules:
+        sys.modules['game'].game_state = game_state
+        
+    # Store it in __main__ module too
+    if '__main__' in sys.modules:
+        sys.modules['__main__'].game_state = game_state
+        
+    # Set it at module level in the current module too
+    globals()['game_state'] = game_state
+    
+    print(f"DEBUG: Game state created and exposed at module level: {game_state}")
+    print(f"DEBUG: This module's name: {__name__}")
+    module_list = [name for name in sys.modules.keys() if 'game' in name.lower() or 'rpg' in name.lower() or name == '__main__']
+    print(f"DEBUG: Modules that can access game_state: {module_list}")
+    
     print("Game state created")
     
     # Main game loop
@@ -940,5 +901,4 @@ def main():
     pygame.quit()
 
 if __name__ == "__main__":
-    game_state = None  # Define the game_state variable at module level
     main() 

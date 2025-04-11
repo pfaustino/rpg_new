@@ -99,33 +99,135 @@ class InventoryUI:
             return False
             
         if event.type == pygame.MOUSEBUTTONDOWN:
+            print(f"DEBUG: Inventory UI received mouse click event at {pygame.mouse.get_pos()}")
             mouse_pos = pygame.mouse.get_pos()
             if self.rect.collidepoint(mouse_pos):
+                print(f"DEBUG: Click is within inventory rect {self.rect}")
                 cell_index = self.get_cell_at_pos(mouse_pos)
+                print(f"DEBUG: Cell index at position: {cell_index}")
                 if cell_index is not None and cell_index < len(self.inventory):
                     item = self.inventory[cell_index]
+                    print(f"DEBUG: Item at cell index {cell_index}: {item}")
                     if item:
-                        print(f"Inventory: Clicked on item: {item.display_name} in slot {cell_index}")
+                        print(f"DEBUG: Inventory: Clicked on item: {item.display_name} in slot {cell_index}")
+                        print(f"DEBUG: Item type: {type(item).__name__}")
+                        print(f"DEBUG: Item attributes: {dir(item)}")
+                        if hasattr(item, 'get_stats_display'):
+                            print(f"DEBUG: Item stats: {item.get_stats_display()}")
+                        
+                        # For armor, check armor_type attribute
+                        if hasattr(item, 'armor_type'):
+                            print(f"DEBUG: Item is armor with type: {item.armor_type}")
+                        
+                        # For hands item
+                        if hasattr(item, 'is_hands'):
+                            print(f"DEBUG: Item is a hands item: {item.is_hands}")
+                        
+                        # For weapon, check weapon_type
+                        if hasattr(item, 'weapon_type'):
+                            print(f"DEBUG: Item is a weapon with type: {item.weapon_type}")
+                            
                         self.selected_item = item
                         
                         # Use the global GameState object to equip the item
                         import sys
-                        if 'game' in sys.modules:
+                        game_state = None
+                        # First try __main__ - this is the most common case when running "python game.py"
+                        if '__main__' in sys.modules:
+                            main_module = sys.modules['__main__']
+                            print(f"DEBUG: Found __main__ module: {main_module}")
+                            if hasattr(main_module, 'game_state'):
+                                game_state = main_module.game_state
+                                print(f"DEBUG: Found game_state in __main__ module: {game_state}")
+                                
+                        # Next try 'game' module
+                        if game_state is None and 'game' in sys.modules:
                             game_module = sys.modules.get('game')
+                            print(f"DEBUG: Found game module: {game_module}")
+                            
+                            # Try different ways to access game_state
                             if hasattr(game_module, 'game_state'):
                                 game_state = game_module.game_state
-                                print(f"Found global game_state: {game_state}")
-                                
-                                # Try to equip the item
-                                success = game_state.equip_item_from_inventory(cell_index)
-                                if success:
-                                    print(f"Successfully equipped {item.display_name}")
-                                else:
-                                    print(f"Failed to equip {item.display_name}")
+                                print(f"DEBUG: Accessed game_state directly: {game_state}")
+                            
+                        # Last resort - try to find it in any module
+                        if game_state is None:
+                            # Try to find the game state in any module
+                            print("DEBUG: Could not find game_state in expected modules, searching all modules...")
+                            modules_to_check = []
+                            
+                            # Add modules in this order of priority
+                            for name in list(sys.modules.keys()):
+                                # First check main and directly imported modules
+                                if name in ['__main__', 'game', 'rpg']:
+                                    modules_to_check.insert(0, name)
+                                # Then check RPG-related modules
+                                elif 'game' in name.lower() or 'rpg' in name.lower():
+                                    modules_to_check.append(name)
+                            
+                            print(f"DEBUG: Modules to check (priority order): {modules_to_check}")
+                            
+                            # Now check the modules
+                            for name in modules_to_check:
+                                module = sys.modules.get(name)
+                                if module and hasattr(module, 'game_state'):
+                                    print(f"DEBUG: Found game_state in module: {name}")
+                                    game_state = module.game_state
+                                    break
+                                    
+                            # Look for player directly 
+                            if game_state is None:
+                                print("DEBUG: Looking for player object directly...")
+                                for name in modules_to_check:
+                                    module = sys.modules.get(name)
+                                    if module and hasattr(module, 'player'):
+                                        print(f"DEBUG: Found player in module: {name}")
+                                        player = module.player
+                                        inventory_index = cell_index
+                                        item = self.inventory[inventory_index] 
+                                        
+                                        # Directly manipulate player inventory/equipment
+                                        print(f"DEBUG: Attempting direct equipment manipulation")
+                                        slot = None
+                                        
+                                        # Determine slot based on item type
+                                        if hasattr(item, 'weapon_type'):
+                                            slot = 'weapon'
+                                        elif hasattr(item, 'armor_type'):
+                                            slot = item.armor_type.lower()
+                                        elif hasattr(item, 'is_hands'):
+                                            slot = 'hands'
+                                            
+                                        if slot and hasattr(player, 'equipment') and slot in player.equipment.slots:
+                                            # Save currently equipped item
+                                            current_item = player.equipment.slots[slot]
+                                            
+                                            # Equip new item
+                                            player.equipment.slots[slot] = item
+                                            
+                                            # Replace inventory slot with previously equipped item
+                                            self.inventory[inventory_index] = current_item
+                                            
+                                            print(f"DEBUG: Directly equipped {item.display_name} in slot {slot}")
+                                            return True
+                            
+                            if game_state is None:
+                                print("DEBUG: Could not find game_state in any module")
+                                print("DEBUG: Available modules: ", [name for name in sys.modules.keys() if 'game' in name.lower() or 'rpg' in name.lower() or name == '__main__'])
+                                return True
+                            
+                        # If we have a game_state, try to equip the item
+                        if game_state:
+                            # Try to equip the item
+                            print(f"DEBUG: Attempting to call equip_item_from_inventory({cell_index})")
+                            success = game_state.equip_item_from_inventory(cell_index)
+                            print(f"DEBUG: equip_item_from_inventory returned: {success}")
+                            if success:
+                                print(f"DEBUG: Successfully equipped {item.display_name}")
                             else:
-                                print("Could not find game_state in game module")
+                                print(f"DEBUG: Failed to equip {item.display_name}")
                         else:
-                            print("Could not find game module")
+                            print("DEBUG: Could not find game_state in game module")
                     return True
                 
         elif event.type == pygame.MOUSEMOTION:

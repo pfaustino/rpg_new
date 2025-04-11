@@ -46,13 +46,80 @@ class Item:
         """Get the sprite for this item."""
         if not self.sprite:
             # Load sprite based on item type and name
-            sprite_path = f"assets/items/{self.__class__.__name__.lower()}/{self.name.lower()}.png"
+            item_type = self.__class__.__name__.lower()
+            if hasattr(self, 'armor_type'):
+                item_type = 'armor'
+                name = self.armor_type.lower()
+            elif hasattr(self, 'weapon_type'):
+                item_type = 'weapon'
+                name = self.weapon_type.lower()
+            elif hasattr(self, 'consumable_type'):
+                item_type = 'consumable'
+                name = self.consumable_type.lower()
+            else:
+                name = self.name.lower()
+                
+            sprite_path = f"assets/items/{item_type}/{name}.png"
             try:
+                # Try to load the sprite
                 self.sprite = pygame.image.load(sprite_path)
-            except pygame.error:
+                print(f"Loaded sprite from {sprite_path}")
+            except (pygame.error, FileNotFoundError):
+                print(f"Creating placeholder sprite for {item_type}/{name}")
                 # Create a default colored square if sprite not found
-                self.sprite = pygame.Surface((32, 32))
-                self.sprite.fill(self.quality_color)
+                self.sprite = pygame.Surface((32, 32), pygame.SRCALPHA)
+                
+                # Create different placeholder shapes based on item type
+                if item_type == 'weapon':
+                    # Weapon placeholder (sword shape)
+                    color = self.quality_color
+                    pygame.draw.polygon(self.sprite, color, [(10, 5), (22, 5), (22, 27), (16, 27), (10, 21)])
+                    pygame.draw.rect(self.sprite, (100, 100, 100), (12, 5, 8, 12))  # handle
+                elif item_type == 'armor':
+                    # Armor placeholder based on armor type
+                    color = self.quality_color
+                    if name == 'head':
+                        pygame.draw.circle(self.sprite, color, (16, 16), 10)
+                        pygame.draw.circle(self.sprite, (50, 50, 50), (16, 16), 10, 2)
+                    elif name == 'chest':
+                        pygame.draw.polygon(self.sprite, color, [(10, 8), (22, 8), (24, 24), (8, 24)])
+                        pygame.draw.line(self.sprite, (50, 50, 50), (16, 8), (16, 24), 2)
+                    elif name == 'legs':
+                        pygame.draw.rect(self.sprite, color, (10, 6, 12, 20))
+                        pygame.draw.line(self.sprite, (50, 50, 50), (16, 6), (16, 26), 2)
+                    elif name == 'feet':
+                        pygame.draw.ellipse(self.sprite, color, (8, 12, 16, 8))
+                        pygame.draw.rect(self.sprite, color, (8, 12, 16, 4))
+                    elif name == 'hands':
+                        pygame.draw.circle(self.sprite, color, (12, 16), 6)
+                        pygame.draw.circle(self.sprite, color, (20, 16), 6)
+                    else:
+                        pygame.draw.rect(self.sprite, color, (8, 8, 16, 16))
+                elif item_type == 'consumable':
+                    # Consumable placeholder (potion shape)
+                    if name == 'health':
+                        color = (255, 50, 50)  # Red for health
+                    elif name == 'mana':
+                        color = (50, 50, 255)  # Blue for mana
+                    else:
+                        color = (50, 255, 50)  # Green for stamina
+                        
+                    pygame.draw.rect(self.sprite, (200, 200, 200), (12, 8, 8, 16))
+                    pygame.draw.rect(self.sprite, color, (10, 12, 12, 12))
+                    pygame.draw.ellipse(self.sprite, (200, 200, 200), (10, 6, 12, 8))
+                else:
+                    # Generic placeholder
+                    self.sprite.fill(self.quality_color)
+                
+                # Save the sprite for future use
+                try:
+                    import os
+                    os.makedirs(os.path.dirname(sprite_path), exist_ok=True)
+                    pygame.image.save(self.sprite, sprite_path)
+                    print(f"Saved placeholder sprite to {sprite_path}")
+                except Exception as e:
+                    print(f"Could not save placeholder sprite: {e}")
+                    
         return self.sprite
         
     def get_stats_display(self) -> List[str]:
@@ -85,40 +152,6 @@ class Item:
     def __repr__(self) -> str:
         """Detailed string representation of the item."""
         return f"{self.__class__.__name__}(name='{self.name}', quality='{self.quality}', prefix='{self.prefix}')"
-
-class Equipment(Item):
-    """Base class for equipment items that can be worn."""
-    
-    def __init__(
-        self,
-        name: str,
-        slot: str,
-        material: str,
-        quality: str = "Common",
-        prefix: Optional[str] = None
-    ):
-        """
-        Initialize equipment.
-        
-        Args:
-            name: The name of the equipment
-            slot: The equipment slot this item goes in
-            material: The material the equipment is made from
-            quality: The quality level of the equipment
-            prefix: Optional prefix modifier for the equipment
-        """
-        super().__init__(name, quality, prefix)
-        self.slot = slot
-        self.material = material
-        
-    def get_stats_display(self) -> List[str]:
-        """Get a list of stat strings to display in tooltips."""
-        stats = super().get_stats_display()
-        stats.extend([
-            f"Slot: {self.slot.capitalize()}",
-            f"Material: {self.material}"
-        ])
-        return stats 
 
 class Equipment:
     """Class to manage equipped items."""

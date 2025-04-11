@@ -123,36 +123,123 @@ class EquipmentUI:
             return False
             
         if event.type == pygame.MOUSEBUTTONDOWN:
+            print(f"DEBUG: Equipment UI received mouse click event at {pygame.mouse.get_pos()}")
             mouse_pos = pygame.mouse.get_pos()
             
             # Check if clicking on equipment slots
             for slot_name, slot_rect in self.slots.items():
                 if slot_rect.collidepoint(mouse_pos):
+                    print(f"DEBUG: Click is within equipment slot '{slot_name}' rect {slot_rect}")
                     if slot_name in self.equipment and self.equipment[slot_name]:
                         # Get the equipped item
                         item = self.equipment[slot_name]
-                        print(f"Equipment: Clicked on equipped item: {item.display_name} in slot {slot_name}")
+                        print(f"DEBUG: Equipment: Clicked on equipped item: {item.display_name} in slot {slot_name}")
+                        print(f"DEBUG: Item type: {type(item).__name__}")
+                        print(f"DEBUG: Item attributes: {dir(item)}")
+                        if hasattr(item, 'get_stats_display'):
+                            print(f"DEBUG: Item stats: {item.get_stats_display()}")
+                        
+                        # For armor, check armor_type attribute
+                        if hasattr(item, 'armor_type'):
+                            print(f"DEBUG: Item is armor with type: {item.armor_type}")
+                        
+                        # For hands item
+                        if hasattr(item, 'is_hands'):
+                            print(f"DEBUG: Item is a hands item: {item.is_hands}")
+                        
+                        # For weapon, check weapon_type
+                        if hasattr(item, 'weapon_type'):
+                            print(f"DEBUG: Item is a weapon with type: {item.weapon_type}")
                         
                         # Use the global GameState object to unequip the item
                         import sys
-                        if 'game' in sys.modules:
+                        game_state = None
+                        # First try __main__ - this is the most common case when running "python game.py"
+                        if '__main__' in sys.modules:
+                            main_module = sys.modules['__main__']
+                            print(f"DEBUG: Found __main__ module: {main_module}")
+                            if hasattr(main_module, 'game_state'):
+                                game_state = main_module.game_state
+                                print(f"DEBUG: Found game_state in __main__ module: {game_state}")
+                                
+                        # Next try 'game' module
+                        if game_state is None and 'game' in sys.modules:
                             game_module = sys.modules.get('game')
+                            print(f"DEBUG: Found game module: {game_module}")
+                            
+                            # Try different ways to access game_state
                             if hasattr(game_module, 'game_state'):
                                 game_state = game_module.game_state
-                                print(f"Found global game_state: {game_state}")
-                                
-                                # Try to unequip the item
-                                success = game_state.unequip_item(slot_name)
-                                if success:
-                                    print(f"Successfully unequipped {item.display_name} from {slot_name}")
-                                else:
-                                    print(f"Failed to unequip {item.display_name} - inventory may be full")
+                                print(f"DEBUG: Accessed game_state directly: {game_state}")
+                            
+                        # Last resort - try to find it in any module
+                        if game_state is None:
+                            # Try to find the game state in any module
+                            print("DEBUG: Could not find game_state in expected modules, searching all modules...")
+                            modules_to_check = []
+                            
+                            # Add modules in this order of priority
+                            for name in list(sys.modules.keys()):
+                                # First check main and directly imported modules
+                                if name in ['__main__', 'game', 'rpg']:
+                                    modules_to_check.insert(0, name)
+                                # Then check RPG-related modules
+                                elif 'game' in name.lower() or 'rpg' in name.lower():
+                                    modules_to_check.append(name)
+                            
+                            print(f"DEBUG: Modules to check (priority order): {modules_to_check}")
+                            
+                            # Now check the modules
+                            for name in modules_to_check:
+                                module = sys.modules.get(name)
+                                if module and hasattr(module, 'game_state'):
+                                    print(f"DEBUG: Found game_state in module: {name}")
+                                    game_state = module.game_state
+                                    break
+                                    
+                            # Look for player directly 
+                            if game_state is None:
+                                print("DEBUG: Looking for player object directly...")
+                                for name in modules_to_check:
+                                    module = sys.modules.get(name)
+                                    if module and hasattr(module, 'player'):
+                                        print(f"DEBUG: Found player in module: {name}")
+                                        player = module.player
+                                        
+                                        # Direct equipment manipulation
+                                        if slot_name in player.equipment.slots and player.equipment.slots[slot_name]:
+                                            item = player.equipment.slots[slot_name]
+                                            # Find empty inventory slot
+                                            empty_slot = -1
+                                            for i, inv_item in enumerate(player.inventory.items):
+                                                if inv_item is None:
+                                                    empty_slot = i
+                                                    break
+                                                    
+                                            if empty_slot >= 0:
+                                                # Move item to inventory
+                                                player.inventory.items[empty_slot] = item
+                                                player.equipment.slots[slot_name] = None
+                                                print(f"DEBUG: Directly unequipped {item.display_name} to inventory slot {empty_slot}")
+                                                return True
+                            
+                            if game_state is None:
+                                print("DEBUG: Could not find game_state in any module")
+                                print("DEBUG: Available modules: ", [name for name in sys.modules.keys() if 'game' in name.lower() or 'rpg' in name.lower() or name == '__main__'])
+                                return True
+                            
+                        # If we have a game_state, try to unequip the item
+                        if game_state:
+                            print(f"DEBUG: Attempting to call unequip_item('{slot_name}')")
+                            success = game_state.unequip_item(slot_name)
+                            print(f"DEBUG: unequip_item returned: {success}")
+                            if success:
+                                print(f"DEBUG: Successfully unequipped item from '{slot_name}'")
                             else:
-                                print("Could not find game_state in game module")
-                        else:
-                            print("Could not find game module")
-                        
+                                print(f"DEBUG: Failed to unequip item from '{slot_name}'")
                         return True
+                    else:
+                        print(f"DEBUG: No item in equipment slot '{slot_name}'")
         
         elif event.type == pygame.MOUSEMOTION:
             mouse_pos = pygame.mouse.get_pos()
