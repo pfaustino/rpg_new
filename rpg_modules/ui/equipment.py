@@ -69,6 +69,21 @@ class EquipmentUI:
         """Draw the equipment UI."""
         if not self.visible:
             return
+        
+        # Update rect position based on current x,y
+        self.rect.topleft = (self.x, self.y)
+        
+        # Recalculate slot positions based on new UI position
+        slot_size = 40
+        slot_spacing = 10
+        self.slots = {
+            'weapon': pygame.Rect(self.x + slot_spacing, self.y + 50, slot_size, slot_size),
+            'head': pygame.Rect(self.x + slot_size + slot_spacing*2, self.y + 50, slot_size, slot_size),
+            'chest': pygame.Rect(self.x + slot_spacing, self.y + 100, slot_size, slot_size),
+            'legs': pygame.Rect(self.x + slot_size + slot_spacing*2, self.y + 100, slot_size, slot_size),
+            'feet': pygame.Rect(self.x + slot_spacing, self.y + 150, slot_size, slot_size),
+            'hands': pygame.Rect(self.x + slot_size + slot_spacing*2, self.y + 150, slot_size, slot_size)
+        }
             
         # Draw main panel
         pygame.draw.rect(screen, UI_COLORS['background'], self.rect)
@@ -83,7 +98,7 @@ class EquipmentUI:
         for slot_name, slot_rect in self.slots.items():
             # Draw slot background
             pygame.draw.rect(screen, UI_COLORS['cell_background'], slot_rect)
-            pygame.draw.rect(screen, UI_COLORS['cell_border'], slot_rect, 1)
+            pygame.draw.rect(screen, UI_COLORS['border'], slot_rect, 1)
             
             # Draw slot label
             label = self.small_font.render(slot_name.capitalize(), True, UI_COLORS['text'])

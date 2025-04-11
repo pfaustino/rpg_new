@@ -180,30 +180,44 @@ class GameState:
                 if event.key == pygame.K_r:  # Reset zoom with 'R' key
                     self.camera.reset_zoom()
                 elif event.key == pygame.K_i:
-                    # Toggle inventory and equipment together
+                    # Toggle ONLY the inventory UI
                     self.inventory_ui.toggle()
-                    self.equipment_ui.toggle()
-                    # Hide generator UI when viewing inventory
-                    if self.generator_ui.visible:
-                        self.generator_ui.toggle()
+                    # Hide generator and equipment UI if inventory is closed
+                    if not self.inventory_ui.visible:
+                        if self.equipment_ui.visible:
+                            self.equipment_ui.toggle()
+                        if self.generator_ui.visible:
+                            self.generator_ui.toggle()
                 elif event.key == pygame.K_e:
-                    # Toggle equipment and inventory together
+                    # Toggle equipment UI and ensure inventory is visible
                     self.equipment_ui.toggle()
-                    self.inventory_ui.toggle()
-                    # Hide generator UI when viewing equipment
-                    if self.generator_ui.visible:
-                        self.generator_ui.toggle()
+                    # Show inventory if equipment is shown, hide if equipment is hidden
+                    if self.equipment_ui.visible and not self.inventory_ui.visible:
+                        self.inventory_ui.toggle()
+                    elif not self.equipment_ui.visible and self.inventory_ui.visible and not self.generator_ui.visible:
+                        self.inventory_ui.toggle()
                 elif event.key == pygame.K_q:
                     self.quest_ui.toggle()
                 elif event.key == pygame.K_g:
-                    # Toggle generator UI and show inventory for items
+                    # Toggle generator UI
                     self.generator_ui.toggle()
-                    # Always ensure inventory is visible with generator
-                    if self.generator_ui.visible and not self.inventory_ui.visible:
+                    
+                    # Ensure generator UI is properly positioned when visible
+                    if self.generator_ui.visible:
+                        self.generator_ui.x = SCREEN_WIDTH - self.generator_ui.width - 10
+                        self.generator_ui.y = 10
+                        self.generator_ui.rect.topleft = (self.generator_ui.x, self.generator_ui.y)
+                        
+                        # Show inventory UI if it's not already visible
+                        if not self.inventory_ui.visible:
+                            self.inventory_ui.toggle()
+                        
+                        # Hide equipment UI if it's visible
+                        if self.equipment_ui.visible:
+                            self.equipment_ui.toggle()
+                    # Hide inventory if both generator and equipment are hidden
+                    elif not self.equipment_ui.visible and self.inventory_ui.visible:
                         self.inventory_ui.toggle()
-                    # Hide equipment UI when viewing generator
-                    if self.equipment_ui.visible and self.generator_ui.visible:
-                        self.equipment_ui.toggle()
                 elif event.key == pygame.K_ESCAPE:
                     self.running = False
         
@@ -318,23 +332,33 @@ class GameState:
             screen.blit(msg_surface, msg_rect)
         
         # Draw UI elements - adjust positioning to improve layout
+        
+        # First check if inventory should be drawn
         if self.inventory_ui.visible:
             # Position inventory UI on the left
             self.inventory_ui.x = 10
             self.inventory_ui.y = 10
             self.inventory_ui.rect.topleft = (self.inventory_ui.x, self.inventory_ui.y)
             self.inventory_ui.draw(screen)
-            
-            # Position equipment UI on the right when visible together with inventory
-            if self.equipment_ui.visible:
-                self.equipment_ui.x = SCREEN_WIDTH - self.equipment_ui.width - 10
-                self.equipment_ui.y = 10
-                self.equipment_ui.rect.topleft = (self.equipment_ui.x, self.equipment_ui.y)
-                self.equipment_ui.draw(screen)
-                
-            # Position generator UI on right side when visible
-            if self.generator_ui.visible:
-                self.generator_ui.draw(screen, self.player)
+        
+        # Next check if equipment should be drawn    
+        if self.equipment_ui.visible:
+            # Position equipment UI on the right
+            self.equipment_ui.x = SCREEN_WIDTH - self.equipment_ui.width - 10
+            self.equipment_ui.y = 10
+            self.equipment_ui.rect.topleft = (self.equipment_ui.x, self.equipment_ui.y)
+            self.equipment_ui.draw(screen)
+        
+        # Finally check if generator should be drawn
+        if self.generator_ui.visible:
+            # Position generator UI on the right
+            self.generator_ui.x = SCREEN_WIDTH - self.generator_ui.width - 10
+            self.generator_ui.y = 10
+            # Ensure the rect is updated with the new position
+            self.generator_ui.rect.x = self.generator_ui.x
+            self.generator_ui.rect.y = self.generator_ui.y
+            self.generator_ui.rect.topleft = (self.generator_ui.x, self.generator_ui.y)
+            self.generator_ui.draw(screen, self.player)
         
         # Quest UI is independent
         self.quest_ui.draw(screen)
@@ -755,25 +779,7 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                elif event.key == pygame.K_i:
-                    game_state.inventory_ui.toggle()
-                elif event.key == pygame.K_e:
-                    game_state.equipment_ui.toggle()
-                elif event.key == pygame.K_q:
-                    game_state.quest_ui.toggle()
-                elif event.key == pygame.K_g:
-                    game_state.generator_ui.toggle()
-            
-            # Pass events to UI elements
-            game_state.inventory_ui.handle_event(event)
-            game_state.equipment_ui.handle_event(event)
-            game_state.quest_ui.handle_event(event)
-            if game_state.generator_ui.visible:  # Only handle events when visible
-                game_state.generator_ui.handle_event(event, game_state.player)
-        
+                
         # Update game state
         dt = clock.tick(60) / 1000.0  # Convert to seconds
         game_state.update(dt)

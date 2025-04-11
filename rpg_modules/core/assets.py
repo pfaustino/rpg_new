@@ -290,5 +290,79 @@ def load_tile_textures(assets: Dict[str, pygame.Surface]) -> None:
                 print(f"  Directory {base_path} does not exist")
         except Exception as e:
             print(f"  Error listing directory: {e}")
+    
+    # Check for flower texture 
+    print("\nLooking for flower textures in assets directory:")
+    base_path = os.path.join('assets', 'images', 'tiles')
+    if os.path.exists(base_path):
+        print("Files in tiles directory:")
+        for file in os.listdir(base_path):
+            print(f"  - {file}")
+    
+    # Try multiple possible flower file names
+    flower_file_found = False
+    
+    # First try: tile_deco_flower.png
+    flower_texture_path = os.path.join('assets', 'images', 'tiles', 'tile_deco_flower.png')
+    print(f"\nTrying to load flower texture from: {os.path.abspath(flower_texture_path)}")
+    if os.path.exists(flower_texture_path):
+        try:
+            print(f"FOUND! Loading flower texture from: {flower_texture_path}")
+            flower_surface = pygame.image.load(flower_texture_path).convert_alpha()
+            # Scale the flower image to the expected tile size
+            original_size = flower_surface.get_size()
+            print(f"Original flower texture size: {original_size}")
+            scaled_flower = pygame.transform.scale(flower_surface, (TILE_SIZE, TILE_SIZE))
+            assets[TileType.FLOWER.value] = scaled_flower
+            print(f"Successfully loaded and scaled flower texture to {TILE_SIZE}x{TILE_SIZE}")
+            flower_file_found = True
+        except Exception as e:
+            print(f"ERROR loading flower texture: {e}")
+    else:
+        print(f"Flower texture file NOT FOUND at: {flower_texture_path}")
+    
+    # Second try: tile_floor_grass_flowers.png
+    if not flower_file_found:
+        flower_texture_path = os.path.join('assets', 'images', 'tiles', 'tile_floor_grass_flowers.png')
+        print(f"\nTrying alternate file: {os.path.abspath(flower_texture_path)}")
+        if os.path.exists(flower_texture_path):
+            try:
+                print(f"FOUND! Loading flower texture from: {flower_texture_path}")
+                flower_surface = pygame.image.load(flower_texture_path).convert_alpha()
+                # Scale the flower image to the expected tile size
+                original_size = flower_surface.get_size()
+                print(f"Original flower texture size: {original_size}")
+                scaled_flower = pygame.transform.scale(flower_surface, (TILE_SIZE, TILE_SIZE))
+                assets[TileType.FLOWER.value] = scaled_flower
+                print(f"Successfully loaded and scaled flower texture to {TILE_SIZE}x{TILE_SIZE}")
+                flower_file_found = True
+            except Exception as e:
+                print(f"ERROR loading flower texture: {e}")
+        else:
+            print(f"Alternate flower texture file NOT FOUND at: {flower_texture_path}")
+    
+    # Third try: tile_flower.png
+    if not flower_file_found:
+        alt_flower_path = os.path.join('assets', 'images', 'tiles', 'tile_flower.png')
+        print(f"\nTrying another alternate file: {os.path.abspath(alt_flower_path)}")
+        if os.path.exists(alt_flower_path):
+            try:
+                print(f"FOUND! Loading flower texture from: {alt_flower_path}")
+                flower_surface = pygame.image.load(alt_flower_path).convert_alpha()
+                # Scale the flower image to the expected tile size
+                original_size = flower_surface.get_size()
+                print(f"Original alternate flower texture size: {original_size}")
+                scaled_flower = pygame.transform.scale(flower_surface, (TILE_SIZE, TILE_SIZE))
+                assets[TileType.FLOWER.value] = scaled_flower
+                print(f"Successfully loaded and scaled alternate flower texture to {TILE_SIZE}x{TILE_SIZE}")
+                flower_file_found = True
+            except Exception as e:
+                print(f"ERROR loading alternate flower texture: {e}")
+        else:
+            print(f"Alternate flower texture file NOT FOUND at: {alt_flower_path}")
+    
+    # If none of the files were found, use procedural generation fallback
+    if not flower_file_found:
+        print("\nNo flower texture files found, using procedural generation fallback.")
 
     # Add more tile textures here when available 

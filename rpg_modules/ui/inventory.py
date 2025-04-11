@@ -38,8 +38,10 @@ class InventoryUI:
         # Calculate dimensions
         self.width = UI_DIMENSIONS['inventory_width']
         self.height = UI_DIMENSIONS['inventory_height']
-        self.x = (SCREEN_WIDTH - self.width) // 2
-        self.y = (SCREEN_HEIGHT - self.height) // 2
+        
+        # Position on left side of screen
+        self.x = 10  # Left margin
+        self.y = 10  # Top margin
         
         # Create the main rect
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
@@ -217,7 +219,24 @@ class InventoryUI:
         if not self.visible:
             return
             
-        # Draw main panel
+        # Update rect position based on current x,y
+        self.rect.topleft = (self.x, self.y)
+        
+        # Recalculate grid cell positions based on updated UI position
+        grid_width = self.grid_cols * self.cell_size
+        grid_height = self.grid_rows * self.cell_size
+        grid_x = self.x + (self.width - grid_width) // 2
+        grid_y = self.y + 50  # Leave space for header
+        
+        # Update grid cells
+        self.grid_cells = []
+        for row in range(self.grid_rows):
+            for col in range(self.grid_cols):
+                cell_x = grid_x + col * self.cell_size
+                cell_y = grid_y + row * self.cell_size
+                self.grid_cells.append(pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size))
+            
+        # Draw background
         pygame.draw.rect(screen, UI_COLORS['background'], self.rect)
         pygame.draw.rect(screen, UI_COLORS['border'], self.rect, 2)
         
@@ -226,19 +245,23 @@ class InventoryUI:
         title_x = self.x + (self.width - title.get_width()) // 2
         screen.blit(title, (title_x, self.y + 10))
         
-        # Draw grid cells
+        # Draw grid
         for i, cell in enumerate(self.grid_cells):
+            # Draw cell background
             pygame.draw.rect(screen, UI_COLORS['cell_background'], cell)
-            pygame.draw.rect(screen, UI_COLORS['cell_border'], cell, 1)
+            # Draw border
+            pygame.draw.rect(screen, UI_COLORS['border'], cell, 1)
             
             # Draw item if present
             if i < len(self.inventory) and self.inventory[i]:
-                item = self.inventory[i]
-                # Draw item sprite centered in cell
-                sprite = item.get_equipment_sprite()
-                scaled_sprite = pygame.transform.scale(sprite, (self.cell_size - 4, self.cell_size - 4))
-                screen.blit(scaled_sprite, (cell.x + 2, cell.y + 2))
-        
-        # Draw tooltip if needed
+                try:
+                    item = self.inventory[i]
+                    sprite = item.get_equipment_sprite()
+                    scaled_sprite = pygame.transform.scale(sprite, (cell.width - 8, cell.height - 8))
+                    screen.blit(scaled_sprite, (cell.x + 4, cell.y + 4))
+                except Exception as e:
+                    print(f"Error drawing inventory item: {e}")
+                    
+        # Draw tooltip
         if self.tooltip_visible:
             self.draw_tooltip() 
