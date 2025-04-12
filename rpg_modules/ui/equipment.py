@@ -30,8 +30,9 @@ class EquipmentUI:
         self.visible = False
         
         # Calculate dimensions
+        # Make the UI slightly taller to accommodate cross layout
         self.width = UI_DIMENSIONS['equipment_width']
-        self.height = UI_DIMENSIONS['equipment_height']
+        self.height = UI_DIMENSIONS['equipment_height'] + 50  # Add extra height for cross layout
         self.x = SCREEN_WIDTH - self.width - 10
         self.y = 10
         
@@ -48,14 +49,24 @@ class EquipmentUI:
         self.tooltip_visible = False
         self.tooltip_rect = pygame.Rect(0, 0, UI_DIMENSIONS['tooltip_width'], UI_DIMENSIONS['tooltip_height'])
         
-        # Create equipment slots
+        # Create equipment slots in a cross pattern
+        slot_size = 40
+        center_x = self.x + self.width // 2 - slot_size // 2
+        center_y = self.y + 100  # Center position for the cross
+
         self.slots = {
-            'weapon': pygame.Rect(self.x + 10, self.y + 50, 40, 40),
-            'head': pygame.Rect(self.x + 60, self.y + 50, 40, 40),
-            'chest': pygame.Rect(self.x + 10, self.y + 100, 40, 40),
-            'legs': pygame.Rect(self.x + 60, self.y + 100, 40, 40),
-            'feet': pygame.Rect(self.x + 10, self.y + 150, 40, 40),
-            'hands': pygame.Rect(self.x + 60, self.y + 150, 40, 40)
+            # Top position (head)
+            'head': pygame.Rect(center_x, center_y - slot_size - 10, slot_size, slot_size),
+            # Left position (weapon)
+            'weapon': pygame.Rect(center_x - slot_size - 10, center_y, slot_size, slot_size),
+            # Center position (chest)
+            'chest': pygame.Rect(center_x, center_y, slot_size, slot_size),
+            # Right position (hands)
+            'hands': pygame.Rect(center_x + slot_size + 10, center_y, slot_size, slot_size),
+            # Bottom-left position (legs)
+            'legs': pygame.Rect(center_x - slot_size//2 - 5, center_y + slot_size + 10, slot_size, slot_size),
+            # Bottom-right position (feet)
+            'feet': pygame.Rect(center_x + slot_size//2 + 5, center_y + slot_size + 10, slot_size, slot_size)
         }
         
     def toggle(self):
@@ -75,14 +86,22 @@ class EquipmentUI:
         
         # Recalculate slot positions based on new UI position
         slot_size = 40
-        slot_spacing = 10
+        center_x = self.x + self.width // 2 - slot_size // 2
+        center_y = self.y + 100  # Center position for the cross
+
         self.slots = {
-            'weapon': pygame.Rect(self.x + slot_spacing, self.y + 50, slot_size, slot_size),
-            'head': pygame.Rect(self.x + slot_size + slot_spacing*2, self.y + 50, slot_size, slot_size),
-            'chest': pygame.Rect(self.x + slot_spacing, self.y + 100, slot_size, slot_size),
-            'legs': pygame.Rect(self.x + slot_size + slot_spacing*2, self.y + 100, slot_size, slot_size),
-            'feet': pygame.Rect(self.x + slot_spacing, self.y + 150, slot_size, slot_size),
-            'hands': pygame.Rect(self.x + slot_size + slot_spacing*2, self.y + 150, slot_size, slot_size)
+            # Top position (head)
+            'head': pygame.Rect(center_x, center_y - slot_size - 10, slot_size, slot_size),
+            # Left position (weapon)
+            'weapon': pygame.Rect(center_x - slot_size - 10, center_y, slot_size, slot_size),
+            # Center position (chest)
+            'chest': pygame.Rect(center_x, center_y, slot_size, slot_size),
+            # Right position (hands)
+            'hands': pygame.Rect(center_x + slot_size + 10, center_y, slot_size, slot_size),
+            # Bottom-left position (legs)
+            'legs': pygame.Rect(center_x - slot_size//2 - 5, center_y + slot_size + 10, slot_size, slot_size),
+            # Bottom-right position (feet)
+            'feet': pygame.Rect(center_x + slot_size//2 + 5, center_y + slot_size + 10, slot_size, slot_size)
         }
             
         # Draw main panel
@@ -100,10 +119,31 @@ class EquipmentUI:
             pygame.draw.rect(screen, UI_COLORS['cell_background'], slot_rect)
             pygame.draw.rect(screen, UI_COLORS['border'], slot_rect, 1)
             
-            # Draw slot label
+            # Draw slot label based on position
             label = self.small_font.render(slot_name.capitalize(), True, UI_COLORS['text'])
-            label_x = slot_rect.x + (slot_rect.width - label.get_width()) // 2
-            label_y = slot_rect.y - 20
+            
+            # Position labels differently based on slot position
+            if slot_name == 'head':
+                # Above the slot
+                label_x = slot_rect.x + (slot_rect.width - label.get_width()) // 2
+                label_y = slot_rect.y - 20
+            elif slot_name == 'weapon':
+                # Left of the slot
+                label_x = slot_rect.x - 5 - label.get_width()
+                label_y = slot_rect.y + (slot_rect.height - label.get_height()) // 2
+            elif slot_name == 'chest':
+                # Below the slot
+                label_x = slot_rect.x + (slot_rect.width - label.get_width()) // 2
+                label_y = slot_rect.y - 20
+            elif slot_name == 'hands':
+                # Right of the slot
+                label_x = slot_rect.x + slot_rect.width + 5
+                label_y = slot_rect.y + (slot_rect.height - label.get_height()) // 2
+            else:
+                # Below the slots for legs and feet
+                label_x = slot_rect.x + (slot_rect.width - label.get_width()) // 2
+                label_y = slot_rect.y + slot_rect.height + 5
+                
             screen.blit(label, (label_x, label_y))
             
             # Draw equipped item if present
