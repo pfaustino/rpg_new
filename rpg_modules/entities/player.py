@@ -279,20 +279,33 @@ class Player:
         return False
         
     def add_item(self, item: Item) -> bool:
-        """
-        Add an item to the player's inventory.
-        
-        Args:
-            item: The item to add
+        """Add an item to the player's inventory."""
+        if not item:
+            print("WARNING: Attempted to add None item to inventory")
+            return False
             
-        Returns:
-            True if the item was added successfully, False if inventory is full
-        """
-        for i in range(len(self.inventory)):
-            if self.inventory[i] is None:
-                self.inventory[i] = item
-                return True
-        return False
+        # Try to add item to inventory
+        success = self.inventory.add_item(item)
+        
+        # Print debug information about inventory status
+        filled_slots = sum(1 for i in self.inventory.items if i is not None)
+        total_slots = len(self.inventory.items)
+        print(f"DEBUG: Inventory status after add attempt: {filled_slots}/{total_slots} slots filled")
+        
+        if success:
+            print(f"Added {item.display_name} to inventory")
+            # Try to refresh inventory UI through game_state
+            try:
+                import game
+                if hasattr(game, 'game_state') and game.game_state:
+                    if hasattr(game.game_state, 'refresh_inventory_ui'):
+                        game.game_state.refresh_inventory_ui()
+            except Exception as e:
+                print(f"Could not refresh inventory UI from player: {e}")
+        else:
+            print(f"Inventory full, couldn't add {item.display_name}")
+            
+        return success
         
     def equip_item(self, inventory_index: int) -> bool:
         """

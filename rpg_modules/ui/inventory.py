@@ -6,7 +6,7 @@ import pygame
 from typing import Optional, Tuple, List, Callable
 from ..core.constants import (
     UI_COLORS, UI_DIMENSIONS, QUALITY_COLORS,
-    FONT_SIZES, SCREEN_WIDTH, SCREEN_HEIGHT
+    FONT_SIZES, SCREEN_WIDTH, SCREEN_HEIGHT, GRAY
 )
 from ..items import Item, Weapon, Armor, Hands, Consumable
 import sys
@@ -77,6 +77,7 @@ class InventoryUI:
         """
         self.screen = screen
         self.inventory = inventory if inventory is not None else []
+        print(f"InventoryUI initialized with inventory: {id(self.inventory)}, length: {len(self.inventory) if self.inventory else 0}")
         self.visible = False
         self.grid_rows = rows
         self.grid_cols = cols
@@ -377,87 +378,152 @@ class InventoryUI:
         if not self.visible:
             return
             
-        # Update rect position based on current x,y
-        self.rect.topleft = (self.x, self.y)
-        
-        # Recalculate grid cell positions based on updated UI position
-        grid_width = self.grid_cols * self.cell_size
-        grid_height = self.grid_rows * self.cell_size
-        grid_x = self.x + (self.width - grid_width) // 2
-        grid_y = self.y + 50  # Leave space for header
-        
-        # Update grid cells
-        self.grid_cells = []
-        for row in range(self.grid_rows):
-            for col in range(self.grid_cols):
-                cell_x = grid_x + col * self.cell_size
-                cell_y = grid_y + row * self.cell_size
-                self.grid_cells.append(pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size))
-            
         # Draw background
         pygame.draw.rect(screen, UI_COLORS['background'], self.rect)
         pygame.draw.rect(screen, UI_COLORS['border'], self.rect, 2)
         
-        # Draw title
-        title = self.font.render("Inventory", True, UI_COLORS['text'])
-        title_x = self.x + (self.width - title.get_width()) // 2
-        screen.blit(title, (title_x, self.y + 10))
+        # Draw header
+        header_text = self.font.render("Inventory", True, UI_COLORS['text'])
+        header_rect = header_text.get_rect(centerx=self.rect.centerx, top=self.rect.top + 10)
+        screen.blit(header_text, header_rect)
         
-        # Draw grid
+        # DIAGNOSTIC: Draw a direct visual representation of inventory contents at the top
+        filled_slots = sum(1 for item in self.inventory if item is not None)
+        diagnostic_text = f"Items: {filled_slots}/{len(self.inventory) if self.inventory else 0} - ID: {id(self.inventory)}"
+        diag_text = self.small_font.render(diagnostic_text, True, (255, 255, 0))
+        screen.blit(diag_text, (self.rect.left + 10, self.rect.top + 35))
+        
+        # Draw an array visualization showing which slots have items
+        if self.inventory:
+            slot_width = 8
+            slot_spacing = 2
+            slot_total = slot_width + slot_spacing
+            slots_per_row = min(len(self.inventory), 20)  # Max 20 slots per row
+            
+            for i, item in enumerate(self.inventory):
+                row = i // slots_per_row
+                col = i % slots_per_row
+                x = self.rect.left + 10 + col * slot_total
+                y = self.rect.top + 60 + row * slot_total
+                
+                # Draw slot representation
+                color = (0, 200, 0) if item is not None else (100, 100, 100)
+                pygame.draw.rect(screen, color, (x, y, slot_width, slot_width))
+                
+                # Add small number indicator for first few items
+                if item is not None and i < 20:
+                    tiny_font = pygame.font.Font(None, 10)
+                    idx_text = tiny_font.render(str(i), True, (0, 0, 0))
+                    screen.blit(idx_text, (x, y))
+        
+        # Draw each inventory slot
+        # Debug print to check number of items
+        print(f"\n===== INVENTORY UI DEBUG ====")
+        print(f"Inventory reference: {id(self.inventory)}")
+        print(f"Inventory type: {type(self.inventory)}")
+        if self.inventory is None:
+            print("ERROR: Inventory is None!")
+            # Initialize with empty list to prevent errors
+            self.inventory = []
+        elif not isinstance(self.inventory, list):
+            print(f"ERROR: Inventory is not a list! Type: {type(self.inventory)}")
+            # Try to convert to list if possible, otherwise use empty list
+            try:
+                self.inventory = list(self.inventory)
+            except:
+                self.inventory = []
+        else:
+            print(f"Inventory length: {len(self.inventory)}")
+            filled_slots = sum(1 for item in self.inventory if item is not None)
+            print(f"Filled slots: {filled_slots}")
+            print(f"First few items: {[str(item) if item else 'None' for item in self.inventory[:5]]}")
+        print(f"===== END INVENTORY DEBUG ====\n")
+        
+        # Draw each cell in the grid
         for i, cell in enumerate(self.grid_cells):
             # Draw cell background
             pygame.draw.rect(screen, UI_COLORS['cell_background'], cell)
-            # Draw border
+            
+            # Draw cell border
             pygame.draw.rect(screen, UI_COLORS['border'], cell, 1)
             
-            # Draw item if present
-            if i < len(self.inventory) and self.inventory[i]:
+            # Draw item in cell if it exists
+            if self.inventory and i < len(self.inventory) and self.inventory[i] is not None:
+                item = self.inventory[i]
                 try:
-                    item = self.inventory[i]
-                    
-                    # Create placeholder sprite if item sprite can't be loaded
+                    # Try to render the item sprite
                     try:
                         sprite = item.get_equipment_sprite()
-                    except (FileNotFoundError, pygame.error, AttributeError) as e:
-                        # Create a fallback sprite based on item type
-                        sprite = pygame.Surface((64, 64), pygame.SRCALPHA)
                         
-                        # Determine item type and set appropriate color
+                        # Scale to fit cell
+                        scale_factor = min(cell.width / sprite.get_width(), 
+                                         cell.height / sprite.get_height()) * 0.8
+                        new_width = int(sprite.get_width() * scale_factor)
+                        new_height = int(sprite.get_height() * scale_factor)
+                        scaled_sprite = pygame.transform.scale(sprite, (new_width, new_height))
+                        
+                        # Calculate position to center in cell
+                        sprite_x = cell.x + (cell.width - new_width) // 2
+                        sprite_y = cell.y + (cell.height - new_height) // 2
+                        
+                        # Draw the sprite
+                        screen.blit(scaled_sprite, (sprite_x, sprite_y))
+                        
+                        # Draw a colored border based on item quality
+                        quality_color = item.quality_color
+                        pygame.draw.rect(screen, quality_color, cell, 2)
+                        
+                    except (pygame.error, FileNotFoundError, AttributeError) as e:
+                        # If sprite loading fails, draw a colored rectangle
+                        quality_color = getattr(item, 'quality_color', GRAY)
+                        
+                        # Draw a smaller rectangle inside the cell
+                        inner_rect = pygame.Rect(
+                            cell.x + 5, cell.y + 5, 
+                            cell.width - 10, cell.height - 10
+                        )
+                        pygame.draw.rect(screen, quality_color, inner_rect)
+                        
+                        # Add an icon based on item type
                         if hasattr(item, 'weapon_type'):
-                            # Weapon placeholder (sword shape)
-                            color = QUALITY_COLORS.get(item.quality, (200, 200, 200))
-                            pygame.draw.polygon(sprite, color, [(20, 10), (44, 10), (44, 54), (32, 54), (20, 40)])
-                            pygame.draw.rect(sprite, (100, 100, 100), (25, 10, 14, 25))  # handle
+                            # Draw a simple sword icon
+                            points = [
+                                (cell.centerx, cell.y + 10),
+                                (cell.centerx + 5, cell.centery),
+                                (cell.centerx, cell.bottom - 10),
+                                (cell.centerx - 5, cell.centery)
+                            ]
+                            pygame.draw.polygon(screen, (200, 200, 200), points)
                         elif hasattr(item, 'armor_type'):
-                            # Armor placeholder (shield/chest shape)
-                            color = QUALITY_COLORS.get(item.quality, (200, 200, 200))
-                            pygame.draw.ellipse(sprite, color, (10, 10, 44, 44))
-                            pygame.draw.ellipse(sprite, (100, 100, 100), (15, 15, 34, 34), 2)
-                        else:
-                            # Consumable placeholder (potion shape)
-                            color = (200, 50, 50) if item.consumable_type == 'health' else \
-                                   (50, 50, 200) if item.consumable_type == 'mana' else \
-                                   (50, 200, 50)  # stamina
-                            pygame.draw.rect(sprite, (200, 200, 200), (25, 15, 14, 35))
-                            pygame.draw.rect(sprite, color, (20, 25, 24, 25))
-                            pygame.draw.ellipse(sprite, (200, 200, 200), (20, 10, 24, 20))
-                    
-                    # Scale and draw the sprite
-                    scaled_sprite = pygame.transform.scale(sprite, (cell.width - 8, cell.height - 8))
-                    screen.blit(scaled_sprite, (cell.x + 4, cell.y + 4))
-                    
-                    # Draw a quality-colored border around the item
-                    border_color = QUALITY_COLORS.get(item.quality, QUALITY_COLORS['Common'])
-                    inner_rect = pygame.Rect(cell.x + 3, cell.y + 3, cell.width - 6, cell.height - 6)
-                    pygame.draw.rect(screen, border_color, inner_rect, 2)
-                    
+                            # Draw a simple shield icon
+                            pygame.draw.ellipse(
+                                screen, (200, 200, 200),
+                                pygame.Rect(cell.centerx - 10, cell.centery - 10, 20, 20),
+                                3
+                            )
+                        elif hasattr(item, 'consumable_type'):
+                            # Draw a simple potion icon
+                            pygame.draw.rect(
+                                screen, (200, 200, 200),
+                                pygame.Rect(cell.centerx - 4, cell.centery - 8, 8, 16)
+                            )
+                        
                 except Exception as e:
-                    # Draw a placeholder for error cases
-                    error_surface = pygame.Surface((cell.width - 8, cell.height - 8))
-                    error_surface.fill((100, 0, 0))  # Red color for error
-                    screen.blit(error_surface, (cell.x + 4, cell.y + 4))
-                    print(f"Error drawing inventory item: {e}")
+                    # If rendering fails for any reason, draw an X
+                    pygame.draw.line(screen, (255, 0, 0), 
+                                   (cell.x + 5, cell.y + 5), 
+                                   (cell.x + cell.width - 5, cell.y + cell.height - 5), 2)
+                    pygame.draw.line(screen, (255, 0, 0), 
+                                   (cell.x + cell.width - 5, cell.y + 5), 
+                                   (cell.x + 5, cell.y + cell.height - 5), 2)
                     
-        # Draw tooltip
+                    # Log error
+                    print(f"Error rendering item in inventory: {e}")
+        
+        # Draw tooltip if visible
         if self.tooltip_visible:
-            self.draw_tooltip() 
+            self.draw_tooltip()
+            
+        # Debug rect to show touch target
+        if hasattr(self, 'DEBUG') and self.DEBUG:
+            pygame.draw.rect(screen, (255, 0, 0), self.rect, 1) 

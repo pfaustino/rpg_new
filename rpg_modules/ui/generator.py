@@ -64,6 +64,40 @@ class ItemGeneratorUI:
             self.preview_item = None
             self.type_expanded = False
             self.quality_expanded = False
+        else:
+            # When showing the generator UI, add some test items to the inventory
+            try:
+                print("\nAdding test items to inventory when generator UI is shown...")
+                import game
+                if hasattr(game, 'game_state') and game.game_state:
+                    player = game.game_state.player
+                    
+                    # Force reset inventory
+                    capacity = 40  # 8 rows x 5 cols
+                    player.inventory.items = [None] * capacity
+                    print(f"Reset inventory to {capacity} empty slots")
+                    
+                    # Add 5 test items directly to the first slots
+                    for i in range(5):
+                        item = self.item_generator.generate_item()
+                        if item:
+                            player.inventory.items[i] = item
+                            print(f"Added test item directly to inventory slot {i}: {item.display_name}")
+                    
+                    # Refresh inventory UI
+                    if hasattr(game.game_state, 'refresh_inventory_ui'):
+                        game.game_state.refresh_inventory_ui()
+                        print("Refreshed inventory UI")
+                    else:
+                        print("Could not refresh inventory UI - method not found")
+                    
+                    # Debug info
+                    filled_slots = sum(1 for item in player.inventory.items if item is not None)
+                    print(f"Inventory now has {filled_slots}/{len(player.inventory.items)} items")
+            except Exception as e:
+                print(f"Error adding test items when showing generator UI: {e}")
+                import traceback
+                traceback.print_exc()
 
     def update(self):
         """Update UI state."""
@@ -150,19 +184,62 @@ class ItemGeneratorUI:
                             print(f"Consumable Type: {self.preview_item.consumable_type}, Effect: {self.preview_item.effect_value}")
                             
                         # Add to player's inventory if successful
-                        if player is None:
-                            print("Error: Player object is None")
-                            return True
+                        print("Attempting to add item to inventory...")
                         
+                        # Debug check if player is None
+                        if player is None:
+                            print("DEBUG: Error - Player object is None")
+                            return True
+                            
+                        # Debug inventory state before adding item
                         try:
-                            # Add item to inventory
-                            success = player.inventory.add_item(self.preview_item)
-                            if success:
-                                print(f"Item successfully added to inventory")
-                            else:
-                                print(f"Failed to add item - inventory may be full")
-                        except Exception as e:
-                            print(f"Error adding item to inventory: {str(e)}")
+                            filled_slots = sum(1 for item in player.inventory.items if item is not None)
+                            total_slots = len(player.inventory.items)
+                            print(f"DEBUG: Current inventory state: {filled_slots}/{total_slots} slots filled")
+                            
+                            # Check if inventory is full
+                            if filled_slots >= total_slots:
+                                print("DEBUG: Inventory appears to be full!")
+                            
+                            # Try to add item and catch any exceptions
+                            try:
+                                success = player.inventory.add_item(self.preview_item)
+                                print(f"DEBUG: Result of add_item: {success}")
+                                
+                                if success:
+                                    print(f"Item successfully added to inventory")
+                                    # Check inventory state after adding
+                                    filled_slots_after = sum(1 for item in player.inventory.items if item is not None)
+                                    print(f"DEBUG: Inventory after add: {filled_slots_after}/{total_slots} slots filled")
+                                    
+                                    # Attempt to refresh the inventory UI through GameState
+                                    try:
+                                        # First try to get it from the global game module
+                                        import game
+                                        if hasattr(game, 'game_state') and game.game_state:
+                                            if hasattr(game.game_state, 'refresh_inventory_ui'):
+                                                game.game_state.refresh_inventory_ui()
+                                                print("Successfully refreshed inventory UI through game_state")
+                                            else:
+                                                print("game_state exists but has no refresh_inventory_ui method")
+                                                # Fallback: Try to directly update the inventory UI
+                                                if hasattr(game.game_state, 'inventory_ui'):
+                                                    game.game_state.inventory_ui.inventory = player.inventory.items
+                                                    print("Directly updated inventory UI reference")
+                                        else:
+                                            print("game_state not available for refreshing UI")
+                                    except Exception as refresh_err:
+                                        print(f"Could not refresh inventory UI: {refresh_err}")
+                                else:
+                                    print(f"DEBUG: Failed to add item - inventory may be full or add_item returned False")
+                            except Exception as add_error:
+                                print(f"DEBUG: Exception occurred during add_item: {str(add_error)}")
+                                import traceback
+                                traceback.print_exc()
+                        except Exception as inventory_error:
+                            print(f"DEBUG: Exception accessing player inventory: {str(inventory_error)}")
+                            import traceback
+                            traceback.print_exc()
                             
                         return True
                     else:

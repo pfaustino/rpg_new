@@ -26,6 +26,7 @@ from rpg_modules.core.constants import (
 from rpg_modules.core.map import TileType
 import traceback
 import numpy as np
+import types
 
 # Player stats
 PLAYER_HP = 100
@@ -301,12 +302,36 @@ class GameState:
         self.player = Player(self.map.width * TILE_SIZE // 2, self.map.height * TILE_SIZE // 2)
         print(f"Player spawn position: ({self.player.x // TILE_SIZE}, {self.player.y // TILE_SIZE})")
         
-        # Make sure player's inventory is set up properly
+        # Make sure player's inventory is set up properly with correct capacity
         if not hasattr(self.player, 'inventory') or not isinstance(self.player.inventory, Inventory):
-            self.player.inventory = Inventory()
+            print("Creating new inventory for player")
+            self.player.inventory = Inventory(40)  # Ensure capacity is set to 40
+        
+        # Add some initial items to player inventory for testing
+        print("Adding some test items to player inventory...")
+        try:
+            from rpg_modules.items.generator import ItemGenerator
+            item_gen = ItemGenerator()
+            
+            # Add a few test items of different types
+            for _ in range(5):
+                item = item_gen.generate_item()
+                if item:
+                    success = self.player.inventory.add_item(item)
+                    print(f"Added test item: {item.display_name} - Success: {success}")
+            
+            # Debug info about inventory state
+            filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
+            print(f"Player inventory now has {filled_slots}/{len(self.player.inventory.items)} items")
+            print(f"First few inventory slots: {[str(item) if item else 'None' for item in self.player.inventory.items[:5]]}")
+        except Exception as e:
+            print(f"Error adding test items: {e}")
+            import traceback
+            traceback.print_exc()
         
         # Make sure player's equipment is set up properly
         if not hasattr(self.player, 'equipment') or not isinstance(self.player.equipment, Equipment):
+            print("Creating new equipment for player")
             self.player.equipment = Equipment()
         
         # Override player's on_level_up method to play sound
@@ -320,7 +345,7 @@ class GameState:
                 print("Playing level up sound!")
         self.player.on_level_up = new_on_level_up
         
-        print("Player created with proper inventory")
+        print(f"Player created with inventory capacity: {len(self.player.inventory.items)}")
         
         # Create camera
         print("Creating camera...")
@@ -339,9 +364,31 @@ class GameState:
         
         # Create UI elements
         print("\nCreating UI elements...")
-        self.inventory_ui = InventoryUI(screen, self.player.inventory.items)
-        self.equipment_ui = EquipmentUI(screen, self.player.equipment.slots)  # Use player's equipment
+        # Create inventory UI with explicit reference to player's inventory
+        self.inventory_ui = InventoryUI(screen)
+        # Explicitly set the inventory reference
+        self.inventory_ui.inventory = self.player.inventory.items
+        print(f"Inventory UI created with reference to player inventory: {id(self.player.inventory.items)}")
+        
+        # Create equipment UI with direct reference to player equipment
+        self.equipment_ui = EquipmentUI(screen)
+        self.equipment_ui.equipment = self.player.equipment.slots
+        print(f"Equipment UI created with reference to player equipment: {id(self.player.equipment.slots)}")
+        
+        # Create other UI components
         self.generator_ui = GeneratorUI(SCREEN_WIDTH - 400, 10)
+        
+        # Add a method to refresh the inventory UI reference
+        def refresh_inventory_ui(self):
+            """Refresh the inventory UI to make sure it uses the current player inventory items."""
+            print(f"DEBUG: Refreshing inventory UI - Inventory has {sum(1 for item in self.player.inventory.items if item is not None)}/{len(self.player.inventory.items)} items")
+            # Ensure the UI is using the player's current inventory reference
+            self.inventory_ui.inventory = self.player.inventory.items
+            
+        self.refresh_inventory_ui = types.MethodType(refresh_inventory_ui, self)
+        
+        # Call refresh to ensure UI is using the correct inventory reference
+        self.refresh_inventory_ui()
         
         # Set up equipment callback
         self.inventory_ui.set_equip_callback(self.equip_item_from_inventory)
@@ -403,111 +450,48 @@ class GameState:
         print("Game resumed")
         
     def _save_game(self):
-        """Save the current game state to a file."""
         print("Saving game...")
-        try:
-            save_data = {
-                'player': {
-                    'x': self.player.rect.x,
-                    'y': self.player.rect.y,
-                    'level': self.player.level,
-                    'xp': getattr(self.player, 'xp', getattr(self.player, 'experience', 0)),
-                    'gold': getattr(self.player, 'gold', 0),
-                    'health': getattr(self.player, 'health', getattr(self.player, 'hp', 0)),
-                    'max_health': getattr(self.player, 'max_health', getattr(self.player, 'max_hp', 0)),
-                    'mana': getattr(self.player, 'mana', 0),
-                    'max_mana': getattr(self.player, 'max_mana', 0),
-                    'stamina': getattr(self.player, 'stamina', 0),
-                    'max_stamina': getattr(self.player, 'max_stamina', 0),
-                    'attack_type': getattr(self.player, 'attack_type', ''),
-                    'base_attack': getattr(self.player, 'base_attack', 0),
-                    'defense': getattr(self.player, 'defense', 0),
-                    'dexterity': getattr(self.player, 'dexterity', 0)
-                },
-                'inventory': [],
-                'equipment': {}
+        # Save the game state to a file
+        save_data = {
+            'player': {
+                'x': self.player.x,
+                'y': self.player.y,
+                'health': self.player.health,
+                'max_health': self.player.max_health,
+                'mana': getattr(self.player, 'mana', 0),
+                'max_mana': getattr(self.player, 'max_mana', 0),
+                'xp': getattr(self.player, 'xp', getattr(self.player, 'experience', 0)),
+                'level': self.player.level,
+                'inventory': [item.to_dict() if item is not None else None for item in self.player.inventory.items],
+                'equipment': {slot: item.to_dict() for slot, item in self.player.equipment.slots.items() if item is not None}
+            },
+            'map': {
+                'current_map': getattr(self.map, 'name', 'default_map'),
+                'player_visited': list(self.player_visited) if hasattr(self, 'player_visited') else []
             }
-            
-            # Save inventory items
-            for item in self.player.inventory.items:
-                if item is None:
-                    continue
-                item_data = {
-                    'type': item.__class__.__name__,
-                    'display_name': item.display_name,
-                    'quality': getattr(item, 'quality', 'Common')
-                }
-                # Add specific attributes based on item type
-                if item_data['type'] == 'Weapon':
-                    item_data['weapon_type'] = getattr(item, 'weapon_type', '')
-                    item_data['attack_power'] = getattr(item, 'attack_power', 0)
-                    item_data['material'] = getattr(item, 'material', '')
-                    item_data['prefix'] = getattr(item, 'prefix', None)
-                elif item_data['type'] == 'Armor':
-                    item_data['armor_type'] = getattr(item, 'armor_type', '')
-                    item_data['defense'] = getattr(item, 'defense', 0)
-                    item_data['material'] = getattr(item, 'material', '')
-                    item_data['prefix'] = getattr(item, 'prefix', None)
-                elif item_data['type'] == 'Hands':
-                    item_data['defense'] = getattr(item, 'defense', 0)
-                    item_data['dexterity'] = getattr(item, 'dexterity', 0)
-                    item_data['material'] = getattr(item, 'material', '')
-                    item_data['prefix'] = getattr(item, 'prefix', None)
-                elif item_data['type'] == 'Consumable':
-                    item_data['consumable_type'] = getattr(item, 'consumable_type', '')
-                    item_data['effect_value'] = getattr(item, 'effect_value', 0)
-                save_data['inventory'].append(item_data)
-            
-            # Save equipped items
-            for slot in self.player.equipment.slots:
-                item = self.player.equipment.get_equipped_item(slot)
-                if item:
-                    item_data = {
-                        'type': item.__class__.__name__,
-                        'display_name': item.display_name,
-                        'quality': getattr(item, 'quality', 'Common')
-                    }
-                    # Add specific attributes based on item type
-                    if item_data['type'] == 'Weapon':
-                        item_data['weapon_type'] = getattr(item, 'weapon_type', '')
-                        item_data['attack_power'] = getattr(item, 'attack_power', 0)
-                        item_data['material'] = getattr(item, 'material', '')
-                        item_data['prefix'] = getattr(item, 'prefix', None)
-                    elif item_data['type'] == 'Armor':
-                        item_data['armor_type'] = getattr(item, 'armor_type', '')
-                        item_data['defense'] = getattr(item, 'defense', 0)
-                        item_data['material'] = getattr(item, 'material', '')
-                        item_data['prefix'] = getattr(item, 'prefix', None)
-                    elif item_data['type'] == 'Hands':
-                        item_data['defense'] = getattr(item, 'defense', 0)
-                        item_data['dexterity'] = getattr(item, 'dexterity', 0)
-                        item_data['material'] = getattr(item, 'material', '')
-                        item_data['prefix'] = getattr(item, 'prefix', None)
-                    save_data['equipment'][slot] = item_data
-            
-            # Save to file
-            import json
-            import os
-            save_path = os.path.join(self.save_path, self.save_file)
-            with open(save_path, 'w') as f:
-                json.dump(save_data, f, indent=2)
-            print(f"Game saved to {save_path}")
-            # Close the system menu after successful save
-            self.system_menu_ui.hide()
+        }
+        os.makedirs('save', exist_ok=True)
+        with open('save/savegame.json', 'w') as f:
+            json.dump(save_data, f, indent=2)
+        print("Game saved to save\\savegame.json")
+        try:
+            # Use toggle instead of hide since SystemMenuUI has toggle() but not hide()
+            self.system_menu_ui.toggle()
         except Exception as e:
-            print(f"Error saving game: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            print(f"Error saving game: {e}")
+        self.paused = False
 
     def load_game(self):
         """Load the game state from a file if it exists."""
         import os
         import json
         save_path = os.path.join(self.save_path, self.save_file)
+        print(f"Attempting to load game from: {save_path}")
         if os.path.exists(save_path):
             try:
                 with open(save_path, 'r') as f:
                     save_data = json.load(f)
+                    print("Save data loaded successfully.")
                 
                 # Load player data
                 player_data = save_data.get('player', {})
@@ -544,35 +528,47 @@ class GameState:
                     self.player.defense = player_data.get('defense', getattr(self.player, 'defense', 0))
                 if hasattr(self.player, 'dexterity'):
                     self.player.dexterity = player_data.get('dexterity', getattr(self.player, 'dexterity', 0))
+                print("Player data applied.")
                 
-                # Clear current inventory
-                self.player.inventory.items = []
+                # Reset inventory with proper capacity
+                inventory_capacity = len(self.player.inventory.items)
+                self.player.inventory.items = [None] * inventory_capacity
+                print(f"Reset inventory with capacity {inventory_capacity}.")
                 
                 # Load inventory items
                 for item_data in save_data.get('inventory', []):
-                    item = self._create_item_from_data(item_data)
-                    if item:
-                        self.player.inventory.add_item(item)
+                    if item_data:  # Only process non-None items
+                        item = self._create_item_from_data(item_data)
+                        if item:
+                            self.player.inventory.add_item(item)
+                print(f"Loaded {sum(1 for item in self.player.inventory.items if item is not None)} items into inventory.")
                 
                 # Clear current equipment
                 for slot in self.player.equipment.slots:
                     self.player.equipment.unequip_item(slot)
+                print("Current equipment cleared.")
                 
                 # Load equipped items
                 for slot, item_data in save_data.get('equipment', {}).items():
                     item = self._create_item_from_data(item_data)
                     if item:
                         self.player.equipment.equip_item(item)
+                print(f"Loaded {len(save_data.get('equipment', {}))} equipped items.")
+                
+                # Make sure the inventory UI is updated with the new inventory
+                self.refresh_inventory_ui()
+                print("Refreshed inventory UI after loading.")
                 
                 print(f"Game loaded from {save_path}")
-                # Close the system menu after successful load
-                self.system_menu_ui.hide()
+                # Only close the system menu if it's currently visible
+                if self.system_menu_ui.visible:
+                    self.system_menu_ui.toggle()
             except Exception as e:
                 print(f"Error loading game: {str(e)}")
                 import traceback
                 traceback.print_exc()
         else:
-            print("No saved game found.")
+            print(f"No saved game found at {save_path}.")
 
     def _create_item_from_data(self, item_data):
         """Create an item object from saved data."""
@@ -617,13 +613,13 @@ class GameState:
         """Load a previously saved game."""
         print("Loading game...")
         self.load_game()
-        self.system_menu_ui.close()
+        # The system menu toggle is now handled in load_game() based on menu visibility
 
     def _new_game(self):
         """Start a new game."""
         print("Starting new game")
         self.restart_game()
-        self.system_menu_ui.close()
+        self.system_menu_ui.toggle()
 
     def _quit_game(self):
         """Signal the game to quit."""
@@ -654,6 +650,11 @@ class GameState:
         # Reset death locations
         self.recent_death_locations = []
         
+        # Make sure the inventory UI is updated with the new player's inventory
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.refresh_inventory_ui()
+        print(f"Reset inventory UI to new player inventory with {len(self.player.inventory.items)} slots")
+        
     def update(self, dt, events):
         """Update game state."""
         # Process events passed from main loop (not calling pygame.event.get() again)
@@ -667,12 +668,58 @@ class GameState:
             
             # Update system menu
             self.system_menu_ui.update()
-            return  # Don't update game when system menu is open
+            return
         
-        # Handle zoom and other events first
+        # Handle UI component visibility and interaction
         for event in events:
+            # Process different event types
             if event.type == pygame.QUIT:
                 self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_i:
+                    # Toggle both inventory and equipment UI
+                    self.inventory_ui.toggle()
+                    # Make equipment UI match inventory UI visibility
+                    if self.equipment_ui.visible != self.inventory_ui.visible:
+                        self.equipment_ui.toggle()
+                    
+                    if self.inventory_ui.visible:
+                        # Refresh inventory UI when opening
+                        self.refresh_inventory_ui()
+                        print(f"Opened inventory and equipment UI, refreshed with {sum(1 for item in self.player.inventory.items if item is not None)} items")
+                elif event.key == pygame.K_e:
+                    # Toggle equipment only
+                    self.equipment_ui.toggle()
+                elif event.key == pygame.K_g:
+                    # Toggle generator UI
+                    self.generator_ui.toggle()
+                elif event.key == pygame.K_q:
+                    # Toggle quest UI
+                    self.quest_ui.toggle()
+                elif event.key == pygame.K_ESCAPE:
+                    # Show system menu instead of quitting
+                    self.system_menu_ui.toggle()
+                # Attack type switching with number keys
+                elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
+                    # Convert key to attack type (1-4)
+                    attack_type = event.key - pygame.K_0
+                    self.player.switch_attack_type(attack_type)
+                    print(f"Switched to attack type: {self.player.get_attack_type_name()}")
+                # Potion hotkeys
+                elif event.key in [pygame.K_7, pygame.K_8, pygame.K_9]:
+                    potion_type = None
+                    if event.key == pygame.K_7:  # Health potion
+                        potion_type = 'health'
+                    elif event.key == pygame.K_8:  # Mana potion
+                        potion_type = 'mana'
+                    elif event.key == pygame.K_9:  # Stamina potion
+                        potion_type = 'stamina'
+                    
+                    if potion_type:
+                        self._use_potion_of_type(potion_type)
+                # Add test items with T key
+                elif event.key == pygame.K_t:
+                    self._add_test_items()
             elif event.type == pygame.MOUSEWHEEL:
                 # Handle zoom immediately
                 if event.y > 0:  # Scroll up to zoom in
@@ -689,63 +736,6 @@ class GameState:
                             # Attempt a fast attack on click
                             self.player.try_attack()
                             self._handle_player_attack()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:  # Reset zoom with 'R' key
-                    self.camera.reset_zoom()
-                elif event.key == pygame.K_i:
-                    # Toggle inventory UI
-                    self.inventory_ui.toggle()
-                    # Show equipment UI when inventory is shown, hide when inventory is hidden
-                    if self.equipment_ui.visible != self.inventory_ui.visible:
-                        self.equipment_ui.toggle()
-                    # Hide generator UI if inventory is closed
-                    if not self.inventory_ui.visible and self.generator_ui.visible:
-                        self.generator_ui.toggle()
-                elif event.key == pygame.K_e:
-                    # Toggle equipment UI and ensure inventory is visible too
-                    self.equipment_ui.toggle()
-                    # Show/hide inventory with equipment
-                    if self.equipment_ui.visible != self.inventory_ui.visible:
-                        self.inventory_ui.toggle()
-                    # Hide generator UI when viewing equipment
-                    if self.equipment_ui.visible and self.generator_ui.visible:
-                        self.generator_ui.toggle()
-                elif event.key == pygame.K_q:
-                    self.quest_ui.toggle()
-                elif event.key == pygame.K_g:
-                    print("G key pressed - toggling generator UI")  # Debugging line
-                    self.generator_ui.toggle()
-                # Handle attack type switching with number keys
-                elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
-                    # Only switch attack type if no UI is visible
-                    if not (self.inventory_ui.visible or self.equipment_ui.visible or 
-                           self.generator_ui.visible or self.quest_ui.visible):
-                        attack_type = event.key - pygame.K_0  # Convert key to number (1-4)
-                        if self.player.switch_attack_type(attack_type):
-                            # Play a sound effect when switching attacks
-                            if 'player_attack' in self.sounds:
-                                self.sounds['player_attack'].set_volume(0.3)
-                                self.sounds['player_attack'].play()
-                                self.sounds['player_attack'].set_volume(0.7)  # Reset volume
-                            print(f"Switched to {self.player.get_attack_type_name()} Attack")
-                        else:
-                            # Not enough resources for this attack
-                            print(f"Cannot use {['Regular', 'Heavy', 'Magic', 'Quick'][attack_type-1]} Attack - not enough resources")
-                # Handle potion hotkeys (7-9)
-                elif event.key in [pygame.K_7, pygame.K_8, pygame.K_9]:
-                    # Map keys to potion types
-                    potion_types = {
-                        pygame.K_7: "health",
-                        pygame.K_8: "mana",
-                        pygame.K_9: "stamina"
-                    }
-                    potion_type = potion_types[event.key]
-                    
-                    # Try to use potion of this type
-                    self._use_potion_of_type(potion_type)
-                elif event.key == pygame.K_ESCAPE:
-                    # Show system menu instead of quitting
-                    self.system_menu_ui.toggle()
         
         # Update death location expiry times
         self._update_death_locations()
@@ -833,8 +823,17 @@ class GameState:
         self._draw_player_stats()
         self._draw_action_toolbar(self.screen)
         
+        # DIAGNOSTIC: Draw inventory status directly on screen
+        filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
+        font = pygame.font.Font(None, 24)
+        inventory_status = f"Inventory: {filled_slots}/{len(self.player.inventory.items)} items"
+        status_text = font.render(inventory_status, True, (255, 255, 0))
+        self.screen.blit(status_text, (10, SCREEN_HEIGHT - 30))
+        
         # Draw any active UI components
         if self.inventory_ui.visible:
+            # Refresh inventory UI before drawing to ensure it shows the current state
+            self.refresh_inventory_ui()
             self.inventory_ui.draw(self.screen)
         if self.equipment_ui.visible:
             self.equipment_ui.draw(self.screen)
@@ -1357,6 +1356,10 @@ class GameState:
         self.inventory_ui.inventory = self.player.inventory.items
         self.equipment_ui.equipment = self.player.equipment.slots
         print(f"DEBUG: Updated inventory and equipment UIs")
+        
+        # Make sure the inventory display is refreshed
+        self.refresh_inventory_ui()
+        
         print(f"DEBUG: ==== EQUIP ATTEMPT SUCCESS ====\n")
         return True
         
@@ -2034,6 +2037,51 @@ class GameState:
         self.inventory_ui.inventory = self.player.inventory.items
         
         return True
+
+    def _add_test_items(self):
+        """Add some test items to the player's inventory for debugging."""
+        print("\n==== FORCING TEST ITEMS INTO INVENTORY ====")
+        
+        try:
+            from rpg_modules.items.generator import ItemGenerator
+            item_gen = ItemGenerator()
+            
+            # FORCE CLEAR inventory and recreate it (this is drastic but should work)
+            self.player.inventory.items = [None] * 40
+            print(f"RESET: Forcibly reset inventory to 40 empty slots")
+            
+            # Generate and directly place specific items in inventory
+            item_types = ["weapon", "armor", "consumable", "weapon", "armor"]
+            qualities = ["Legendary", "Masterwork", "Polished", "Standard", "Legendary"]
+            
+            for i in range(5):
+                if item_types[i] == "weapon":
+                    item = item_gen.generate_item('weapon', qualities[i])
+                elif item_types[i] == "armor":
+                    item = item_gen.generate_item('armor', qualities[i])
+                else:
+                    item = item_gen.generate_item('consumable', qualities[i])
+                
+                if item:
+                    # Force it directly into the inventory array
+                    self.player.inventory.items[i] = item
+                    print(f"ADDED: {qualities[i]} {item_types[i]} directly to slot {i}")
+            
+            # Refresh the inventory UI reference
+            self.inventory_ui.inventory = self.player.inventory.items
+            
+            # Call the refresh method to ensure UI stays in sync
+            self.refresh_inventory_ui()
+            
+            # Debug info
+            filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
+            print(f"INVENTORY STATUS: {filled_slots}/40 items")
+            print(f"First 5 slots: {[str(item) if item else 'None' for item in self.player.inventory.items[:5]]}")
+            print("==== TEST ITEMS ADDED SUCCESSFULLY ====\n")
+        except Exception as e:
+            print(f"ERROR: Failed to add test items: {e}")
+            import traceback
+            traceback.print_exc()
 
 class Equipment:
     """Class to manage equipped items."""
