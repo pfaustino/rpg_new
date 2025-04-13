@@ -149,10 +149,34 @@ class EquipmentUI:
             # Draw equipped item if present
             if slot_name in self.equipment and self.equipment[slot_name]:
                 item = self.equipment[slot_name]
-                sprite = item.get_equipment_sprite()
-                scaled_sprite = pygame.transform.scale(sprite, (36, 36))
-                screen.blit(scaled_sprite, (slot_rect.x + 2, slot_rect.y + 2))
+                try:
+                    sprite = item.get_equipment_sprite()
+                except (FileNotFoundError, pygame.error, AttributeError) as e:
+                    # Create a fallback sprite based on item type
+                    sprite = pygame.Surface((64, 64), pygame.SRCALPHA)
+                    
+                    if hasattr(item, 'weapon_type'):
+                        # Weapon placeholder (sword shape)
+                        color = QUALITY_COLORS.get(item.quality, (200, 200, 200))
+                        pygame.draw.polygon(sprite, color, [(20, 10), (44, 10), (44, 54), (32, 54), (20, 40)])
+                        pygame.draw.rect(sprite, (100, 100, 100), (25, 10, 14, 25))  # handle
+                    elif hasattr(item, 'armor_type'):
+                        # Armor placeholder (shield shape)
+                        color = QUALITY_COLORS.get(item.quality, (200, 200, 200))
+                        pygame.draw.circle(sprite, color, (32, 32), 20)
+                        pygame.draw.circle(sprite, (30, 30, 30), (32, 32), 20, 2)
+                    else:
+                        # Generic item placeholder (diamond shape)
+                        pygame.draw.polygon(sprite, (180, 180, 180), [(32, 10), (54, 32), (32, 54), (10, 32)])
                 
+                # Scale sprite to fit the slot
+                sprite = pygame.transform.scale(sprite, (slot_size, slot_size))
+                
+                # Draw item centered in the slot
+                item_x = slot_rect.x + (slot_rect.width - sprite.get_width()) // 2
+                item_y = slot_rect.y + (slot_rect.height - sprite.get_height()) // 2
+                screen.blit(sprite, (item_x, item_y))
+        
         # Draw tooltip if needed
         if self.tooltip_visible and self.hovered_item:
             self.draw_tooltip()
@@ -256,7 +280,7 @@ class EquipmentUI:
         
         # Draw item stats
         y_offset = 40
-        stats = self.hovered_item.get_stats_text()
+        stats = self.hovered_item.get_stats_display()
         for stat in stats:
             stat_text = self.small_font.render(stat, True, UI_COLORS['text'])
             self.screen.blit(stat_text, (tooltip_x + 10, tooltip_y + y_offset))
