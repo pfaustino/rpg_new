@@ -13,7 +13,9 @@ class QuestLog:
         self.active_quests: Dict[QuestType, List[Quest]] = {
             QuestType.MAIN: [],
             QuestType.SIDE: [],
-            QuestType.DAILY: []
+            QuestType.DAILY: [],
+            QuestType.WORLD: [],
+            QuestType.HIDDEN: []
         }
         self.completed_quests: List[Quest] = []
     

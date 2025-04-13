@@ -476,8 +476,9 @@ class GameState:
             json.dump(save_data, f, indent=2)
         print("Game saved to save\\savegame.json")
         try:
-            # Use toggle instead of hide since SystemMenuUI has toggle() but not hide()
-            self.system_menu_ui.toggle()
+            # Only close the system menu if it's currently visible
+            if self.system_menu_ui.visible:
+                self.system_menu_ui.toggle()
         except Exception as e:
             print(f"Error saving game: {e}")
         self.paused = False
@@ -1924,20 +1925,103 @@ class GameState:
         toolbar_y = screen.get_height() - toolbar_height
         toolbar_width = screen.get_width()
         
-        # Draw semi-transparent background
+        # Create a fresh transparent toolbar surface
         toolbar_surface = pygame.Surface((toolbar_width, toolbar_height), pygame.SRCALPHA)
-        pygame.draw.rect(toolbar_surface, (0, 0, 0, 128), (0, 0, toolbar_width, toolbar_height))
-        screen.blit(toolbar_surface, (0, toolbar_y))
         
-        # Draw divider
-        pygame.draw.line(screen, (200, 200, 200), 
-                         (toolbar_width // 2, toolbar_y + 5), 
-                         (toolbar_width // 2, toolbar_y + toolbar_height - 5), 2)
+        # Draw main toolbar background
+        pygame.draw.rect(toolbar_surface, (0, 0, 0, 128), (0, 0, toolbar_width, toolbar_height))
+        
+        # Draw divider line
+        pygame.draw.line(toolbar_surface, (200, 200, 200), 
+                         (toolbar_width // 2, 5), 
+                         (toolbar_width // 2, toolbar_height - 5), 2)
         
         font = pygame.font.Font(None, 28)
         small_font = pygame.font.Font(None, 20)
         
-        # Draw attack slots (1-4)
+        # FIRST PASS: Draw all button backgrounds
+        
+        # Draw attack slots (1-4) backgrounds
+        current_attack = self.player.attack_type
+        
+        for i in range(4):
+            slot_x = 20 + i * 120
+            slot_y = 10
+            slot_width = 100
+            slot_height = 40
+            
+            # Set button color based on active state
+            if i + 1 == current_attack:
+                color = (60, 100, 160, 200)  # Active attack
+            else:
+                color = (40, 40, 40, 160)    # Inactive attack
+                
+            # Draw attack button background
+            pygame.draw.rect(toolbar_surface, color, (slot_x, slot_y, slot_width, slot_height), border_radius=5)
+        
+        # Prepare potion data
+        potion_types = ["7: Health", "8: Mana", "9: Stamina"]
+        
+        # Get current player stats
+        current_health = self.player.health
+        max_health = self.player.max_health
+        current_mana = self.player.mana
+        max_mana = self.player.max_mana
+        current_stamina = self.player.stamina
+        max_stamina = self.player.max_stamina
+        
+        # Get potion counts
+        health_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'health')
+        mana_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'mana')
+        stamina_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'stamina')
+        potion_counts = [health_potions, mana_potions, stamina_potions]
+        
+        # Check if each potion can be used
+        need_health = current_health < max_health
+        need_mana = current_mana < max_mana
+        need_stamina = current_stamina < max_stamina
+        needs = [need_health, need_mana, need_stamina]
+        
+        # Draw potion slot backgrounds (7-9)
+        for i in range(3):
+            slot_x = toolbar_width // 2 + 20 + i * 120
+            slot_y = 10
+            slot_width = 100
+            slot_height = 40
+            
+            # Check if this potion type is available and needed
+            has_potions = potion_counts[i] > 0
+            can_use = needs[i]
+            
+            # Set appropriate colors based on state
+            if i == 0:  # Health potion
+                if has_potions and can_use:
+                    bg_color = (150, 30, 30, 240)  # Bright red for usable health potions
+                elif has_potions:
+                    bg_color = (80, 30, 30, 200)   # Medium red for available but not needed
+                else:
+                    bg_color = (40, 40, 40, 160)   # Dark gray for no potions
+            elif i == 1:  # Mana potion
+                if has_potions and can_use:
+                    bg_color = (30, 30, 150, 240)  # Bright blue for usable mana potions
+                elif has_potions:
+                    bg_color = (30, 30, 80, 200)   # Medium blue for available but not needed
+                else:
+                    bg_color = (40, 40, 40, 160)   # Dark gray for no potions
+            else:  # Stamina potion
+                if has_potions and can_use:
+                    bg_color = (30, 150, 30, 240)  # Bright green for usable stamina potions
+                elif has_potions:
+                    bg_color = (30, 80, 30, 200)   # Medium green for available but not needed
+                else:
+                    bg_color = (40, 40, 40, 160)   # Dark gray for no potions
+            
+            # Draw potion button background
+            pygame.draw.rect(toolbar_surface, bg_color, (slot_x, slot_y, slot_width, slot_height), border_radius=5)
+        
+        # SECOND PASS: Draw all text on top of backgrounds
+        
+        # Draw attack slot text
         attack_titles = ["1: Regular", "2: Heavy", "3: Magic", "4: Quick"]
         attack_desc = [
             "Balanced damage and speed",
@@ -1946,112 +2030,42 @@ class GameState:
             "Fast attack, low damage"
         ]
         
-        # Highlight current attack type
-        current_attack = self.player.attack_type
-        
         for i in range(4):
             slot_x = 20 + i * 120
-            slot_y = toolbar_y + 10
-            slot_width = 100
-            slot_height = 40
+            slot_y = 10
             
-            # Draw slot background (highlight if active)
-            if i + 1 == current_attack:
-                color = (60, 100, 160, 200)
-            else:
-                color = (40, 40, 40, 160)
-                
-            pygame.draw.rect(toolbar_surface, color, (slot_x, 10, slot_width, slot_height), border_radius=5)
-            screen.blit(toolbar_surface, (0, toolbar_y))
-            
-            # Draw attack name
+            # Draw attack title (always white for good contrast)
             text = font.render(attack_titles[i], True, (255, 255, 255))
-            screen.blit(text, (slot_x + 10, slot_y + 5))
+            toolbar_surface.blit(text, (slot_x + 10, slot_y + 5))
             
-            # Draw attack description (smaller font)
+            # Draw attack description
             desc = small_font.render(attack_desc[i], True, (220, 220, 220))
-            screen.blit(desc, (slot_x + 10, slot_y + 25))
+            toolbar_surface.blit(desc, (slot_x + 10, slot_y + 25))
         
-        # Draw potion slots (7-9)
-        potion_types = ["7: Health", "8: Mana", "9: Stamina"]
-        potion_colors = [(200, 60, 60), (60, 100, 200), (60, 200, 60)]
-        
-        # Get current player stats for showing usability
-        current_health = self.player.health
-        max_health = self.player.max_health
-        current_mana = self.player.mana
-        max_mana = self.player.max_mana
-        current_stamina = self.player.stamina
-        max_stamina = self.player.max_stamina
-        
-        # Get potion counts - Use direct attribute access to ensure we see current values
-        health_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'health')
-        mana_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'mana')
-        stamina_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'stamina')
-        potion_counts = [health_potions, mana_potions, stamina_potions]
-        
-        # Check if stats need potions - explicitly cast to boolean for clarity
-        need_health = bool(current_health < max_health)
-        need_mana = bool(current_mana < max_mana)
-        need_stamina = bool(current_stamina < max_stamina)
-        can_use_potion = [need_health, need_mana, need_stamina]
-        
-        # Special case for health potions - force strong red highlight when injured
-        if current_health < max_health and health_potions > 0:
-            health_highlight_color = (90, 40, 40, 220)  # Much brighter background for health when injured
-            health_text_color = (255, 80, 80)  # Bright red text for health when injured
-        else:
-            health_highlight_color = (60, 60, 60, 200) if (need_health and health_potions > 0) else (40, 40, 40, 160)
-            health_text_color = potion_colors[0] if (need_health and health_potions > 0) else tuple(c//2.5 for c in potion_colors[0])
-        
+        # Draw potion slot text
         for i in range(3):
             slot_x = toolbar_width // 2 + 20 + i * 120
-            slot_y = toolbar_y + 10
-            slot_width = 100
-            slot_height = 40
+            slot_y = 10
             
-            # Determine if this potion can be used (has potions AND needs effect)
-            potion_usable = potion_counts[i] > 0 and can_use_potion[i]
+            has_potions = potion_counts[i] > 0
+            can_use = needs[i]
             
-            # Special highlight for health potions when injured
-            if i == 0 and current_health < max_health and health_potions > 0:
-                bg_color = health_highlight_color
-                text_color = health_text_color
-            else:
-                # Draw slot background - highlight if potions are available and usable
-                if potion_usable:
-                    # Use a brighter background for usable potions
-                    bg_color = (60, 60, 60, 200)
-                else:
-                    # Use darker background for unusable potions
-                    bg_color = (40, 40, 40, 160)
-                
-                # Draw potion name with appropriate color
-                if potion_usable:
-                    # Full brightness for available and usable potions
-                    text_color = potion_colors[i]
-                elif potion_counts[i] > 0:
-                    # Medium brightness when you have potions but at max stats
-                    text_color = tuple(c//1.5 for c in potion_colors[i])
-                else:
-                    # Dim color if no potions available
-                    text_color = tuple(c//2.5 for c in potion_colors[i])
+            # Always use bold white text for potion name to ensure visibility
+            text = font.render(potion_types[i], True, (255, 255, 255))
+            toolbar_surface.blit(text, (slot_x + 10, slot_y + 5))
             
-            pygame.draw.rect(toolbar_surface, bg_color, (slot_x, 10, slot_width, slot_height), border_radius=5)
-            screen.blit(toolbar_surface, (0, toolbar_y))
-            
-            text = font.render(potion_types[i], True, text_color)
-            screen.blit(text, (slot_x + 10, slot_y + 5))
-            
-            # Draw potion count and status
-            if potion_counts[i] > 0 and not can_use_potion[i]:
-                # Show that player is at max for this stat
+            # Create appropriate status text
+            if has_potions and not can_use:
                 status_text = f"Count: {potion_counts[i]} (At Max)"
             else:
                 status_text = f"Count: {potion_counts[i]}"
                 
+            # Draw status text (always light gray for consistency)
             count_text = small_font.render(status_text, True, (220, 220, 220))
-            screen.blit(count_text, (slot_x + 10, slot_y + 25))
+            toolbar_surface.blit(count_text, (slot_x + 10, slot_y + 25))
+        
+        # Finally, blit the complete toolbar to the screen - only once!
+        screen.blit(toolbar_surface, (0, toolbar_y))
 
     def _count_potions_of_type(self, potion_type):
         """Count the number of potions of a specific type in the player's inventory."""

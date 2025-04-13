@@ -79,13 +79,17 @@ class SystemMenuUI:
             self.callbacks[option] = callback
             
     def toggle(self):
-        """Toggle visibility of the system menu."""
+        """Toggle the visibility of the menu."""
         self.visible = not self.visible
         # Reset selection state when toggling
         if self.visible:
             self.hovered_option = None
             self.selected_option = None
             
+    def hide(self):
+        """Hide the system menu."""
+        self.visible = False
+        
     def handle_event(self, event: pygame.event.Event) -> bool:
         """Handle UI events."""
         if not self.visible:
