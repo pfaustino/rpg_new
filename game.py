@@ -134,6 +134,10 @@ class GameState:
         self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
         self.hovered_monster = None  # Track which monster is currently being hovered
         
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
         # Create UI elements
         print("\nCreating UI elements...")
         self.inventory_ui = InventoryUI(screen, self.player.inventory.items)
@@ -216,6 +220,9 @@ class GameState:
                         self.equipment_ui.toggle()
                 elif event.key == pygame.K_ESCAPE:
                     self.running = False
+        
+        # Update death location expiry times
+        self._update_death_locations()
         
         # Handle player input
         keys = pygame.key.get_pressed()
@@ -582,6 +589,9 @@ class GameState:
             print("Maximum monster count reached")
             return False
 
+        # Get player level (default to 1 if not set)
+        player_level = getattr(self.player, 'level', 1)
+        
         # If no specific type provided, choose a random one from an expanded list
         if monster_type is None:
             monster_type = random.choice([
@@ -614,8 +624,19 @@ class GameState:
             MonsterType.LEVIATHAN
         ]
         
+        # Monsters with special respawn behavior that can ignore death location restrictions
+        can_respawn_anywhere = monster_type in [
+            MonsterType.SLIME,  # Slimes can spawn anywhere as they split
+            MonsterType.WRAITH,  # Wraiths can appear in death locations
+            MonsterType.PHOENIX  # Phoenix respawns from its ashes
+        ]
+        
+        # Define minimum distance from player and from death locations
+        min_player_distance = 200
+        min_death_distance = 150  # Minimum distance from recent death locations
+        
         # Try multiple positions until we find a valid one
-        for _ in range(20):  # Increased attempts to 20 to handle water-specific spawning
+        for _ in range(30):  # Increased attempts to handle death location checks
             # Generate random position in tile coordinates
             tile_x = random.randint(2, self.map.width - 3)
             tile_y = random.randint(2, self.map.height - 3)
@@ -639,11 +660,26 @@ class GameState:
             # Check distance from player
             dx = pixel_x - self.player.x
             dy = pixel_y - self.player.y
-            distance = math.sqrt(dx * dx + dy * dy)
+            distance_to_player = math.sqrt(dx * dx + dy * dy)
             
-            min_distance = 200  # Increased minimum spawn distance
-            if distance < min_distance:
+            if distance_to_player < min_player_distance:
                 continue
+            
+            # Check if too close to recent death locations (unless monster has special respawn)
+            if not can_respawn_anywhere:
+                too_close_to_death = False
+                for death_loc, _, death_type in self.recent_death_locations:
+                    death_x, death_y = death_loc
+                    dx = pixel_x - death_x
+                    dy = pixel_y - death_y
+                    death_distance = math.sqrt(dx * dx + dy * dy)
+                    
+                    if death_distance < min_death_distance:
+                        too_close_to_death = True
+                        break
+                
+                if too_close_to_death:
+                    continue
             
             # Check if we've reached max count for this type
             max_count = 10  # Default max count per type
@@ -653,10 +689,21 @@ class GameState:
             
             # Valid position found, spawn the monster
             monster = Monster(pixel_x, pixel_y, monster_type)
+            
+            # Set monster level to be +/- 1 of player level
+            level_diff = random.randint(-1, 1)
+            monster.level = max(1, player_level + level_diff)
+            
+            # Adjust monster stats based on level
+            level_multiplier = 1.0 + (monster.level - 1) * 0.2  # 20% increase per level
+            monster.max_health = int(monster.max_health * level_multiplier)
+            monster.health = monster.max_health
+            monster.attack_damage = int(monster.attack_damage * level_multiplier)
+            
             self.monsters.append(monster)
             self.monster_counts[monster_type] += 1
             spawn_location = "water" if is_water_tile else "land"
-            print(f"Spawned {monster_type.name} at tile ({tile_x}, {tile_y}) on {spawn_location}")
+            print(f"Spawned level {monster.level} {monster_type.name} at tile ({tile_x}, {tile_y}) on {spawn_location}")
             return True
         
         print(f"Failed to find valid spawn position for {monster_type.name}")
@@ -665,6 +712,15 @@ class GameState:
     def _handle_monster_death(self, monster: Monster):
         """Handle monster death and potential item drops."""
         self.monster_counts[monster.monster_type] -= 1
+        
+        # Record death location to prevent immediate respawning in same area
+        death_location = (monster.x, monster.y)
+        self.recent_death_locations.append((
+            death_location, 
+            self.death_location_expiry,
+            monster.monster_type
+        ))
+        
         self.monsters.remove(monster)
         
         # Handle special death effects
@@ -680,6 +736,12 @@ class GameState:
                     new_slime.size = max(16, monster.size - 8)
                     new_slime.health = new_slime.size * 2
                     new_slime.max_health = new_slime.health
+                    
+                    # Set level to match player level +/- 1
+                    player_level = getattr(self.player, 'level', 1)
+                    level_diff = random.randint(-1, 1)
+                    new_slime.level = max(1, player_level + level_diff)
+                    
                     self.monsters.append(new_slime)
                     self.monster_counts[MonsterType.SLIME] += 1
 
@@ -865,7 +927,7 @@ class GameState:
         font_large = pygame.font.Font(None, 28)
         font_small = pygame.font.Font(None, 20)
         
-        name_text = f"{monster.monster_type.name}"
+        name_text = f"{monster.monster_type.name} (Level {monster.level})"
         name_surface = font_large.render(name_text, True, (255, 255, 255))
         screen.blit(name_surface, (tooltip_x + padding, tooltip_y + padding))
         
@@ -950,6 +1012,19 @@ class GameState:
             return (255, 128, 0)    # Orange for hard
         else:
             return (255, 0, 0)      # Red for deadly
+
+    def _update_death_locations(self):
+        """Update the list of recent death locations, removing expired ones."""
+        # Decrement time for each death location
+        for i in range(len(self.recent_death_locations) - 1, -1, -1):
+            location, expiry, monster_type = self.recent_death_locations[i]
+            expiry -= 1
+            if expiry <= 0:
+                # Remove expired location
+                self.recent_death_locations.pop(i)
+            else:
+                # Update expiry time
+                self.recent_death_locations[i] = (location, expiry, monster_type)
 
 class Equipment:
     """Class to manage equipped items."""

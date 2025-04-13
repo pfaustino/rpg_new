@@ -184,31 +184,34 @@ class MonsterType(Enum):
 class Monster:
     """Class representing a monster in the game."""
     
-    def __init__(self, x, y, monster_type):
+    def __init__(self, x: float, y: float, monster_type: MonsterType):
+        """Initialize a monster at the given position."""
         self.x = x
         self.y = y
-        # Ensure monster_type is a MonsterType enum
-        if isinstance(monster_type, str):
-            try:
-                self.monster_type = MonsterType[monster_type.upper()]
-            except KeyError:
-                logger.error(f"Invalid monster type: {monster_type}")
-                self.monster_type = MonsterType.SLIME  # Default to slime if invalid
-        else:
-            self.monster_type = monster_type
+        self.monster_type = monster_type
+        
+        # Set default attributes based on type
+        self.max_health = monster_type.base_health
+        self.health = self.max_health
+        self.attack_damage = monster_type.base_damage
+        self.speed = monster_type.base_speed
+        self.attack_range = monster_type.attack_range
+        self.attack_cooldown = monster_type.attack_cooldown
+        self.attack_timer = 0
+        self.size = 32  # Default size for rendering
+        self.direction = random.randint(0, 3)  # Random initial direction
+        self.move_timer = 0
+        self.chasing = False
+        self.chase_range = 200
+        self.level = 1  # Initialize monster level
+        
+        # Animation state
+        self.animation_timer = 0
+        self.frame = 0
+        self.moving = False
+        self.facing = 'down'
         
         self.animation = MonsterAnimation(self.monster_type)
-        self.direction = Direction.DOWN
-        self.moving = False
-        self.speed = 2
-        self.health = 100
-        self.max_health = 100
-        self.size = 32  # For slime splitting
-        self.attack_range = 1.5  # In tiles
-        self.attack_damage = 10
-        self.attack_cooldown = 1000  # milliseconds
-        self.last_attack_time = 0
-        self.chase_range = 5  # Added for the new update method
         logger.log(f"Created {self.monster_type.name} monster at ({x}, {y})")
 
     def update(self, dt, player_pos):
@@ -298,11 +301,11 @@ class Monster:
     def can_attack(self):
         """Check if the monster can attack based on cooldown."""
         current_time = pygame.time.get_ticks()
-        return current_time - self.last_attack_time >= self.attack_cooldown
+        return current_time - self.attack_timer >= self.attack_cooldown
 
     def attack(self):
         """Perform an attack and return damage value."""
-        self.last_attack_time = pygame.time.get_ticks()
+        self.attack_timer = pygame.time.get_ticks()
         return self.attack_damage
 
     def get_rect(self) -> pygame.Rect:
@@ -317,15 +320,16 @@ class Monster:
         """Get the position of the monster."""
         return (self.x, self.y)
         
-    def get_stats(self) -> dict:
-        """Get the monster's stats."""
+    def get_stats(self):
+        """Get monster stats for display."""
         return {
-            "type": self.monster_type,
-            "position": self.get_position(),
-            "health": self.health,
-            "max_health": self.max_health,
-            "attack_damage": self.attack_damage,
-            "speed": self.speed
+            'name': self.monster_type.name,
+            'level': self.level,
+            'health': self.health,
+            'max_health': self.max_health,
+            'attack': self.attack_damage,
+            'speed': self.speed,
+            'attack_range': self.attack_range
         }
         
     def get_type(self) -> MonsterType:
