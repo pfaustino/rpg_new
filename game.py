@@ -6,10 +6,12 @@ import pygame
 import random
 import math
 import os
+import json
+import pickle
 from typing import Dict, List, Tuple, Optional, Union
 from rpg_modules.items import ItemGenerator, Item, Weapon, Armor, Hands, Consumable
 from rpg_modules.items.base import Inventory, Equipment
-from rpg_modules.ui import InventoryUI, EquipmentUI, ItemGeneratorUI as GeneratorUI, QuestUI
+from rpg_modules.ui import InventoryUI, EquipmentUI, ItemGeneratorUI as GeneratorUI, QuestUI, SystemMenuUI
 from rpg_modules.entities import Player
 from rpg_modules.entities.monster import Monster, MonsterType
 from rpg_modules.quests import QuestGenerator, QuestType, QuestLog
@@ -286,6 +288,9 @@ class GameState:
         """Initialize the game state."""
         print("\n=== Initializing Game State ===")
         
+        # Store screen reference
+        self.screen = screen
+        
         # Create map
         print("Creating game map...")
         self.map = Map(50, 50)
@@ -345,6 +350,11 @@ class GameState:
         # Create quest log and initialize quest UI with it
         self.quest_log = QuestLog()
         self.quest_ui = QuestUI(screen, self.quest_log)
+        
+        # Create system menu UI
+        self.system_menu_ui = SystemMenuUI(screen)
+        self._setup_system_menu_callbacks()
+        
         print("UI elements created")
         
         # Load assets
@@ -367,11 +377,87 @@ class GameState:
         # Game running state
         self.running = True
         
+        # Game save path
+        self.save_path = "save"
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
+        
         print("\n=== Game State Initialized ===")
+        
+    def _setup_system_menu_callbacks(self):
+        """Set up callbacks for system menu options."""
+        self.system_menu_ui.set_callback("Resume Game", self._resume_game)
+        self.system_menu_ui.set_callback("Save Game", self._save_game)
+        self.system_menu_ui.set_callback("Load Game", self._load_game)
+        self.system_menu_ui.set_callback("New Game", self._new_game)
+        self.system_menu_ui.set_callback("Quit Game", self._quit_game)
+        
+    def _resume_game(self):
+        """Resume the game by hiding the system menu."""
+        self.system_menu_ui.toggle()
+        print("Game resumed")
+        
+    def _save_game(self):
+        """Save the current game state."""
+        # TODO: Implement actual save functionality
+        print("Game saved")
+        self.system_menu_ui.toggle()
+        
+    def _load_game(self):
+        """Load a previously saved game."""
+        # TODO: Implement actual load functionality
+        print("Game loaded")
+        self.system_menu_ui.toggle()
+        
+    def _new_game(self):
+        """Start a new game."""
+        # TODO: Implement proper new game functionality
+        print("Starting new game")
+        self.restart_game()
+        self.system_menu_ui.toggle()
+        
+    def _quit_game(self):
+        """Quit the game."""
+        print("Quitting game")
+        self.running = False
+        
+    def restart_game(self):
+        """Restart the game with a fresh state."""
+        # Reset player
+        player_x = SCREEN_WIDTH // 2
+        player_y = SCREEN_HEIGHT // 2
+        self.player = Player(player_x, player_y)
+        
+        # Reset camera
+        self.camera = Camera()
+        
+        # Reset monsters
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        
+        # Reset map
+        self.map = GameMap(MAP_WIDTH, MAP_HEIGHT)
+        
+        # Spawn initial monsters
+        self._spawn_initial_monsters()
+        
+        # Reset death locations
+        self.recent_death_locations = []
         
     def update(self, dt, events):
         """Update game state."""
         # Process events passed from main loop (not calling pygame.event.get() again)
+        
+        # Check for system menu visibility first
+        if self.system_menu_ui.visible:
+            # When system menu is open, only handle its events
+            for event in events:
+                if self.system_menu_ui.handle_event(event):
+                    return  # Event was handled by system menu
+            
+            # Update system menu
+            self.system_menu_ui.update()
+            return  # Don't update game when system menu is open
         
         # Handle zoom and other events first
         for event in events:
@@ -456,7 +542,8 @@ class GameState:
                     # Try to use potion of this type
                     self._use_potion_of_type(potion_type)
                 elif event.key == pygame.K_ESCAPE:
-                    self.running = False
+                    # Show system menu instead of quitting
+                    self.system_menu_ui.toggle()
         
         # Update death location expiry times
         self._update_death_locations()
@@ -468,7 +555,7 @@ class GameState:
         if random.random() < 0.005:
             print(f"DEBUG: Passing {len(walls)} walls to player.handle_input()")
         self.player.handle_input(keys, walls)
-            
+        
         # Update player
         self.player.update(dt)
         
@@ -531,120 +618,49 @@ class GameState:
         # Update camera
         self.camera.update(self.player)
         
-    def draw(self, screen):
+    def draw(self):
         """Draw the game state."""
-        # Clear screen
-        screen.fill((40, 40, 40))  # Dark gray background
+        # Clear the screen
+        self.screen.fill((0, 0, 0))
         
-        # Draw game world
-        self.map.draw(screen, self.camera, self.assets)
+        # Draw the map and entities
+        self._draw_map()
+        self._draw_entities()
         
-        # Draw monsters
-        for monster in self.monsters:
-            monster.draw(screen, self.camera)
+        # Draw the UI on top
+        self._draw_player_stats()
+        self._draw_action_toolbar(self.screen)
         
-        # Draw player
-        self.player.draw(screen, self.camera)
-        
-        # Draw attack effect if active
-        if hasattr(self, 'current_attack_effect') and self.current_attack_effect:
-            self._draw_attack_effect(screen)
-        
-        # Get current tile type at player position
-        current_tile = self.map.get_tile_at_position(self.player.x, self.player.y)
-        
-        # Draw coordinates and terrain in top-left corner
-        font = pygame.font.Font(None, 24)
-        tile_x = int(self.player.x / TILE_SIZE)
-        tile_y = int(self.player.y / TILE_SIZE)
-        pixel_x = int(self.player.x)
-        pixel_y = int(self.player.y)
-        
-        # Format tile name for display
-        terrain_type = "unknown"
-        if current_tile:
-            terrain_type = current_tile.value.replace('_', ' ').title()
-        
-        # Display player position info
-        coord_text = f"Player Position - Tile: ({tile_x}, {tile_y}) Pixel: ({pixel_x}, {pixel_y})"
-        text_surface = font.render(coord_text, True, (255, 255, 255))
-        screen.blit(text_surface, (10, 10))
-        
-        # Display terrain type - this is the one we're adding
-        terrain_text = f"Player is on [{terrain_type}]"
-        terrain_surface = font.render(terrain_text, True, (255, 255, 255))
-        screen.blit(terrain_surface, (10, 35))
-        
-        # Display monster count
-        monster_text = f"Active Monsters: {len(self.monsters)}"
-        monster_surface = font.render(monster_text, True, (255, 255, 255))
-        screen.blit(monster_surface, (10, 60))
-        
-        # Draw player status bars and attack icon in top-right corner
-        self._draw_player_status_bars(screen)
-        
-        # Draw monster tooltip if hovering over a monster
-        if self.hovered_monster:
-            self._draw_monster_tooltip(screen, self.hovered_monster)
-        
-        # Draw zoom message if active
-        zoom_msg, timer = self.camera.get_zoom_message()
-        if zoom_msg and timer > 0:
-            msg_font = pygame.font.Font(None, 36)
-            msg_surface = msg_font.render(zoom_msg, True, (255, 255, 255))
-            msg_rect = msg_surface.get_rect()
-            msg_rect.centerx = SCREEN_WIDTH // 2
-            msg_rect.top = 10
-            screen.blit(msg_surface, msg_rect)
-        
-        # Draw UI elements - adjust positioning to improve layout
-        
-        # First check if inventory should be drawn
+        # Draw any active UI components
         if self.inventory_ui.visible:
-            # Position inventory UI on the left
-            self.inventory_ui.x = 10
-            self.inventory_ui.y = 10
-            self.inventory_ui.rect.topleft = (self.inventory_ui.x, self.inventory_ui.y)
-            self.inventory_ui.draw(screen)
-        
-        # Next check if equipment should be drawn    
+            self.inventory_ui.draw(self.screen)
         if self.equipment_ui.visible:
-            # Position equipment UI on the right
-            self.equipment_ui.x = SCREEN_WIDTH - self.equipment_ui.rect.width - 10
-            self.equipment_ui.y = 10
-            self.equipment_ui.rect.topleft = (self.equipment_ui.x, self.equipment_ui.y)
-            self.equipment_ui.draw(screen)
-        
-        # Finally check if generator should be drawn
+            self.equipment_ui.draw(self.screen)
         if self.generator_ui.visible:
-            # Position generator UI on the right
-            self.generator_ui.x = SCREEN_WIDTH - self.generator_ui.rect.width - 10
-            self.generator_ui.y = 10
-            # Ensure the rect is updated with the new position
-            self.generator_ui.rect.x = self.generator_ui.x
-            self.generator_ui.rect.y = self.generator_ui.y
-            self.generator_ui.rect.topleft = (self.generator_ui.x, self.generator_ui.y)
-            self.generator_ui.draw(screen, self.player)
+            self.generator_ui.draw(self.screen)
+        if self.quest_ui.visible:
+            self.quest_ui.draw(self.screen)
         
-        # Quest UI is independent
-        self.quest_ui.draw(screen)
+        # Draw the system menu on top of everything if visible
+        if self.system_menu_ui.visible:
+            self.system_menu_ui.draw(self.screen)
         
-        # Draw action toolbar at bottom of screen
-        self._draw_action_toolbar(screen)
-        
-        # Draw keyboard controls at the bottom of the screen (move up to make room for toolbar)
-        controls_font = pygame.font.Font(None, 20)
-        controls_text = "Controls: I-Inventory | E-Equipment | G-Generator | Q-Quests | WASD-Movement | R-Reset Zoom | Mouse Wheel-Zoom"
-        controls_surface = controls_font.render(controls_text, True, (200, 200, 200))
-        controls_rect = controls_surface.get_rect()
-        controls_rect.centerx = SCREEN_WIDTH // 2
-        controls_rect.bottom = SCREEN_HEIGHT - 80  # Move up to make room for toolbar
-        screen.blit(controls_surface, controls_rect)
-            
-        # Update display
+        # Update the display
         pygame.display.flip()
 
-    def _draw_player_status_bars(self, screen):
+    def _draw_map(self):
+        """Draw the game map."""
+        self.map.draw(self.screen, self.camera, self.assets)
+
+    def _draw_entities(self):
+        """Draw the game entities (player and monsters)."""
+        # Draw player
+        self.player.draw(self.screen, self.camera)
+        # Draw monsters
+        for monster in self.monsters:
+            monster.draw(self.screen, self.camera)
+
+    def _draw_player_stats(self):
         """Draw player health, mana, stamina bars and attack cooldown icon."""
         # Calculate bar dimensions and positions
         bar_width = 150
@@ -658,17 +674,17 @@ class GameState:
         
         # Draw health bar
         health_percent = self.player.health / self.player.max_health
-        self._draw_status_bar(screen, start_x, start_y, bar_width, bar_height, 
+        self._draw_status_bar(self.screen, start_x, start_y, bar_width, bar_height, 
                             health_percent, (200, 50, 50), "Health")
         
         # Draw mana bar
         mana_percent = self.player.mana / self.player.max_mana
-        self._draw_status_bar(screen, start_x, start_y + bar_height + bar_spacing, 
+        self._draw_status_bar(self.screen, start_x, start_y + bar_height + bar_spacing, 
                             bar_width, bar_height, mana_percent, (50, 50, 200), "Mana")
         
         # Draw stamina bar
         stamina_percent = self.player.stamina / self.player.max_stamina
-        self._draw_status_bar(screen, start_x, start_y + (bar_height + bar_spacing) * 2, 
+        self._draw_status_bar(self.screen, start_x, start_y + (bar_height + bar_spacing) * 2, 
                             bar_width, bar_height, stamina_percent, (50, 200, 50), "Stamina")
         
         # Draw XP bar - calculate percentage towards next level
@@ -676,7 +692,7 @@ class GameState:
         xp_needed = self.player.level * 100
         xp_percent = self.player.experience / xp_needed
         xp_color = (180, 120, 255)  # Purple for XP
-        self._draw_status_bar(screen, start_x, start_y + (bar_height + bar_spacing) * 3, 
+        self._draw_status_bar(self.screen, start_x, start_y + (bar_height + bar_spacing) * 3, 
                             bar_width, bar_height, xp_percent, xp_color, 
                             f"XP: {self.player.experience}/{xp_needed}")
         
@@ -702,7 +718,7 @@ class GameState:
         text_surface = font.render(attack_text, True, attack_color)
         text_rect = text_surface.get_rect()
         text_rect.topleft = (start_x, start_y + (bar_height + bar_spacing) * 4 + 5)
-        screen.blit(text_surface, text_rect)
+        self.screen.blit(text_surface, text_rect)
         
         # Draw attack cooldown icon
         icon_size = 40
@@ -710,18 +726,18 @@ class GameState:
         icon_y = start_y
         
         # Create a simple sword icon
-        pygame.draw.rect(screen, (150, 150, 150), (icon_x, icon_y, icon_size, icon_size))
+        pygame.draw.rect(self.screen, (150, 150, 150), (icon_x, icon_y, icon_size, icon_size))
         
         # Draw sword shape with color matching the attack type
         sword_color = attack_color
         # Sword handle
-        pygame.draw.rect(screen, sword_color, 
+        pygame.draw.rect(self.screen, sword_color, 
                       (icon_x + icon_size//2 - 3, icon_y + icon_size//2, 6, icon_size//2 - 5))
         # Sword guard
-        pygame.draw.rect(screen, sword_color, 
+        pygame.draw.rect(self.screen, sword_color, 
                       (icon_x + icon_size//4, icon_y + icon_size//2, icon_size//2, 5))
         # Sword blade
-        pygame.draw.polygon(screen, sword_color, [
+        pygame.draw.polygon(self.screen, sword_color, [
             (icon_x + icon_size//2, icon_y + 5),
             (icon_x + icon_size//2 - 7, icon_y + icon_size//2),
             (icon_x + icon_size//2 + 7, icon_y + icon_size//2)
@@ -740,7 +756,7 @@ class GameState:
             cooldown_height = int(icon_size * (1 - cooldown_percent))
             cooldown_surface = pygame.Surface((icon_size, cooldown_height), pygame.SRCALPHA)
             cooldown_surface.fill((0, 0, 0, 128))  # Semi-transparent black
-            screen.blit(cooldown_surface, (icon_x, icon_y))
+            self.screen.blit(cooldown_surface, (icon_x, icon_y))
 
     def _draw_status_bar(self, screen, x, y, width, height, fill_percent, color, label=None):
         """Draw a status bar with border and optional label."""
@@ -880,7 +896,7 @@ class GameState:
 
         # Get player level (default to 1 if not set)
         player_level = getattr(self.player, 'level', 1)
-        
+
         # If no specific type provided, choose a random one from an expanded list
         if monster_type is None:
             monster_type = random.choice([
@@ -1141,7 +1157,7 @@ class GameState:
         print(f"DEBUG: Updated inventory and equipment UIs")
         print(f"DEBUG: ==== EQUIP ATTEMPT SUCCESS ====\n")
         return True
-
+        
     def _check_monster_hover(self):
         """Check if mouse is hovering over any monster."""
         # No hover checks if UI is open
@@ -1503,119 +1519,6 @@ class GameState:
         ]
         return colors[attack_type - 1] if 1 <= attack_type <= 4 else (255, 255, 255)
         
-    def draw(self, screen):
-        """Draw the game state."""
-        # Clear screen
-        screen.fill((40, 40, 40))  # Dark gray background
-        
-        # Draw game world
-        self.map.draw(screen, self.camera, self.assets)
-        
-        # Draw monsters
-        for monster in self.monsters:
-            monster.draw(screen, self.camera)
-        
-        # Draw player
-        self.player.draw(screen, self.camera)
-        
-        # Draw attack effect if active
-        if hasattr(self, 'current_attack_effect') and self.current_attack_effect:
-            self._draw_attack_effect(screen)
-        
-        # Get current tile type at player position
-        current_tile = self.map.get_tile_at_position(self.player.x, self.player.y)
-        
-        # Draw coordinates and terrain in top-left corner
-        font = pygame.font.Font(None, 24)
-        tile_x = int(self.player.x / TILE_SIZE)
-        tile_y = int(self.player.y / TILE_SIZE)
-        pixel_x = int(self.player.x)
-        pixel_y = int(self.player.y)
-        
-        # Format tile name for display
-        terrain_type = "unknown"
-        if current_tile:
-            terrain_type = current_tile.value.replace('_', ' ').title()
-        
-        # Display player position info
-        coord_text = f"Player Position - Tile: ({tile_x}, {tile_y}) Pixel: ({pixel_x}, {pixel_y})"
-        text_surface = font.render(coord_text, True, (255, 255, 255))
-        screen.blit(text_surface, (10, 10))
-        
-        # Display terrain type - this is the one we're adding
-        terrain_text = f"Player is on [{terrain_type}]"
-        terrain_surface = font.render(terrain_text, True, (255, 255, 255))
-        screen.blit(terrain_surface, (10, 35))
-        
-        # Display monster count
-        monster_text = f"Active Monsters: {len(self.monsters)}"
-        monster_surface = font.render(monster_text, True, (255, 255, 255))
-        screen.blit(monster_surface, (10, 60))
-        
-        # Draw player status bars and attack icon in top-right corner
-        self._draw_player_status_bars(screen)
-        
-        # Draw monster tooltip if hovering over a monster
-        if self.hovered_monster:
-            self._draw_monster_tooltip(screen, self.hovered_monster)
-        
-        # Draw zoom message if active
-        zoom_msg, timer = self.camera.get_zoom_message()
-        if zoom_msg and timer > 0:
-            msg_font = pygame.font.Font(None, 36)
-            msg_surface = msg_font.render(zoom_msg, True, (255, 255, 255))
-            msg_rect = msg_surface.get_rect()
-            msg_rect.centerx = SCREEN_WIDTH // 2
-            msg_rect.top = 10
-            screen.blit(msg_surface, msg_rect)
-        
-        # Draw UI elements - adjust positioning to improve layout
-        
-        # First check if inventory should be drawn
-        if self.inventory_ui.visible:
-            # Position inventory UI on the left
-            self.inventory_ui.x = 10
-            self.inventory_ui.y = 10
-            self.inventory_ui.rect.topleft = (self.inventory_ui.x, self.inventory_ui.y)
-            self.inventory_ui.draw(screen)
-        
-        # Next check if equipment should be drawn    
-        if self.equipment_ui.visible:
-            # Position equipment UI on the right
-            self.equipment_ui.x = SCREEN_WIDTH - self.equipment_ui.rect.width - 10
-            self.equipment_ui.y = 10
-            self.equipment_ui.rect.topleft = (self.equipment_ui.x, self.equipment_ui.y)
-            self.equipment_ui.draw(screen)
-        
-        # Finally check if generator should be drawn
-        if self.generator_ui.visible:
-            # Position generator UI on the right
-            self.generator_ui.x = SCREEN_WIDTH - self.generator_ui.rect.width - 10
-            self.generator_ui.y = 10
-            # Ensure the rect is updated with the new position
-            self.generator_ui.rect.x = self.generator_ui.x
-            self.generator_ui.rect.y = self.generator_ui.y
-            self.generator_ui.rect.topleft = (self.generator_ui.x, self.generator_ui.y)
-            self.generator_ui.draw(screen, self.player)
-        
-        # Quest UI is independent
-        self.quest_ui.draw(screen)
-        
-        # Draw action toolbar at bottom of screen
-        self._draw_action_toolbar(screen)
-        
-        # Draw keyboard controls at the bottom of the screen (move up to make room for toolbar)
-        controls_font = pygame.font.Font(None, 20)
-        controls_text = "Controls: I-Inventory | E-Equipment | G-Generator | Q-Quests | WASD-Movement | R-Reset Zoom | Mouse Wheel-Zoom"
-        controls_surface = controls_font.render(controls_text, True, (200, 200, 200))
-        controls_rect = controls_surface.get_rect()
-        controls_rect.centerx = SCREEN_WIDTH // 2
-        controls_rect.bottom = SCREEN_HEIGHT - 80  # Move up to make room for toolbar
-        screen.blit(controls_surface, controls_rect)
-            
-        # Update display
-        pygame.display.flip()
-
     def _draw_attack_effect(self, screen):
         """Draw the current attack effect."""
         effect = self.current_attack_effect
@@ -1853,9 +1756,9 @@ class GameState:
         potion_colors = [(200, 60, 60), (60, 100, 200), (60, 200, 60)]
         
         # Get potion counts
-        health_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'type') and hasattr(item, 'subtype') and item.type == "potion" and item.subtype == "health")
-        mana_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'type') and hasattr(item, 'subtype') and item.type == "potion" and item.subtype == "mana")
-        stamina_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'type') and hasattr(item, 'subtype') and item.type == "potion" and item.subtype == "stamina")
+        health_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'health')
+        mana_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'mana')
+        stamina_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'stamina')
         potion_counts = [health_potions, mana_potions, stamina_potions]
         
         for i in range(3):
@@ -1881,7 +1784,7 @@ class GameState:
         count = 0
         if hasattr(self.player, 'inventory'):
             for item in self.player.inventory.items:
-                if item and item.type.lower() == potion_type.lower() + " potion":
+                if item and hasattr(item, 'consumable_type') and item.consumable_type == potion_type:
                     count += 1
         return count
 
@@ -1901,8 +1804,8 @@ class GameState:
                 
         if potion_index is None or potion_item is None:
             print(f"No {potion_type} potion in inventory")
-            return False
-            
+        return False
+
         # Use the potion
         print(f"Using {potion_item.display_name} from hotkey...")
         if potion_type == 'health':
@@ -2154,10 +2057,10 @@ class Game:
             # Update game state - pass the events
             dt = self.clock.tick(60) / 1000.0  # Convert to seconds
             self.game_state.update(dt, events)
-            
+        
             # Draw everything
-            self.game_state.draw(self.screen)
-            
+            self.game_state.draw()
+        
             # Print FPS (using carriage return to stay on same line)
             fps = self.clock.get_fps()
             print(f"FPS: {fps:.1f}", end='\r')
