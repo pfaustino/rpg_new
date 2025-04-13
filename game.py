@@ -22,6 +22,7 @@ from rpg_modules.core.constants import (
     QUALITY_COLORS, UI_DIMENSIONS
 )
 from rpg_modules.core.map import TileType
+import traceback
 
 # Player stats
 PLAYER_HP = 100
@@ -40,6 +41,9 @@ FLOOR_IMAGE = "floor.png"
 WALL_IMAGE = "wall.png"
 PLAYER_IMAGE = "player.png"
 MONSTER_IMAGE = "monster.png"
+
+# Global reference to the current game state
+game_state = None
 
 def load_assets():
     """Load all game assets"""
@@ -128,12 +132,17 @@ class GameState:
         print("\nInitializing monster system...")
         self.monsters = []
         self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
         
         # Create UI elements
         print("\nCreating UI elements...")
         self.inventory_ui = InventoryUI(screen, self.player.inventory.items)
         self.equipment_ui = EquipmentUI(screen, self.player.equipment.slots)  # Use player's equipment
         self.generator_ui = GeneratorUI(SCREEN_WIDTH - 400, 10)
+        
+        # Set up equipment callback
+        self.inventory_ui.set_equip_callback(self.equip_item_from_inventory)
+        print("Equipment callback set for inventory UI")
         
         # Create quest log and initialize quest UI with it
         self.quest_log = QuestLog()
@@ -227,6 +236,9 @@ class GameState:
         self.quest_ui.update()
         self.generator_ui.update()
         
+        # Check for monster hover
+        self._check_monster_hover()
+        
         # Pass events to UI elements after handling zoom
         for event in events:
             if event.type != pygame.MOUSEWHEEL:  # Skip wheel events for UI
@@ -310,6 +322,13 @@ class GameState:
         monster_surface = font.render(monster_text, True, (255, 255, 255))
         screen.blit(monster_surface, (10, 60))
         
+        # Draw player status bars and attack icon in top-right corner
+        self._draw_player_status_bars(screen)
+        
+        # Draw monster tooltip if hovering over a monster
+        if self.hovered_monster:
+            self._draw_monster_tooltip(screen, self.hovered_monster)
+        
         # Draw zoom message if active
         zoom_msg, timer = self.camera.get_zoom_message()
         if zoom_msg and timer > 0:
@@ -363,6 +382,96 @@ class GameState:
             
         # Update display
         pygame.display.flip()
+
+    def _draw_player_status_bars(self, screen):
+        """Draw player health, mana, stamina bars and attack cooldown icon."""
+        # Calculate bar dimensions and positions
+        bar_width = 150
+        bar_height = 20
+        bar_spacing = 5
+        border_width = 2
+        
+        # Position in top-right corner with some margin
+        start_x = SCREEN_WIDTH - bar_width - 20
+        start_y = 15
+        
+        # Draw health bar
+        health_percent = self.player.health / self.player.max_health
+        self._draw_status_bar(screen, start_x, start_y, bar_width, bar_height, 
+                            health_percent, (200, 50, 50), "Health")
+        
+        # Draw mana bar
+        mana_percent = self.player.mana / self.player.max_mana
+        self._draw_status_bar(screen, start_x, start_y + bar_height + bar_spacing, 
+                            bar_width, bar_height, mana_percent, (50, 50, 200), "Mana")
+        
+        # Draw stamina bar
+        stamina_percent = self.player.stamina / self.player.max_stamina
+        self._draw_status_bar(screen, start_x, start_y + (bar_height + bar_spacing) * 2, 
+                            bar_width, bar_height, stamina_percent, (50, 200, 50), "Stamina")
+        
+        # Draw attack cooldown icon
+        icon_size = 40
+        icon_x = start_x - icon_size - 10
+        icon_y = start_y
+        
+        # Create a simple sword icon
+        pygame.draw.rect(screen, (150, 150, 150), (icon_x, icon_y, icon_size, icon_size))
+        
+        # Draw sword shape
+        sword_color = (200, 200, 200)
+        # Sword handle
+        pygame.draw.rect(screen, sword_color, 
+                      (icon_x + icon_size//2 - 3, icon_y + icon_size//2, 6, icon_size//2 - 5))
+        # Sword guard
+        pygame.draw.rect(screen, sword_color, 
+                      (icon_x + icon_size//4, icon_y + icon_size//2, icon_size//2, 5))
+        # Sword blade
+        pygame.draw.polygon(screen, sword_color, [
+            (icon_x + icon_size//2, icon_y + 5),
+            (icon_x + icon_size//2 - 7, icon_y + icon_size//2),
+            (icon_x + icon_size//2 + 7, icon_y + icon_size//2)
+        ])
+        
+        # Calculate cooldown overlay
+        # For now just showing a random cooldown for demonstration
+        # In a real implementation, this would use the player's attack cooldown
+        cooldown_percent = (pygame.time.get_ticks() % 3000) / 3000
+        
+        # Draw cooldown overlay (darker area showing remaining cooldown)
+        if cooldown_percent < 1.0:
+            # Create a semi-transparent overlay to show cooldown
+            cooldown_height = int(icon_size * cooldown_percent)
+            cooldown_surface = pygame.Surface((icon_size, cooldown_height), pygame.SRCALPHA)
+            cooldown_surface.fill((0, 0, 0, 128))  # Semi-transparent black
+            screen.blit(cooldown_surface, (icon_x, icon_y + icon_size - cooldown_height))
+
+    def _draw_status_bar(self, screen, x, y, width, height, fill_percent, color, label=None):
+        """Draw a status bar with border and optional label."""
+        # Draw border
+        border_rect = pygame.Rect(x, y, width, height)
+        pygame.draw.rect(screen, (200, 200, 200), border_rect, 2)
+        
+        # Draw fill
+        fill_width = int((width - 4) * fill_percent)
+        fill_rect = pygame.Rect(x + 2, y + 2, fill_width, height - 4)
+        pygame.draw.rect(screen, color, fill_rect)
+        
+        # Draw label if provided
+        if label:
+            font = pygame.font.Font(None, 18)
+            label_surface = font.render(label, True, (255, 255, 255))
+            label_x = x + 5
+            label_y = y + (height - label_surface.get_height()) // 2
+            screen.blit(label_surface, (label_x, label_y))
+        
+        # Draw percentage text
+        percent_text = f"{int(fill_percent * 100)}%"
+        font = pygame.font.Font(None, 18)
+        percent_surface = font.render(percent_text, True, (255, 255, 255))
+        percent_x = x + width - percent_surface.get_width() - 5
+        percent_y = y + (height - percent_surface.get_height()) // 2
+        screen.blit(percent_surface, (percent_x, percent_y))
 
     def _spawn_initial_monsters(self):
         """Spawn initial set of monsters."""
@@ -681,52 +790,166 @@ class GameState:
         print(f"DEBUG: Updated inventory and equipment UIs")
         print(f"DEBUG: ==== EQUIP ATTEMPT SUCCESS ====\n")
         return True
-        
-    def unequip_item(self, slot):
-        """Unequip an item from equipment to the first available inventory slot."""
-        print(f"\nDEBUG: ==== UNEQUIP ATTEMPT START ====")
-        print(f"DEBUG: Attempting to unequip item from slot '{slot}'")
-        
-        if slot not in self.player.equipment.slots:
-            print(f"DEBUG: Invalid equipment slot: '{slot}'")
-            print(f"DEBUG: Valid slots are: {self.player.equipment.slots.keys()}")
-            print(f"DEBUG: ==== UNEQUIP ATTEMPT FAILED - INVALID SLOT ====\n")
-            return False
+
+    def _check_monster_hover(self):
+        """Check if mouse is hovering over any monster."""
+        # No hover checks if UI is open
+        if self.inventory_ui.visible or self.equipment_ui.visible or self.generator_ui.visible or self.quest_ui.visible:
+            self.hovered_monster = None
+            return
             
-        item = self.player.equipment.slots[slot]
-        if item is None:
-            print(f"DEBUG: No item in equipment slot '{slot}'")
-            print(f"DEBUG: ==== UNEQUIP ATTEMPT FAILED - NO ITEM ====\n")
-            return False
-            
-        print(f"DEBUG: Found item '{item.display_name}' in slot '{slot}'")
+        # Get mouse position
+        mouse_pos = pygame.mouse.get_pos()
+        zoom = self.camera.get_zoom()
         
-        # Find first empty inventory slot
-        empty_slot_found = False
-        for i in range(len(self.player.inventory.items)):
-            if self.player.inventory.items[i] is None:
-                # Move item from equipment to inventory
-                print(f"DEBUG: Found empty inventory slot at index {i}")
-                self.player.inventory.items[i] = item
-                self.player.equipment.slots[slot] = None
-                
-                print(f"DEBUG: Moved '{item.display_name}' from equipment slot '{slot}' to inventory slot {i}")
-                
-                # Update UI
-                self.inventory_ui.inventory = self.player.inventory.items
-                self.equipment_ui.equipment = self.player.equipment.slots
-                print(f"DEBUG: Updated inventory and equipment UIs")
-                
-                empty_slot_found = True
-                print(f"DEBUG: ==== UNEQUIP ATTEMPT SUCCESS ====\n")
-                return True
-                
-        # No empty slot found
-        if not empty_slot_found:
-            print(f"DEBUG: No empty inventory slots available")
-            print(f"DEBUG: ==== UNEQUIP ATTEMPT FAILED - INVENTORY FULL ====\n")
+        # Convert screen position to world position
+        world_x = (mouse_pos[0] / zoom) - self.camera.x
+        world_y = (mouse_pos[1] / zoom) - self.camera.y
+        
+        # Check each monster
+        self.hovered_monster = None
+        for monster in self.monsters:
+            # Simple distance-based hover detection
+            dx = monster.x - world_x
+            dy = monster.y - world_y
+            distance = math.sqrt(dx * dx + dy * dy)
             
-        return False
+            # If mouse is within monster's hitbox (using size as a radius)
+            if distance <= monster.size:
+                self.hovered_monster = monster
+                break
+
+    def _draw_monster_tooltip(self, screen, monster):
+        """Draw a tooltip showing monster stats when hovering over it."""
+        # Calculate tooltip dimensions
+        tooltip_width = 240
+        tooltip_height = 180
+        padding = 10
+        
+        # Get mouse position
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Position tooltip near mouse but ensure it stays on screen
+        tooltip_x = mouse_pos[0] + 20
+        tooltip_y = mouse_pos[1] - tooltip_height - 10
+        
+        # Adjust if tooltip would go off screen
+        if tooltip_x + tooltip_width > SCREEN_WIDTH:
+            tooltip_x = SCREEN_WIDTH - tooltip_width - 10
+        if tooltip_y < 10:
+            tooltip_y = 10
+        
+        # Create tooltip rectangle
+        tooltip_rect = pygame.Rect(tooltip_x, tooltip_y, tooltip_width, tooltip_height)
+        
+        # Get border color based on monster level
+        # Calculate level from monster attributes
+        # Stronger monsters get more impressive colors
+        monster_power = (monster.health / 100 + monster.attack_damage / 10) * (1 + monster.speed / 5)
+        
+        # Assign color based on power level
+        if monster_power > 20:  # Legendary
+            border_color = QUALITY_COLORS['Legendary']  # Gold
+        elif monster_power > 15:  # Masterwork
+            border_color = QUALITY_COLORS['Masterwork']  # Purple
+        elif monster_power > 10:  # Polished
+            border_color = QUALITY_COLORS['Polished']  # Blue
+        else:  # Standard
+            border_color = QUALITY_COLORS['Standard']  # Green
+        
+        # Draw tooltip background and border
+        pygame.draw.rect(screen, (30, 30, 30, 220), tooltip_rect)  # Dark background
+        pygame.draw.rect(screen, border_color, tooltip_rect, 3)  # Colored border
+        
+        # Draw monster name
+        font_large = pygame.font.Font(None, 28)
+        font_small = pygame.font.Font(None, 20)
+        
+        name_text = f"{monster.monster_type.name}"
+        name_surface = font_large.render(name_text, True, (255, 255, 255))
+        screen.blit(name_surface, (tooltip_x + padding, tooltip_y + padding))
+        
+        # Draw health bar
+        health_percent = monster.health / monster.max_health
+        bar_width = tooltip_width - (padding * 2)
+        bar_height = 15
+        bar_x = tooltip_x + padding
+        bar_y = tooltip_y + 40
+        
+        # Health bar border
+        pygame.draw.rect(screen, (150, 150, 150), (bar_x, bar_y, bar_width, bar_height), 1)
+        
+        # Health bar fill
+        fill_width = int(bar_width * health_percent)
+        pygame.draw.rect(screen, (200, 50, 50), (bar_x, bar_y, fill_width, bar_height))
+        
+        # Health text
+        health_text = f"Health: {monster.health}/{monster.max_health}"
+        health_surface = font_small.render(health_text, True, (255, 255, 255))
+        screen.blit(health_surface, (bar_x + 5, bar_y - 2))
+        
+        # Draw monster stats
+        stats = [
+            f"Attack: {monster.attack_damage}",
+            f"Speed: {monster.speed}",
+            f"Range: {monster.attack_range} tiles"
+        ]
+        
+        y_offset = bar_y + bar_height + 10
+        for stat in stats:
+            stat_surface = font_small.render(stat, True, (255, 255, 255))
+            screen.blit(stat_surface, (tooltip_x + padding, y_offset))
+            y_offset += 20
+        
+        # Draw difficulty rating
+        difficulty_text = self._get_monster_difficulty_text(monster)
+        difficulty_color = self._get_monster_difficulty_color(monster)
+        difficulty_surface = font_small.render(difficulty_text, True, difficulty_color)
+        screen.blit(difficulty_surface, (tooltip_x + padding, y_offset + 10))
+        
+    def _get_monster_difficulty_text(self, monster):
+        """Get a text description of monster difficulty relative to player."""
+        # Calculate monster power
+        monster_power = (monster.health / 100 + monster.attack_damage / 10) * (1 + monster.speed / 5)
+        
+        # Calculate player power (simplified formula)
+        player_power = (self.player.health / 100 + self.player.attack / 10) * (1 + 3 / 5)  # Assuming player speed is 3
+        
+        # Determine difficulty based on power difference
+        power_ratio = monster_power / player_power if player_power > 0 else monster_power
+        
+        if power_ratio < 0.5:
+            return "Difficulty: Trivial"
+        elif power_ratio < 0.75:
+            return "Difficulty: Easy"
+        elif power_ratio < 1.25:
+            return "Difficulty: Normal"
+        elif power_ratio < 2.0:
+            return "Difficulty: Hard"
+        else:
+            return "Difficulty: Deadly"
+    
+    def _get_monster_difficulty_color(self, monster):
+        """Get color based on monster difficulty relative to player."""
+        # Calculate monster power
+        monster_power = (monster.health / 100 + monster.attack_damage / 10) * (1 + monster.speed / 5)
+        
+        # Calculate player power (simplified formula)
+        player_power = (self.player.health / 100 + self.player.attack / 10) * (1 + 3 / 5)  # Assuming player speed is 3
+        
+        # Determine difficulty based on power difference
+        power_ratio = monster_power / player_power if player_power > 0 else monster_power
+        
+        if power_ratio < 0.5:
+            return (128, 128, 128)  # Gray for trivial
+        elif power_ratio < 0.75:
+            return (0, 255, 0)      # Green for easy
+        elif power_ratio < 1.25:
+            return (255, 255, 0)    # Yellow for normal
+        elif power_ratio < 2.0:
+            return (255, 128, 0)    # Orange for hard
+        else:
+            return (255, 0, 0)      # Red for deadly
 
 class Equipment:
     """Class to manage equipped items."""
@@ -750,15 +973,21 @@ class Equipment:
         Returns True if successful, False if no appropriate slot.
         """
         slot = None
-        if isinstance(item, Weapon):
+        if hasattr(item, 'weapon_type'):
             slot = 'weapon'
-        elif isinstance(item, Hands):
+            print(f"DEBUG: Equipment.equip_item - item is a weapon of type {item.weapon_type}")
+        elif hasattr(item, 'is_hands'):
             slot = 'hands'
-        elif isinstance(item, Armor):
+            print(f"DEBUG: Equipment.equip_item - item is hands armor")
+        elif hasattr(item, 'armor_type'):
             slot = item.armor_type.lower()
+            print(f"DEBUG: Equipment.equip_item - item is armor of type {item.armor_type}")
+        else:
+            print(f"DEBUG: Equipment.equip_item - could not determine slot for item: {item.display_name if hasattr(item, 'display_name') else item}")
             
         if slot and slot in self.slots:
             self.slots[slot] = item
+            print(f"DEBUG: Equipment.equip_item - successfully equipped item in slot '{slot}'")
             return True
         return False
         
@@ -894,51 +1123,74 @@ def initialize_game():
         traceback.print_exc()
         raise
 
+# Helper functions that use the global game_state
+def get_game_state():
+    """Get the current global game state instance."""
+    global game_state
+    print(f"DEBUG: get_game_state called, returning: {game_state}")
+    return game_state
+
+class Game:
+    """Main game class that manages the game state"""
+    
+    def __init__(self):
+        """Initialize the main game instance"""
+        global game_state
+        
+        print("Starting main function...")
+        
+        # Initialize Pygame
+        pygame.init()
+        print("Pygame initialized")
+        
+        # Set up display
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption("RPG Game")
+        print("Display mode set")
+        
+        # Create clock for timing
+        self.clock = pygame.time.Clock()
+        print("Clock created")
+        
+        # Create game state (it will create all other components)
+        self.game_state = GameState(self.screen)
+        print("Game state created")
+        
+        # Set the global game_state for external access - no longer needed but kept for compatibility
+        global game_state  # Need to declare again due to Python scoping rules
+        game_state = self.game_state
+        print(f"DEBUG: Global game_state set to: {game_state}")
+        
+    def run(self):
+        """Run the main game loop"""
+        # Main game loop
+        running = True
+        while running:
+            # Handle events - collect events ONLY ONCE
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.QUIT:
+                    running = False
+                    
+            # Update game state - pass the events
+            dt = self.clock.tick(60) / 1000.0  # Convert to seconds
+            self.game_state.update(dt, events)
+            
+            # Draw everything
+            self.game_state.draw(self.screen)
+            
+            # Print FPS (using carriage return to stay on same line)
+            fps = self.clock.get_fps()
+            print(f"FPS: {fps:.1f}", end='\r')
+        
+        # Clean up
+        pygame.quit()
+
 def main():
-    """Main game loop."""
-    print("Starting main function...")
-    
-    # Initialize Pygame
-    pygame.init()
-    print("Pygame initialized")
-    
-    # Set up display
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("RPG Game")
-    print("Display mode set")
-    
-    # Create clock for timing
-    clock = pygame.time.Clock()
-    print("Clock created")
-    
-    # Create game state (it will create all other components)
-    global game_state  # Make the game_state globally accessible
-    game_state = GameState(screen)
-    print("Game state created")
-    
-    # Main game loop
-    running = True
-    while running:
-        # Handle events - collect events ONLY ONCE
-        events = pygame.event.get()
-        for event in events:
-            if event.type == pygame.QUIT:
-                running = False
-                
-        # Update game state - pass the events
-        dt = clock.tick(60) / 1000.0  # Convert to seconds
-        game_state.update(dt, events)
-        
-        # Draw everything
-        game_state.draw(screen)
-        
-        # Print FPS (using carriage return to stay on same line)
-        fps = clock.get_fps()
-        print(f"FPS: {fps:.1f}", end='\r')
-    
-    # Clean up
-    pygame.quit()
+    """Start the game."""
+    # Create and run the game
+    game = Game()
+    game.run()
 
 if __name__ == "__main__":
-    game_state = None  # Define the game_state variable at module level
     main() 

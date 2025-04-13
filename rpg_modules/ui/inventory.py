@@ -3,12 +3,56 @@ Grid-based inventory UI component for RPG games.
 """
 
 import pygame
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Callable
 from ..core.constants import (
     UI_COLORS, UI_DIMENSIONS, QUALITY_COLORS,
     FONT_SIZES, SCREEN_WIDTH, SCREEN_HEIGHT
 )
 from ..items import Item, Weapon, Armor, Hands, Consumable
+import sys
+import importlib
+import traceback
+
+print("DEBUG: Loading rpg_modules.ui.inventory module")
+
+# Import the main game module - we'll do this once at module load
+# and retry during handle_event if needed
+game_module = None
+equip_function = None
+
+def import_game_module():
+    """Import the game module and set up the equip function."""
+    global game_module, equip_function
+    
+    try:
+        # Direct import - not using importlib to avoid caching issues
+        import game
+        game_module = game
+        
+        # Get the equip function directly
+        if hasattr(game_module, 'equip_item_from_inventory'):
+            equip_function = game_module.equip_item_from_inventory
+            print(f"DEBUG: Successfully imported equip_function: {equip_function}")
+            
+            # Test if we can access game_state
+            if hasattr(game_module, 'game_state'):
+                print(f"DEBUG: game_state in module is: {game_module.game_state}")
+                if game_module.game_state is None:
+                    print("WARNING: game_state is None - equipment functionality may not work yet")
+                else:
+                    print(f"DEBUG: game_state is initialized: {type(game_module.game_state).__name__}")
+            else:
+                print("WARNING: game_state not found in game module")
+        else:
+            print("WARNING: equip_item_from_inventory not found in game module")
+    except Exception as e:
+        print(f"ERROR importing game module: {e}")
+        traceback.print_exc()
+        game_module = None
+        equip_function = None
+
+# Try to import the game module right away
+import_game_module()
 
 class InventoryUI:
     """A reusable inventory UI component for pygame games."""
@@ -18,7 +62,8 @@ class InventoryUI:
         screen: pygame.Surface,
         inventory: Optional[List[Optional[Item]]] = None,
         rows: int = 8,
-        cols: int = 5
+        cols: int = 5,
+        equip_callback: Optional[Callable[[int], bool]] = None
     ):
         """
         Initialize the inventory UI.
@@ -28,12 +73,14 @@ class InventoryUI:
             inventory: The inventory to display (defaults to empty list)
             rows: Number of rows in the grid
             cols: Number of columns in the grid
+            equip_callback: Function to call when an item is clicked for equipping
         """
         self.screen = screen
         self.inventory = inventory if inventory is not None else []
         self.visible = False
         self.grid_rows = rows
         self.grid_cols = cols
+        self.equip_callback = equip_callback
         
         # Calculate dimensions
         self.width = UI_DIMENSIONS['inventory_width']
@@ -79,6 +126,11 @@ class InventoryUI:
         # Initialize selection
         self.selected_item = None
         
+    def set_equip_callback(self, callback: Callable[[int], bool]):
+        """Set the equip callback function."""
+        self.equip_callback = callback
+        print(f"DEBUG: InventoryUI equip callback set to: {callback}")
+        
     def toggle(self):
         """Toggle visibility of the inventory UI."""
         self.visible = not self.visible
@@ -108,25 +160,22 @@ class InventoryUI:
                         print(f"Inventory: Clicked on item: {item.display_name} in slot {cell_index}")
                         self.selected_item = item
                         
-                        # Use the global GameState object to equip the item
-                        import sys
-                        if 'game' in sys.modules:
-                            game_module = sys.modules.get('game')
-                            if hasattr(game_module, 'game_state'):
-                                game_state = game_module.game_state
-                                print(f"Found global game_state: {game_state}")
-                                
-                                # Try to equip the item
-                                success = game_state.equip_item_from_inventory(cell_index)
+                        # Call the equip callback if available
+                        if self.equip_callback:
+                            try:
+                                print(f"DEBUG: Calling equip_callback({cell_index})")
+                                success = self.equip_callback(cell_index)
                                 if success:
                                     print(f"Successfully equipped {item.display_name}")
                                 else:
                                     print(f"Failed to equip {item.display_name}")
-                            else:
-                                print("Could not find game_state in game module")
+                            except Exception as e:
+                                print(f"ERROR calling equip_callback: {e}")
+                                traceback.print_exc()
                         else:
-                            print("Could not find game module")
-                    return True
+                            print("WARNING: No equip callback set for inventory UI")
+                        
+                        return True
                 
         elif event.type == pygame.MOUSEMOTION:
             mouse_pos = pygame.mouse.get_pos()
