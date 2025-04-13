@@ -28,11 +28,12 @@ class EquipmentUI:
         self.screen = screen
         self.equipment = equipment if equipment is not None else {}
         self.visible = False
+        self.player = None  # Will be set from GameState
         
         # Calculate dimensions
-        # Make the UI slightly taller to accommodate cross layout
+        # Make the UI slightly taller to accommodate cross layout and stats
         self.width = UI_DIMENSIONS['equipment_width']
-        self.height = UI_DIMENSIONS['equipment_height'] + 50  # Add extra height for cross layout
+        self.height = UI_DIMENSIONS['equipment_height'] + 150  # Add extra height for cross layout and stats
         self.x = SCREEN_WIDTH - self.width - 10
         self.y = 10
         
@@ -68,6 +69,10 @@ class EquipmentUI:
             # Bottom-right position (feet)
             'feet': pygame.Rect(center_x + slot_size//2 + 5, center_y + slot_size + 10, slot_size, slot_size)
         }
+        
+    def set_player(self, player):
+        """Set the player reference for stat calculations."""
+        self.player = player
         
     def toggle(self):
         """Toggle visibility of the equipment UI."""
@@ -177,10 +182,89 @@ class EquipmentUI:
                 item_y = slot_rect.y + (slot_rect.height - sprite.get_height()) // 2
                 screen.blit(sprite, (item_x, item_y))
         
+        # Draw character stats section
+        self._draw_character_stats(screen)
+        
         # Draw tooltip if needed
         if self.tooltip_visible and self.hovered_item:
             self.draw_tooltip()
             
+    def _draw_character_stats(self, screen):
+        """Draw the character stats section showing base stats and equipment bonuses."""
+        # Skip if no player is available
+        if not self.player:
+            return
+            
+        # Create stats section header
+        stats_title = self.font.render("Character Stats", True, UI_COLORS['text'])
+        stats_title_x = self.x + (self.width - stats_title.get_width()) // 2
+        stats_title_y = self.y + 180  # Position below equipment slots
+        screen.blit(stats_title, (stats_title_x, stats_title_y))
+        
+        # Calculate equipment bonuses
+        attack_bonus = self._calculate_attack_bonus()
+        defense_bonus = self._calculate_defense_bonus()
+        dexterity_bonus = self._calculate_dexterity_bonus()
+        
+        # Format stats with base + bonus
+        stats = [
+            f"Attack: {self.player.attack}+{attack_bonus}" if attack_bonus > 0 else f"Attack: {self.player.attack}",
+            f"Defense: {self.player.defense}+{defense_bonus}" if defense_bonus > 0 else f"Defense: {self.player.defense}",
+        ]
+        
+        # Add dexterity if bonus exists
+        if hasattr(self.player, 'dexterity'):
+            base_dex = getattr(self.player, 'dexterity', 0)
+            stats.append(f"Dexterity: {base_dex}+{dexterity_bonus}" if dexterity_bonus > 0 else f"Dexterity: {base_dex}")
+        
+        # Draw stats list
+        y_offset = stats_title_y + 30
+        for stat in stats:
+            stat_surface = self.small_font.render(stat, True, UI_COLORS['text'])
+            stat_x = self.x + 20
+            screen.blit(stat_surface, (stat_x, y_offset))
+            y_offset += 25
+            
+    def _calculate_attack_bonus(self) -> int:
+        """Calculate attack bonus from equipped items."""
+        bonus = 0
+        
+        # Check weapon
+        weapon = self.equipment.get('weapon')
+        if weapon and hasattr(weapon, 'attack_power'):
+            bonus += weapon.attack_power
+            
+        return bonus
+        
+    def _calculate_defense_bonus(self) -> int:
+        """Calculate defense bonus from equipped armor."""
+        bonus = 0
+        
+        # Check all armor slots
+        armor_slots = ['head', 'chest', 'legs', 'feet', 'hands']
+        for slot in armor_slots:
+            item = self.equipment.get(slot)
+            if item and hasattr(item, 'defense'):
+                bonus += item.defense
+                
+        return bonus
+        
+    def _calculate_dexterity_bonus(self) -> int:
+        """Calculate dexterity bonus from equipped items."""
+        bonus = 0
+        
+        # Mainly from hands equipment
+        hands = self.equipment.get('hands')
+        if hands and hasattr(hands, 'dexterity'):
+            bonus += hands.dexterity
+            
+        # Other equipment may also provide dexterity
+        for slot, item in self.equipment.items():
+            if item and hasattr(item, 'dexterity') and slot != 'hands':
+                bonus += item.dexterity
+                
+        return bonus
+    
     def handle_event(self, event: pygame.event.Event) -> bool:
         """Handle UI events."""
         if not self.visible:

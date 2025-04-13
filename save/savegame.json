@@ -1,21 +1,221 @@
 {
   "player": {
-    "x": 628,
-    "y": 723,
-    "level": 1,
-    "xp": 10,
-    "gold": 0,
-    "health": 22,
-    "max_health": 100,
-    "mana": 50,
-    "max_mana": 50,
-    "stamina": 100,
-    "max_stamina": 100,
-    "attack_type": 1,
-    "base_attack": 0,
-    "defense": 5,
-    "dexterity": 0
+    "x": 800,
+    "y": 800,
+    "health": 102,
+    "max_health": 110,
+    "mana": 55,
+    "max_mana": 55,
+    "xp": 30,
+    "level": 2,
+    "inventory": [
+      null,
+      {
+        "type": "Weapon",
+        "quality": "Legendary",
+        "prefix": "Ethereal",
+        "weapon_type": "Staff",
+        "attack_power": 30
+      },
+      {
+        "type": "Weapon",
+        "quality": "Polished",
+        "prefix": null,
+        "weapon_type": "Mace",
+        "attack_power": 14
+      },
+      {
+        "type": "Consumable",
+        "quality": "Standard",
+        "prefix": null,
+        "consumable_type": "stamina",
+        "effect_value": 25
+      },
+      {
+        "type": "Consumable",
+        "quality": "Masterwork",
+        "prefix": null,
+        "consumable_type": "stamina",
+        "effect_value": 67
+      },
+      {
+        "type": "Consumable",
+        "quality": "Legendary",
+        "prefix": null,
+        "consumable_type": "health",
+        "effect_value": 50
+      },
+      {
+        "type": "Consumable",
+        "quality": "Legendary",
+        "prefix": null,
+        "consumable_type": "stamina",
+        "effect_value": 86
+      },
+      {
+        "type": "Weapon",
+        "quality": "Legendary",
+        "prefix": "Celestial",
+        "weapon_type": "Staff",
+        "attack_power": 10
+      },
+      null,
+      {
+        "type": "Armor",
+        "quality": "Polished",
+        "prefix": null,
+        "armor_type": "Head",
+        "defense": 15
+      },
+      {
+        "type": "Weapon",
+        "quality": "Legendary",
+        "prefix": "Ethereal",
+        "weapon_type": "Staff",
+        "attack_power": 22
+      },
+      {
+        "type": "Weapon",
+        "quality": "Masterwork",
+        "prefix": null,
+        "weapon_type": "Dagger",
+        "attack_power": 18
+      },
+      null,
+      null,
+      null,
+      null,
+      {
+        "type": "Consumable",
+        "quality": "Standard",
+        "prefix": null,
+        "consumable_type": "stamina",
+        "effect_value": 43
+      },
+      {
+        "type": "Weapon",
+        "quality": "Masterwork",
+        "prefix": null,
+        "weapon_type": "Sword",
+        "attack_power": 16
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "health",
+        "effect_value": 28
+      },
+      null,
+      {
+        "type": "Armor",
+        "quality": "Legendary",
+        "prefix": "Celestial",
+        "armor_type": "Feet",
+        "defense": 30
+      },
+      {
+        "type": "Weapon",
+        "quality": "Standard",
+        "prefix": null,
+        "weapon_type": "Sword",
+        "attack_power": 7
+      },
+      {
+        "type": "Armor",
+        "quality": "Masterwork",
+        "prefix": null,
+        "armor_type": "Feet",
+        "defense": 7
+      },
+      {
+        "type": "Weapon",
+        "quality": "Masterwork",
+        "prefix": null,
+        "weapon_type": "Axe",
+        "attack_power": 18
+      },
+      {
+        "type": "Weapon",
+        "quality": "Masterwork",
+        "prefix": "Reinforced",
+        "weapon_type": "Axe",
+        "attack_power": 15
+      },
+      {
+        "type": "Armor",
+        "quality": "Legendary",
+        "prefix": "Ethereal",
+        "armor_type": "Feet",
+        "defense": 22
+      },
+      null,
+      {
+        "type": "Weapon",
+        "quality": "Legendary",
+        "prefix": null,
+        "weapon_type": "Axe",
+        "attack_power": 30
+      },
+      {
+        "type": "Weapon",
+        "quality": "Legendary",
+        "prefix": null,
+        "weapon_type": "Mace",
+        "attack_power": 26
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "equipment": {
+      "head": {
+        "type": "Armor",
+        "quality": "Standard",
+        "prefix": null,
+        "armor_type": "Head",
+        "defense": 12
+      },
+      "chest": {
+        "type": "Armor",
+        "quality": "Masterwork",
+        "prefix": "Soulbound",
+        "armor_type": "Chest",
+        "defense": 21
+      },
+      "feet": {
+        "type": "Armor",
+        "quality": "Standard",
+        "prefix": null,
+        "armor_type": "Feet",
+        "defense": 5
+      },
+      "hands": {
+        "type": "Armor",
+        "quality": "Standard",
+        "prefix": null,
+        "armor_type": "Hands",
+        "defense": 13
+      },
+      "weapon": {
+        "type": "Weapon",
+        "quality": "Polished",
+        "prefix": "Vicious",
+        "weapon_type": "Axe",
+        "attack_power": 18
+      }
+    }
   },
-  "inventory": [],
-  "equipment": {}
+  "map": {
+    "current_map": "default_map",
+    "player_visited": []
+  }
 }

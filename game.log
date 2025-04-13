@@ -1,85 +1,61 @@
 === New Game Session ===
-DEBUG: Created MonsterAnimation for vampire
-Created VAMPIRE monster at (1120, 928)
-DEBUG: Created MonsterAnimation for kraken
-Created KRAKEN monster at (928, 480)
-DEBUG: Created MonsterAnimation for zombie
-Created ZOMBIE monster at (1312, 288)
-DEBUG: Created MonsterAnimation for merfolk
-Created MERFOLK monster at (512, 864)
-DEBUG: Created MonsterAnimation for phoenix
-Created PHOENIX monster at (1216, 224)
-DEBUG: Created MonsterAnimation for water_spirit
-Created WATER_SPIRIT monster at (416, 736)
-DEBUG: Created MonsterAnimation for clockwork_knight
-Created CLOCKWORK_KNIGHT monster at (1376, 928)
-DEBUG: Created MonsterAnimation for siren
-Created SIREN monster at (512, 800)
-DEBUG: Created MonsterAnimation for storm_elemental
-Created STORM_ELEMENTAL monster at (1344, 800)
-DEBUG: Created MonsterAnimation for leviathan
-Created LEVIATHAN monster at (512, 800)
-DEBUG: Created MonsterAnimation for nightmare
-Created NIGHTMARE monster at (256, 1056)
-DEBUG: Created MonsterAnimation for bear
-Created BEAR monster at (1024, 224)
-DEBUG: Created MonsterAnimation for shadow_stalker
-Created SHADOW_STALKER monster at (256, 1376)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1344, 160)
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (864, 992)
-DEBUG: Created MonsterAnimation for wraith
-Created WRAITH monster at (1312, 1088)
-DEBUG: Created MonsterAnimation for crystal_golem
-Created CRYSTAL_GOLEM monster at (448, 192)
-DEBUG: Created MonsterAnimation for unicorn
-Created UNICORN monster at (736, 1152)
-DEBUG: Created MonsterAnimation for gem_basilisk
-Created GEM_BASILISK monster at (1024, 1280)
-DEBUG: Created MonsterAnimation for fire_elemental
-Created FIRE_ELEMENTAL monster at (224, 288)
-DEBUG: Created MonsterAnimation for treant
-Created TREANT monster at (1088, 224)
-DEBUG: Created MonsterAnimation for steam_golem
-Created STEAM_GOLEM monster at (1216, 1408)
-DEBUG: Created MonsterAnimation for arcane_turret
-Created ARCANE_TURRET monster at (992, 1216)
-DEBUG: Created MonsterAnimation for pixie
-Created PIXIE monster at (1216, 768)
-DEBUG: Created MonsterAnimation for ice_elemental
-Created ICE_ELEMENTAL monster at (1344, 1184)
-DEBUG: Created MonsterAnimation for dryad
-Created DRYAD monster at (1312, 1344)
-DEBUG: Created MonsterAnimation for demon
-Created DEMON monster at (288, 992)
 DEBUG: Created MonsterAnimation for prism_elemental
-Created PRISM_ELEMENTAL monster at (1280, 1216)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (608, 576)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (992, 288)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (544, 640)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (896, 1472)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (736, 448)
+Created PRISM_ELEMENTAL monster at (448, 1408)
+DEBUG: Created MonsterAnimation for leviathan
+Created LEVIATHAN monster at (416, 384)
+DEBUG: Created MonsterAnimation for dryad
+Created DRYAD monster at (384, 768)
+DEBUG: Created MonsterAnimation for merfolk
+Created MERFOLK monster at (992, 1152)
+DEBUG: Created MonsterAnimation for treant
+Created TREANT monster at (192, 1120)
+DEBUG: Created MonsterAnimation for water_spirit
+Created WATER_SPIRIT monster at (1024, 384)
+DEBUG: Created MonsterAnimation for nightmare
+Created NIGHTMARE monster at (928, 1024)
+DEBUG: Created MonsterAnimation for siren
+Created SIREN monster at (1120, 704)
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1248, 1408)
+Created SPIDER monster at (1312, 704)
+DEBUG: Created MonsterAnimation for kraken
+Created KRAKEN monster at (928, 1120)
+DEBUG: Created MonsterAnimation for zombie
+Created ZOMBIE monster at (896, 992)
+DEBUG: Created MonsterAnimation for unicorn
+Created UNICORN monster at (192, 448)
+DEBUG: Created MonsterAnimation for pixie
+Created PIXIE monster at (192, 1120)
+DEBUG: Created MonsterAnimation for steam_golem
+Created STEAM_GOLEM monster at (864, 192)
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1344, 288)
+Created SLIME monster at (704, 416)
+DEBUG: Created MonsterAnimation for crystal_golem
+Created CRYSTAL_GOLEM monster at (576, 640)
+DEBUG: Created MonsterAnimation for shadow_stalker
+Created SHADOW_STALKER monster at (1376, 192)
+DEBUG: Created MonsterAnimation for clockwork_knight
+Created CLOCKWORK_KNIGHT monster at (1248, 992)
+DEBUG: Created MonsterAnimation for bear
+Created BEAR monster at (1120, 224)
+DEBUG: Created MonsterAnimation for wraith
+Created WRAITH monster at (192, 1152)
+DEBUG: Created MonsterAnimation for phoenix
+Created PHOENIX monster at (448, 960)
+DEBUG: Created MonsterAnimation for storm_elemental
+Created STORM_ELEMENTAL monster at (480, 224)
+DEBUG: Created MonsterAnimation for ice_elemental
+Created ICE_ELEMENTAL monster at (1024, 1376)
+DEBUG: Created MonsterAnimation for gem_basilisk
+Created GEM_BASILISK monster at (1248, 1088)
+DEBUG: Created MonsterAnimation for arcane_turret
+Created ARCANE_TURRET monster at (864, 1280)
+DEBUG: Created MonsterAnimation for vampire
+Created VAMPIRE monster at (1120, 960)
+DEBUG: Created MonsterAnimation for demon
+Created DEMON monster at (1344, 384)
+DEBUG: Created MonsterAnimation for fire_elemental
+Created FIRE_ELEMENTAL monster at (1408, 288)
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (576, 64)
+Created WOLF monster at (544, 352)
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (960, 96)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1344, 992)
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1472, 1504)
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1088, 928)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1344, 608)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (320, 1472)
+Created SLIME monster at (1344, 384)

@@ -373,6 +373,7 @@ class GameState:
         # Create equipment UI with direct reference to player equipment
         self.equipment_ui = EquipmentUI(screen)
         self.equipment_ui.equipment = self.player.equipment.slots
+        self.equipment_ui.set_player(self.player)  # Set player reference for stat calculations
         print(f"Equipment UI created with reference to player equipment: {id(self.player.equipment.slots)}")
         
         # Create other UI components
@@ -557,6 +558,11 @@ class GameState:
                 
                 # Make sure the inventory UI is updated with the new inventory
                 self.refresh_inventory_ui()
+                
+                # Update equipment UI with player
+                self.equipment_ui.equipment = self.player.equipment.slots
+                self.equipment_ui.set_player(self.player)
+                
                 print("Refreshed inventory UI after loading.")
                 
                 print(f"Game loaded from {save_path}")
@@ -653,6 +659,11 @@ class GameState:
         # Make sure the inventory UI is updated with the new player's inventory
         self.inventory_ui.inventory = self.player.inventory.items
         self.refresh_inventory_ui()
+        
+        # Update equipment UI with new player reference
+        self.equipment_ui.equipment = self.player.equipment.slots
+        self.equipment_ui.set_player(self.player)
+        
         print(f"Reset inventory UI to new player inventory with {len(self.player.inventory.items)} slots")
         
     def update(self, dt, events):
@@ -822,6 +833,11 @@ class GameState:
         # Draw the UI on top
         self._draw_player_stats()
         self._draw_action_toolbar(self.screen)
+        
+        # Draw monster tooltip if hovering over a monster
+        if self.hovered_monster and not (self.inventory_ui.visible or self.equipment_ui.visible or 
+                                        self.generator_ui.visible or self.quest_ui.visible):
+            self._draw_monster_tooltip(self.screen, self.hovered_monster)
         
         # DIAGNOSTIC: Draw inventory status directly on screen
         filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
