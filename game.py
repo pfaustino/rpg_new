@@ -425,6 +425,7 @@ class GameState:
         # Game running state
         self.running = True
         self.paused = False
+        self.current_attack_effect = None  # Track current attack animation
         self.save_file = 'savegame.json'
         
         # Game save path
@@ -830,6 +831,10 @@ class GameState:
         # Draw the map and entities
         self._draw_map()
         self._draw_entities()
+        
+        # Draw attack effect if one is active
+        if self.current_attack_effect:
+            self._draw_attack_effect(self.screen)
         
         # Draw the UI on top
         self._draw_player_stats()
@@ -1561,8 +1566,55 @@ class GameState:
         # Get player position
         px, py = self.player.x, self.player.y
         
-        # Get player facing direction to determine attack area
+        # Start with player facing direction to determine attack area
         direction = self.player.direction
+        
+        # Get mouse position and convert to world coordinates
+        mouse_pos = pygame.mouse.get_pos()
+        zoom = self.camera.get_zoom()
+        mouse_world_x = (mouse_pos[0] / zoom) - self.camera.x
+        mouse_world_y = (mouse_pos[1] / zoom) - self.camera.y
+        
+        # Calculate direction to mouse
+        dx_mouse = mouse_world_x - px
+        dy_mouse = mouse_world_y - py
+        
+        # Check if any monster is close to the mouse position
+        closest_to_mouse = None
+        closest_mouse_dist = float('inf')
+        
+        for monster in self.monsters:
+            # Calculate distance from monster to mouse
+            monster_to_mouse_dx = monster.x - mouse_world_x
+            monster_to_mouse_dy = monster.y - mouse_world_y
+            monster_to_mouse_dist = math.sqrt(monster_to_mouse_dx**2 + monster_to_mouse_dy**2)
+            
+            # Calculate distance from monster to player
+            monster_to_player_dx = monster.x - px
+            monster_to_player_dy = monster.y - py
+            monster_to_player_dist = math.sqrt(monster_to_player_dx**2 + monster_to_player_dy**2)
+            
+            # Check if monster is in attack range and closer to mouse than previous monsters
+            if monster_to_player_dist <= attack_range * 1.2 and monster_to_mouse_dist < closest_mouse_dist:
+                closest_to_mouse = monster
+                closest_mouse_dist = monster_to_mouse_dist
+        
+        # If we found a monster close to mouse and within attack range, use mouse direction
+        if closest_to_mouse is not None and closest_mouse_dist < TILE_SIZE * 2:
+            # Determine direction based on angle to mouse
+            angle = math.degrees(math.atan2(dy_mouse, dx_mouse))
+            
+            # Convert angle to cardinal direction
+            if -45 <= angle < 45:
+                direction = 'east'
+            elif 45 <= angle < 135:
+                direction = 'south'
+            elif -135 <= angle < -45:
+                direction = 'north'
+            else:  # angle >= 135 or angle < -135
+                direction = 'west'
+                
+            print(f"DEBUG: Using mouse direction: {direction} (angle: {angle:.1f}°)")
         
         # Add some debug output
         attack_name = self.player.get_attack_type_name()
