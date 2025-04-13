@@ -376,11 +376,16 @@ class GameState:
             
         # Game running state
         self.running = True
+        self.paused = False
+        self.save_file = 'savegame.json'
         
         # Game save path
         self.save_path = "save"
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
+        
+        # Load saved game if it exists
+        self.load_game()
         
         print("\n=== Game State Initialized ===")
         
@@ -398,28 +403,233 @@ class GameState:
         print("Game resumed")
         
     def _save_game(self):
-        """Save the current game state."""
-        # TODO: Implement actual save functionality
-        print("Game saved")
-        self.system_menu_ui.toggle()
+        """Save the current game state to a file."""
+        print("Saving game...")
+        try:
+            save_data = {
+                'player': {
+                    'x': self.player.rect.x,
+                    'y': self.player.rect.y,
+                    'level': self.player.level,
+                    'xp': getattr(self.player, 'xp', getattr(self.player, 'experience', 0)),
+                    'gold': getattr(self.player, 'gold', 0),
+                    'health': getattr(self.player, 'health', getattr(self.player, 'hp', 0)),
+                    'max_health': getattr(self.player, 'max_health', getattr(self.player, 'max_hp', 0)),
+                    'mana': getattr(self.player, 'mana', 0),
+                    'max_mana': getattr(self.player, 'max_mana', 0),
+                    'stamina': getattr(self.player, 'stamina', 0),
+                    'max_stamina': getattr(self.player, 'max_stamina', 0),
+                    'attack_type': getattr(self.player, 'attack_type', ''),
+                    'base_attack': getattr(self.player, 'base_attack', 0),
+                    'defense': getattr(self.player, 'defense', 0),
+                    'dexterity': getattr(self.player, 'dexterity', 0)
+                },
+                'inventory': [],
+                'equipment': {}
+            }
+            
+            # Save inventory items
+            for item in self.player.inventory.items:
+                if item is None:
+                    continue
+                item_data = {
+                    'type': item.__class__.__name__,
+                    'display_name': item.display_name,
+                    'quality': getattr(item, 'quality', 'Common')
+                }
+                # Add specific attributes based on item type
+                if item_data['type'] == 'Weapon':
+                    item_data['weapon_type'] = getattr(item, 'weapon_type', '')
+                    item_data['attack_power'] = getattr(item, 'attack_power', 0)
+                    item_data['material'] = getattr(item, 'material', '')
+                    item_data['prefix'] = getattr(item, 'prefix', None)
+                elif item_data['type'] == 'Armor':
+                    item_data['armor_type'] = getattr(item, 'armor_type', '')
+                    item_data['defense'] = getattr(item, 'defense', 0)
+                    item_data['material'] = getattr(item, 'material', '')
+                    item_data['prefix'] = getattr(item, 'prefix', None)
+                elif item_data['type'] == 'Hands':
+                    item_data['defense'] = getattr(item, 'defense', 0)
+                    item_data['dexterity'] = getattr(item, 'dexterity', 0)
+                    item_data['material'] = getattr(item, 'material', '')
+                    item_data['prefix'] = getattr(item, 'prefix', None)
+                elif item_data['type'] == 'Consumable':
+                    item_data['consumable_type'] = getattr(item, 'consumable_type', '')
+                    item_data['effect_value'] = getattr(item, 'effect_value', 0)
+                save_data['inventory'].append(item_data)
+            
+            # Save equipped items
+            for slot in self.player.equipment.slots:
+                item = self.player.equipment.get_equipped_item(slot)
+                if item:
+                    item_data = {
+                        'type': item.__class__.__name__,
+                        'display_name': item.display_name,
+                        'quality': getattr(item, 'quality', 'Common')
+                    }
+                    # Add specific attributes based on item type
+                    if item_data['type'] == 'Weapon':
+                        item_data['weapon_type'] = getattr(item, 'weapon_type', '')
+                        item_data['attack_power'] = getattr(item, 'attack_power', 0)
+                        item_data['material'] = getattr(item, 'material', '')
+                        item_data['prefix'] = getattr(item, 'prefix', None)
+                    elif item_data['type'] == 'Armor':
+                        item_data['armor_type'] = getattr(item, 'armor_type', '')
+                        item_data['defense'] = getattr(item, 'defense', 0)
+                        item_data['material'] = getattr(item, 'material', '')
+                        item_data['prefix'] = getattr(item, 'prefix', None)
+                    elif item_data['type'] == 'Hands':
+                        item_data['defense'] = getattr(item, 'defense', 0)
+                        item_data['dexterity'] = getattr(item, 'dexterity', 0)
+                        item_data['material'] = getattr(item, 'material', '')
+                        item_data['prefix'] = getattr(item, 'prefix', None)
+                    save_data['equipment'][slot] = item_data
+            
+            # Save to file
+            import json
+            import os
+            save_path = os.path.join(self.save_path, self.save_file)
+            with open(save_path, 'w') as f:
+                json.dump(save_data, f, indent=2)
+            print(f"Game saved to {save_path}")
+            # Close the system menu after successful save
+            self.system_menu_ui.hide()
+        except Exception as e:
+            print(f"Error saving game: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    def load_game(self):
+        """Load the game state from a file if it exists."""
+        import os
+        import json
+        save_path = os.path.join(self.save_path, self.save_file)
+        if os.path.exists(save_path):
+            try:
+                with open(save_path, 'r') as f:
+                    save_data = json.load(f)
+                
+                # Load player data
+                player_data = save_data.get('player', {})
+                self.player.rect.x = player_data.get('x', self.player.rect.x)
+                self.player.rect.y = player_data.get('y', self.player.rect.y)
+                self.player.level = player_data.get('level', self.player.level)
+                if hasattr(self.player, 'xp'):
+                    self.player.xp = player_data.get('xp', getattr(self.player, 'xp', 0))
+                elif hasattr(self.player, 'experience'):
+                    self.player.experience = player_data.get('xp', getattr(self.player, 'experience', 0))
+                if hasattr(self.player, 'gold'):
+                    self.player.gold = player_data.get('gold', getattr(self.player, 'gold', 0))
+                if hasattr(self.player, 'health'):
+                    self.player.health = player_data.get('health', getattr(self.player, 'health', 0))
+                elif hasattr(self.player, 'hp'):
+                    self.player.hp = player_data.get('health', getattr(self.player, 'hp', 0))
+                if hasattr(self.player, 'max_health'):
+                    self.player.max_health = player_data.get('max_health', getattr(self.player, 'max_health', 0))
+                elif hasattr(self.player, 'max_hp'):
+                    self.player.max_hp = player_data.get('max_health', getattr(self.player, 'max_hp', 0))
+                if hasattr(self.player, 'mana'):
+                    self.player.mana = player_data.get('mana', getattr(self.player, 'mana', 0))
+                if hasattr(self.player, 'max_mana'):
+                    self.player.max_mana = player_data.get('max_mana', getattr(self.player, 'max_mana', 0))
+                if hasattr(self.player, 'stamina'):
+                    self.player.stamina = player_data.get('stamina', getattr(self.player, 'stamina', 0))
+                if hasattr(self.player, 'max_stamina'):
+                    self.player.max_stamina = player_data.get('max_stamina', getattr(self.player, 'max_stamina', 0))
+                if hasattr(self.player, 'attack_type'):
+                    self.player.attack_type = player_data.get('attack_type', getattr(self.player, 'attack_type', ''))
+                if hasattr(self.player, 'base_attack'):
+                    self.player.base_attack = player_data.get('base_attack', getattr(self.player, 'base_attack', 0))
+                if hasattr(self.player, 'defense'):
+                    self.player.defense = player_data.get('defense', getattr(self.player, 'defense', 0))
+                if hasattr(self.player, 'dexterity'):
+                    self.player.dexterity = player_data.get('dexterity', getattr(self.player, 'dexterity', 0))
+                
+                # Clear current inventory
+                self.player.inventory.items = []
+                
+                # Load inventory items
+                for item_data in save_data.get('inventory', []):
+                    item = self._create_item_from_data(item_data)
+                    if item:
+                        self.player.inventory.add_item(item)
+                
+                # Clear current equipment
+                for slot in self.player.equipment.slots:
+                    self.player.equipment.unequip_item(slot)
+                
+                # Load equipped items
+                for slot, item_data in save_data.get('equipment', {}).items():
+                    item = self._create_item_from_data(item_data)
+                    if item:
+                        self.player.equipment.equip_item(item)
+                
+                print(f"Game loaded from {save_path}")
+                # Close the system menu after successful load
+                self.system_menu_ui.hide()
+            except Exception as e:
+                print(f"Error loading game: {str(e)}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("No saved game found.")
+
+    def _create_item_from_data(self, item_data):
+        """Create an item object from saved data."""
+        if not item_data:
+            return None
         
+        quality = item_data.get('quality', 'Common')
+        if item_data.get('weapon_type'):
+            return Weapon(
+                weapon_type=item_data.get('weapon_type', 'Sword'),
+                attack_power=item_data.get('attack_power', 5),
+                quality=quality,
+                material=item_data.get('material', 'Iron'),
+                prefix=item_data.get('prefix', None)
+            )
+        elif item_data.get('armor_type'):
+            if item_data.get('armor_type') == 'hands':
+                return Hands(
+                    defense=item_data.get('defense', 3),
+                    dexterity=item_data.get('dexterity', 1),
+                    quality=quality,
+                    material=item_data.get('material', 'Leather'),
+                    prefix=item_data.get('prefix', None)
+                )
+            else:
+                return Armor(
+                    armor_type=item_data.get('armor_type', 'Chest'),
+                    defense=item_data.get('defense', 5),
+                    quality=quality,
+                    material=item_data.get('material', 'Iron'),
+                    prefix=item_data.get('prefix', None)
+                )
+        elif item_data.get('consumable_type'):
+            return Consumable(
+                consumable_type=item_data.get('consumable_type', 'health'),
+                effect_value=item_data.get('effect_value', 20),
+                quality=quality
+            )
+        return None
+
     def _load_game(self):
         """Load a previously saved game."""
-        # TODO: Implement actual load functionality
-        print("Game loaded")
-        self.system_menu_ui.toggle()
-        
+        print("Loading game...")
+        self.load_game()
+        self.system_menu_ui.close()
+
     def _new_game(self):
         """Start a new game."""
-        # TODO: Implement proper new game functionality
         print("Starting new game")
         self.restart_game()
-        self.system_menu_ui.toggle()
-        
+        self.system_menu_ui.close()
+
     def _quit_game(self):
-        """Quit the game."""
-        print("Quitting game")
+        """Signal the game to quit."""
+        self._save_game()  # Save before quitting
         self.running = False
+        print("Game quitting...")
         
     def restart_game(self):
         """Restart the game with a fresh state."""
@@ -503,16 +713,8 @@ class GameState:
                 elif event.key == pygame.K_q:
                     self.quest_ui.toggle()
                 elif event.key == pygame.K_g:
-                    # Toggle generator UI
+                    print("G key pressed - toggling generator UI")  # Debugging line
                     self.generator_ui.toggle()
-                    
-                    # When generator is visible, ensure inventory is visible too
-                    if self.generator_ui.visible and not self.inventory_ui.visible:
-                        self.inventory_ui.toggle()
-                        
-                    # Hide equipment when generator is shown
-                    if self.generator_ui.visible and self.equipment_ui.visible:
-                        self.equipment_ui.toggle()
                 # Handle attack type switching with number keys
                 elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
                     # Only switch attack type if no UI is visible
@@ -637,7 +839,7 @@ class GameState:
         if self.equipment_ui.visible:
             self.equipment_ui.draw(self.screen)
         if self.generator_ui.visible:
-            self.generator_ui.draw(self.screen)
+            self.generator_ui.draw(self.screen, self.player)
         if self.quest_ui.visible:
             self.quest_ui.draw(self.screen)
         
@@ -2048,25 +2250,27 @@ class Game:
         # Main game loop
         running = True
         while running:
-            # Handle events - collect events ONLY ONCE
+            dt = self.clock.tick(60) / 1000.0  # Convert milliseconds to seconds
             events = pygame.event.get()
             for event in events:
                 if event.type == pygame.QUIT:
+                    self.game_state._quit_game()
                     running = False
-                    
-            # Update game state - pass the events
-            dt = self.clock.tick(60) / 1000.0  # Convert to seconds
+
+            # Update game state
             self.game_state.update(dt, events)
-        
-            # Draw everything
-            self.game_state.draw()
-        
-            # Print FPS (using carriage return to stay on same line)
-            fps = self.clock.get_fps()
-            print(f"FPS: {fps:.1f}", end='\r')
-        
-        # Clean up
+            
+            if not self.game_state.running:
+                running = False
+
+            # Draw game state
+            if running:
+                self.game_state.draw()
+                pygame.display.flip()
+
+        # Cleanup after game loop ends
         pygame.quit()
+        print("Pygame resources cleaned up.")
 
 def main():
     """Start the game."""

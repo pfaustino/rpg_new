@@ -9,7 +9,7 @@ from ..core.constants import TILE_SIZE, GRAY, QUALITY_COLORS
 class Item:
     """Base class for all items in the game."""
     
-    def __init__(self, name: str, quality: str = "Common", prefix: Optional[str] = None):
+    def __init__(self, name: str, quality: str = "Common", prefix: Optional[str] = None, description: Optional[str] = None):
         """
         Initialize an item.
         
@@ -17,10 +17,12 @@ class Item:
             name: The name of the item
             quality: The quality level of the item
             prefix: Optional prefix modifier for the item
+            description: Optional description of the item
         """
         self.name = name
         self.quality = quality
         self.prefix = prefix
+        self.description = description or f"A {quality.lower() if quality else ''} {name.lower()}"
         
         # Load sprite based on item type and name
         self.sprite = None  # Will be loaded by subclasses
@@ -95,7 +97,8 @@ class Equipment(Item):
         slot: str,
         material: str,
         quality: str = "Common",
-        prefix: Optional[str] = None
+        prefix: Optional[str] = None,
+        description: Optional[str] = None
     ):
         """
         Initialize equipment.
@@ -106,8 +109,9 @@ class Equipment(Item):
             material: The material the equipment is made from
             quality: The quality level of the equipment
             prefix: Optional prefix modifier for the equipment
+            description: Optional description of the equipment
         """
-        super().__init__(name, quality, prefix)
+        super().__init__(name, quality, prefix, description)
         self.slot = slot
         self.material = material
         

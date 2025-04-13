@@ -72,15 +72,20 @@ class ItemGeneratorUI:
     def handle_event(self, event: pygame.event.Event, player) -> bool:
         """Handle UI events."""
         if not self.visible:
+            print("ItemGeneratorUI is not visible. Ignoring event.")
             return False
             
+        print(f"Handling event: {event}")
+        
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
+            print(f"Mouse position: {mouse_pos}")
             
             # Handle type dropdown
             if self.type_dropdown.collidepoint(mouse_pos):
                 self.type_expanded = not self.type_expanded
                 self.quality_expanded = False
+                print(f"Toggled type dropdown: {self.type_expanded}")
                 return True
             elif self.type_expanded:
                 for i, option in enumerate(self.type_options):
@@ -93,12 +98,14 @@ class ItemGeneratorUI:
                     if option_rect.collidepoint(mouse_pos):
                         self.selected_type = option
                         self.type_expanded = False
+                        print(f"Selected type: {self.selected_type}")
                         return True
             
             # Handle quality dropdown
             if self.quality_dropdown.collidepoint(mouse_pos):
                 self.quality_expanded = not self.quality_expanded
                 self.type_expanded = False
+                print(f"Toggled quality dropdown: {self.quality_expanded}")
                 return True
             elif self.quality_expanded:
                 for i, option in enumerate(self.quality_options):
@@ -111,10 +118,12 @@ class ItemGeneratorUI:
                     if option_rect.collidepoint(mouse_pos):
                         self.selected_quality = option
                         self.quality_expanded = False
+                        print(f"Selected quality: {self.selected_quality}")
                         return True
             
             # Handle generate button
             if self.generate_button.collidepoint(mouse_pos):
+                print("Generate button clicked.")
                 try:
                     # Determine type if random
                     item_type = self.selected_type
@@ -153,7 +162,7 @@ class ItemGeneratorUI:
                             else:
                                 print(f"Failed to add item - inventory may be full")
                         except Exception as e:
-                            print(f"Error generating item: {str(e)}")
+                            print(f"Error adding item to inventory: {str(e)}")
                             
                         return True
                     else:

@@ -15,7 +15,8 @@ class Weapon(Equipment):
         attack_power: int,
         material: str,
         quality: str = "Common",
-        prefix: Optional[str] = None
+        prefix: Optional[str] = None,
+        description: Optional[str] = None
     ):
         """
         Initialize a weapon.
@@ -27,8 +28,9 @@ class Weapon(Equipment):
             material: The material the weapon is made from
             quality: The quality level of the weapon
             prefix: Optional prefix modifier for the weapon
+            description: Optional description of the weapon
         """
-        super().__init__(name, "weapon", material, quality, prefix)
+        super().__init__(name, "weapon", material, quality, prefix, description)
         self.weapon_type = weapon_type
         self.attack_power = attack_power
         
@@ -51,7 +53,8 @@ class Armor(Equipment):
         defense: int,
         material: str,
         quality: str = "Common",
-        prefix: Optional[str] = None
+        prefix: Optional[str] = None,
+        description: Optional[str] = None
     ):
         """
         Initialize armor.
@@ -63,8 +66,9 @@ class Armor(Equipment):
             material: The material the armor is made from
             quality: The quality level of the armor
             prefix: Optional prefix modifier for the armor
+            description: Optional description of the armor
         """
-        super().__init__(name, armor_type, material, quality, prefix)
+        super().__init__(name, armor_type, material, quality, prefix, description)
         self.armor_type = armor_type
         self.defense = defense
         

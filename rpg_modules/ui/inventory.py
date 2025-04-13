@@ -214,6 +214,12 @@ class InventoryUI:
         if self.tooltip_visible and self.hovered_item:
             # Position tooltip to avoid screen edges
             mouse_pos = pygame.mouse.get_pos()
+            
+            # Increase tooltip size for more information
+            tooltip_width = UI_DIMENSIONS['tooltip_width'] + 50  # Make it wider
+            tooltip_height = UI_DIMENSIONS['tooltip_height'] + 80  # Make it taller
+            self.tooltip_rect = pygame.Rect(0, 0, tooltip_width, tooltip_height)
+            
             tooltip_x = mouse_pos[0] + 20  # Offset from mouse cursor
             tooltip_y = mouse_pos[1] - 50   # Position above mouse cursor
             
@@ -265,50 +271,101 @@ class InventoryUI:
                 scaled_sprite = pygame.transform.scale(sprite, (128, 128))
                 self.screen.blit(scaled_sprite, (tooltip_x + 10, tooltip_y + 10))
                 
-                # Draw item name
-                name_text = self.font.render(self.hovered_item.display_name, True, UI_COLORS['text'])
-                self.screen.blit(name_text, (tooltip_x + 10, tooltip_y + 150))
+                # Draw item name with quality-colored text
+                name_font = pygame.font.Font(None, FONT_SIZES['large'])
+                name_text = name_font.render(self.hovered_item.display_name, True, border_color)
+                name_shadow = name_font.render(self.hovered_item.display_name, True, (30, 30, 30))
                 
-                # Draw item stats
-                y_offset = 180
-                stats = []
+                # Add text shadow for better visibility
+                self.screen.blit(name_shadow, (tooltip_x + 151, tooltip_y + 16))
+                self.screen.blit(name_text, (tooltip_x + 150, tooltip_y + 15))
                 
-                if isinstance(self.hovered_item, Weapon):
-                    stats = [
-                        f"Type: {self.hovered_item.weapon_type}",
-                        f"Attack: {self.hovered_item.attack_power}",
-                        f"Material: {self.hovered_item.material}",
-                        f"Quality: {self.hovered_item.quality}"
-                    ]
-                elif isinstance(self.hovered_item, Hands):
-                    stats = [
-                        "Type: Gauntlets",
-                        f"Defense: {self.hovered_item.defense}",
-                        f"Dexterity: {self.hovered_item.dexterity}",
-                        f"Material: {self.hovered_item.material}",
-                        f"Quality: {self.hovered_item.quality}"
-                    ]
-                elif isinstance(self.hovered_item, Consumable):
-                    stats = [
-                        f"Type: {self.hovered_item.consumable_type}",
-                        f"Effect Value: {self.hovered_item.effect_value}",
-                        f"Quality: {self.hovered_item.quality}"
-                    ]
-                elif isinstance(self.hovered_item, Armor):
-                    stats = [
-                        f"Type: {self.hovered_item.armor_type}",
-                        f"Defense: {self.hovered_item.defense}",
-                        f"Material: {self.hovered_item.material}",
-                        f"Quality: {self.hovered_item.quality}"
-                    ]
+                # Draw horizontal divider line
+                pygame.draw.line(self.screen, border_color, 
+                                (tooltip_x + 10, tooltip_y + 45), 
+                                (tooltip_x + tooltip_width - 20, tooltip_y + 45), 2)
+                
+                # Get complete item stats using the item's built-in method
+                if hasattr(self.hovered_item, 'get_stats_display'):
+                    basic_stats = self.hovered_item.get_stats_display()
+                else:
+                    # Fallback for items without get_stats_display
+                    basic_stats = []
                     
-                if hasattr(self.hovered_item, 'prefix') and self.hovered_item.prefix:
-                    stats.insert(1, f"Effect: {self.hovered_item.prefix}")
+                # Add additional attributes if available
+                additional_stats = []
+                
+                # Weight if available
+                if hasattr(self.hovered_item, 'weight'):
+                    additional_stats.append(f"Weight: {self.hovered_item.weight} kg")
                     
-                for stat in stats:
-                    stat_text = self.small_font.render(stat, True, UI_COLORS['text'])
-                    self.screen.blit(stat_text, (tooltip_x + 10, tooltip_y + y_offset))
-                    y_offset += 20
+                # Durability if available
+                if hasattr(self.hovered_item, 'durability') and hasattr(self.hovered_item, 'max_durability'):
+                    durability_percent = int((self.hovered_item.durability / self.hovered_item.max_durability) * 100)
+                    additional_stats.append(f"Durability: {durability_percent}%")
+                    
+                # Level requirement if available
+                if hasattr(self.hovered_item, 'level_req'):
+                    additional_stats.append(f"Required Level: {self.hovered_item.level_req}")
+                
+                # Combine all stats
+                all_stats = basic_stats + additional_stats
+                
+                # Draw basic stats on left column
+                y_offset = 60
+                for i, stat in enumerate(all_stats):
+                    # Check if we need to start a second column
+                    if i == len(all_stats) // 2 + 1:
+                        y_offset = 60  # Reset y position for second column
+                        x_offset = tooltip_width // 2 + 10  # Start x position for second column
+                    else:
+                        x_offset = 20  # Default x position for first column
+                        
+                    # Determine text color based on stat content
+                    if "Quality:" in stat:
+                        text_color = QUALITY_COLORS.get(self.hovered_item.quality, UI_COLORS['text'])
+                    elif "Effect:" in stat:
+                        text_color = (220, 190, 100)  # Gold-ish for effects
+                    elif "Attack:" in stat or "Damage:" in stat:
+                        text_color = (220, 100, 100)  # Red for attack stats
+                    elif "Defense:" in stat:
+                        text_color = (100, 100, 220)  # Blue for defense stats
+                    else:
+                        text_color = UI_COLORS['text']
+                        
+                    stat_text = self.small_font.render(stat, True, text_color)
+                    self.screen.blit(stat_text, (tooltip_x + x_offset, tooltip_y + y_offset))
+                    y_offset += 22  # Slightly increased line spacing
+                
+                # Draw item description if available
+                if hasattr(self.hovered_item, 'description') and self.hovered_item.description:
+                    # Draw another divider
+                    description_y = tooltip_y + tooltip_height - 60
+                    pygame.draw.line(self.screen, border_color, 
+                                    (tooltip_x + 10, description_y - 10), 
+                                    (tooltip_x + tooltip_width - 20, description_y - 10), 1)
+                                    
+                    # Draw description with word wrapping
+                    desc_font = pygame.font.Font(None, FONT_SIZES['small'] - 2)
+                    lines = []
+                    words = self.hovered_item.description.split()
+                    current_line = ""
+                    
+                    for word in words:
+                        test_line = current_line + word + " "
+                        if desc_font.size(test_line)[0] < tooltip_width - 40:
+                            current_line = test_line
+                        else:
+                            lines.append(current_line)
+                            current_line = word + " "
+                    lines.append(current_line)  # Add the last line
+                    
+                    # Draw each line
+                    for i, line in enumerate(lines):
+                        if i < 3:  # Limit to 3 lines
+                            desc_text = desc_font.render(line, True, (180, 180, 180))
+                            self.screen.blit(desc_text, (tooltip_x + 20, description_y + i * 18))
+                
             except Exception as e:
                 # Handle errors when drawing tooltip
                 error_text = self.small_font.render(f"Error displaying item: {str(e)}", True, (255, 100, 100))
