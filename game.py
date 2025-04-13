@@ -716,8 +716,21 @@ class GameState:
                 elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
                     # Convert key to attack type (1-4)
                     attack_type = event.key - pygame.K_0
-                    self.player.switch_attack_type(attack_type)
-                    print(f"Switched to attack type: {self.player.get_attack_type_name()}")
+                    
+                    # Check resource requirements before switching
+                    if attack_type == 2 and self.player.stamina < 15:  # Heavy attack
+                        print("Not enough stamina for Heavy attack! (Requires 15 stamina)")
+                    elif attack_type == 3 and self.player.mana < 20:  # Magic attack
+                        print("Not enough mana for Magic attack! (Requires 20 mana)")
+                    else:
+                        # Switch attack type if resources are available
+                        success = self.player.switch_attack_type(attack_type)
+                        if success:
+                            attack_name = self.player.get_attack_type_name()
+                            attack_range = self.player.get_attack_range()
+                            print(f"Switched to {attack_name} attack! Range: {attack_range:.1f}")
+                        else:
+                            print("Could not switch attack type. Unknown error.")
                 # Potion hotkeys
                 elif event.key in [pygame.K_7, pygame.K_8, pygame.K_9]:
                     potion_type = None
@@ -1991,36 +2004,78 @@ class GameState:
         font = pygame.font.Font(None, 28)
         small_font = pygame.font.Font(None, 20)
         
-        # FIRST PASS: Draw all button backgrounds
-        
-        # Draw attack slots (1-4) backgrounds
-        current_attack = self.player.attack_type
-        
-        for i in range(4):
-            slot_x = 20 + i * 120
-            slot_y = 10
-            slot_width = 100
-            slot_height = 40
-            
-            # Set button color based on active state
-            if i + 1 == current_attack:
-                color = (60, 100, 160, 200)  # Active attack
-            else:
-                color = (40, 40, 40, 160)    # Inactive attack
-                
-            # Draw attack button background
-            pygame.draw.rect(toolbar_surface, color, (slot_x, slot_y, slot_width, slot_height), border_radius=5)
-        
-        # Prepare potion data
-        potion_types = ["7: Health", "8: Mana", "9: Stamina"]
-        
-        # Get current player stats
+        # Get current player resource values
         current_health = self.player.health
         max_health = self.player.max_health
         current_mana = self.player.mana
         max_mana = self.player.max_mana
         current_stamina = self.player.stamina
         max_stamina = self.player.max_stamina
+        
+        # FIRST PASS: Draw all button backgrounds
+        
+        # Check if attack types can be used based on resource requirements
+        current_attack = self.player.attack_type
+        
+        # Check if any monsters are in attack range for visual indication
+        closest_monster_dist = float('inf')
+        player_pos = (self.player.x, self.player.y)
+        base_attack_range = self.player.attack_range
+        
+        for monster in self.monsters:
+            dx = monster.x - self.player.x
+            dy = monster.y - self.player.y
+            dist = math.sqrt(dx*dx + dy*dy)
+            closest_monster_dist = min(closest_monster_dist, dist)
+        
+        # Calculate attack range for each attack type
+        attack_ranges = [
+            base_attack_range,             # Regular attack
+            base_attack_range * 0.8,       # Heavy attack (shorter range)
+            base_attack_range * 1.5,       # Magic attack (longer range)
+            base_attack_range              # Quick attack
+        ]
+        
+        # Draw attack slots (1-4) backgrounds
+        for i in range(4):
+            slot_x = 20 + i * 120
+            slot_y = 10
+            slot_width = 100
+            slot_height = 40
+            
+            # Check if this attack type has the resources to be used
+            can_use = True
+            if i + 1 == 2:  # Heavy attack requires stamina
+                can_use = current_stamina >= 15
+            elif i + 1 == 3:  # Magic attack requires mana
+                can_use = current_mana >= 20
+            
+            # Check if any monster is in range for this attack type
+            monster_in_range = closest_monster_dist <= attack_ranges[i]
+            
+            # Set button color based on active state and usability
+            if i + 1 == current_attack:
+                if can_use:
+                    if monster_in_range:
+                        color = (80, 120, 200, 220)  # Bright blue for active and usable with monster in range
+                    else:
+                        color = (60, 100, 160, 200)  # Active attack, no monster in range
+                else:
+                    color = (100, 100, 160, 150)  # Dimmer blue for active but unusable (resource constraints)
+            else:
+                if can_use:
+                    if monster_in_range:
+                        color = (60, 60, 80, 180)  # Slightly brighter for inactive but usable with monster in range
+                    else:
+                        color = (40, 40, 60, 160)  # Inactive attack
+                else:
+                    color = (40, 40, 40, 120)  # Dark gray for unusable attacks
+                
+            # Draw attack button background
+            pygame.draw.rect(toolbar_surface, color, (slot_x, slot_y, slot_width, slot_height), border_radius=5)
+        
+        # Prepare potion data
+        potion_types = ["7: Health", "8: Mana", "9: Stamina"]
         
         # Get potion counts
         health_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'health')
@@ -2076,22 +2131,37 @@ class GameState:
         # Draw attack slot text
         attack_titles = ["1: Regular", "2: Heavy", "3: Magic", "4: Quick"]
         attack_desc = [
-            "Balanced damage and speed",
-            "High damage, costs stamina",
-            "Ranged attack, costs mana",
-            "Fast attack, low damage"
+            "Normal range, balanced damage",
+            "15 Stam, -20% range, +50% dmg",
+            "20 Mana, +50% range, +100% dmg",
+            "Fast cooldown, -30% damage"
         ]
         
         for i in range(4):
             slot_x = 20 + i * 120
             slot_y = 10
             
-            # Draw attack title (always white for good contrast)
-            text = font.render(attack_titles[i], True, (255, 255, 255))
+            # Check usability for text color
+            can_use = True
+            if i + 1 == 2:  # Heavy attack
+                can_use = current_stamina >= 15
+            elif i + 1 == 3:  # Magic attack
+                can_use = current_mana >= 20
+                
+            # Set text color based on usability
+            if can_use:
+                text_color = (255, 255, 255)  # White text for usable attacks
+                desc_color = (220, 220, 220)  # Light gray for description
+            else:
+                text_color = (150, 150, 150)  # Gray text for unusable attacks
+                desc_color = (130, 130, 130)  # Darker gray for description
+            
+            # Draw attack title
+            text = font.render(attack_titles[i], True, text_color)
             toolbar_surface.blit(text, (slot_x + 10, slot_y + 5))
             
             # Draw attack description
-            desc = small_font.render(attack_desc[i], True, (220, 220, 220))
+            desc = small_font.render(attack_desc[i], True, desc_color)
             toolbar_surface.blit(desc, (slot_x + 10, slot_y + 25))
         
         # Draw potion slot text
