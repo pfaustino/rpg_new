@@ -8,6 +8,8 @@ from ..core.constants import SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE
 from ..utils.logging import logger
 
 class MonsterType(Enum):
+    # Format: (name, base_health, base_damage, base_speed, attack_range, attack_cooldown)
+    
     # Original monsters
     DRAGON = ("dragon", 150, 20, 2.5, 2, 1500)
     SPIDER = ("spider", 60, 8, 3.0, 1, 800)
@@ -182,7 +184,8 @@ class MonsterType(Enum):
     BLOOM_SPIRIT = ("bloom_spirit", 90, 14, 2.2, 2, 1200)
     
     def __init__(self, name, base_health, base_damage, base_speed, attack_range, attack_cooldown):
-        self.value = name
+        # The first value is used as the enum value
+        self._value_ = name
         self.base_health = base_health
         self.base_damage = base_damage
         self.base_speed = base_speed
@@ -289,7 +292,7 @@ class Monster:
             # Draw monster type text above monster
             font_size = max(10, int(20 * zoom))
             font = pygame.font.Font(None, font_size)
-            text = self.monster_type.name
+            text = f"{self.monster_type.name} lvl {self.level}"
             text_surface = font.render(text, True, (255, 255, 255))
             text_x = screen_x + (scaled_size - text_surface.get_width()) // 2
             text_y = screen_y - int(20 * zoom)
