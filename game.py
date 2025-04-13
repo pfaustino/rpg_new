@@ -23,6 +23,7 @@ from rpg_modules.core.constants import (
 )
 from rpg_modules.core.map import TileType
 import traceback
+import numpy as np
 
 # Player stats
 PLAYER_HP = 100
@@ -42,6 +43,14 @@ WALL_IMAGE = "wall.png"
 PLAYER_IMAGE = "player.png"
 MONSTER_IMAGE = "monster.png"
 
+# Sound asset paths
+SOUND_PATH = os.path.join(ASSET_PATH, "sounds")
+PLAYER_ATTACK_SOUND = "player_attack.wav"
+MONSTER_ATTACK_SOUND = "monster_attack.wav"
+PLAYER_HIT_SOUND = "player_hit.wav"
+MONSTER_HIT_SOUND = "monster_hit.wav"
+LEVEL_UP_SOUND = "level_up.wav"
+
 # Global reference to the current game state
 game_state = None
 
@@ -58,6 +67,11 @@ def load_assets():
     if not os.path.exists(ASSET_PATH):
         os.makedirs(ASSET_PATH)
         print(f"Created assets directory at {ASSET_PATH}")
+    
+    # Create sounds directory if it doesn't exist
+    if not os.path.exists(SOUND_PATH):
+        os.makedirs(SOUND_PATH)
+        print(f"Created sounds directory at {SOUND_PATH}")
     
     # Add player image if not already in assets
     if 'player' not in assets:
@@ -96,6 +110,174 @@ def load_assets():
     print("Available assets:", list(assets.keys()))
     return assets
 
+def load_sounds():
+    """Load all game sound effects or create simple tones if they don't exist."""
+    sounds = {}
+    
+    # Ensure sounds directory exists
+    if not os.path.exists(SOUND_PATH):
+        os.makedirs(SOUND_PATH)
+        print(f"Created sounds directory at {SOUND_PATH}")
+    
+    # Define sound names and files
+    sound_files = {
+        'player_attack': os.path.join(SOUND_PATH, PLAYER_ATTACK_SOUND),
+        'monster_attack': os.path.join(SOUND_PATH, MONSTER_ATTACK_SOUND),
+        'player_hit': os.path.join(SOUND_PATH, PLAYER_HIT_SOUND),
+        'monster_hit': os.path.join(SOUND_PATH, MONSTER_HIT_SOUND),
+        'level_up': os.path.join(SOUND_PATH, LEVEL_UP_SOUND)
+    }
+    
+    # Try to load sounds from files, or create simple sounds
+    for sound_name, sound_path in sound_files.items():
+        # Check if the file exists
+        if os.path.exists(sound_path):
+            try:
+                # Try to load the sound file
+                sounds[sound_name] = pygame.mixer.Sound(sound_path)
+                sounds[sound_name].set_volume(0.7)
+                print(f"Loaded sound file: {sound_name}")
+            except pygame.error as e:
+                print(f"Error loading sound {sound_path}: {e}")
+                # Create a simple tone as fallback
+                sounds[sound_name] = _create_simple_sound(sound_name)
+        else:
+            print(f"Sound file not found: {sound_path}, creating simple tone")
+            sounds[sound_name] = _create_simple_sound(sound_name)
+    
+    return sounds
+
+def _create_simple_sound(sound_type):
+    """Create an 8-bit style sound effect using numpy."""
+    # Basic sound parameters
+    sample_rate = 22050  # Hz
+    amplitude = 127  # For 8-bit audio (0-255 with 128 as center)
+    
+    # Configure sound parameters based on sound type
+    if sound_type == 'player_attack':
+        # Quick sword swing sound - descending pitch
+        duration = 0.2  # seconds
+        base_freq = 800  # Hz
+        
+        # Time array
+        t = np.linspace(0, duration, int(duration * sample_rate), endpoint=False)
+        
+        # Frequency decreases over time
+        freq = base_freq * (1 - t*2)
+        
+        # Amplitude decreases over time (fade out)
+        amp = amplitude * (1 - t)
+        
+        # Generate samples
+        samples = 128 + amp * np.sin(2 * np.pi * freq * t)
+            
+    elif sound_type == 'monster_attack':
+        # Low growl sound
+        duration = 0.3  # seconds
+        
+        # Time array
+        t = np.linspace(0, duration, int(duration * sample_rate), endpoint=False)
+        
+        # Low frequency with vibrato
+        freq = 200 + 20 * np.sin(30 * t)
+        
+        # Add some noise
+        noise = 10 * (2 * np.random.random(len(t)) - 1)
+        
+        # Generate base samples
+        samples = 128 + amplitude * 0.8 * np.sin(2 * np.pi * freq * t)
+        
+        # Add noise
+        samples = samples + noise
+        
+        # Apply volume envelope - rise and fall
+        envelope = (1 - np.abs(2 * t/duration - 1))
+        samples = 128 + (samples-128) * envelope
+            
+    elif sound_type == 'player_hit':
+        # Impact sound - thud
+        duration = 0.2  # seconds
+        
+        # Time array
+        t = np.linspace(0, duration, int(duration * sample_rate), endpoint=False)
+        
+        # Sharp attack, quick decay
+        envelope = np.exp(-t * 20)
+        freq = 300 + 50 * np.exp(-t * 30)
+        
+        # Generate samples
+        samples = 128 + amplitude * envelope * np.sin(2 * np.pi * freq * t)
+            
+    elif sound_type == 'monster_hit':
+        # Monster getting hit - higher pitched impact
+        duration = 0.15  # seconds
+        
+        # Time array
+        t = np.linspace(0, duration, int(duration * sample_rate), endpoint=False)
+        
+        # Metallic frequency with quick decay
+        freq = 500 * (1 - t*0.5)
+        envelope = np.exp(-t * 25)
+        
+        # Add some noise for impact
+        noise = 15 * np.random.random(len(t)) * envelope
+        
+        # Generate samples
+        samples = 128 + amplitude * envelope * np.sin(2 * np.pi * freq * t) + noise
+            
+    elif sound_type == 'level_up':
+        # Level up - 3 ascending notes
+        duration = 0.5  # seconds
+        note_duration = duration / 3
+        frequencies = [440, 550, 660]  # A4, C#5, E5 (A major triad)
+        
+        all_samples = []
+        
+        for note_idx, freq in enumerate(frequencies):
+            # Time array for this note
+            t = np.linspace(0, note_duration, int(note_duration * sample_rate), endpoint=False)
+            
+            # Each note fades in and out
+            if note_idx < 2:
+                envelope = np.sin(np.pi * t / note_duration)
+            else:
+                # Last note has longer release
+                envelope = np.sin(np.pi * t / note_duration * 0.5)
+            
+            # Generate note samples
+            note_samples = 128 + amplitude * envelope * np.sin(2 * np.pi * freq * t)
+            all_samples.append(note_samples)
+        
+        # Combine all notes
+        samples = np.concatenate(all_samples)
+    else:
+        # Default beep
+        duration = 0.2  # seconds
+        base_freq = 440  # Hz
+        
+        # Time array
+        t = np.linspace(0, duration, int(duration * sample_rate), endpoint=False)
+        
+        # Generate samples
+        samples = 128 + amplitude * np.sin(2 * np.pi * base_freq * t)
+    
+    # Ensure samples are in 8-bit range (0-255)
+    samples = np.clip(samples, 0, 255).astype(np.uint8)
+    
+    try:
+        # Create sound from numpy array
+        sound = pygame.mixer.Sound(buffer=samples)
+        # Set appropriate volume
+        sound.set_volume(0.7)
+        print(f"Created 8-bit style sound for: {sound_type}")
+        return sound
+    except Exception as e:
+        print(f"Error creating sound: {e}")
+        # Return an empty sound in case of error
+        empty_sound = pygame.mixer.Sound(buffer=bytearray(1000))
+        empty_sound.set_volume(0.1)
+        return empty_sound
+
 # Game states
 class GameState:
     """Manages the global game state."""
@@ -121,6 +303,18 @@ class GameState:
         # Make sure player's equipment is set up properly
         if not hasattr(self.player, 'equipment') or not isinstance(self.player.equipment, Equipment):
             self.player.equipment = Equipment()
+        
+        # Override player's on_level_up method to play sound
+        original_on_level_up = self.player.on_level_up
+        def new_on_level_up():
+            # Call the original method
+            original_on_level_up()
+            # Play level up sound
+            if hasattr(self, 'sounds') and 'level_up' in self.sounds:
+                self.sounds['level_up'].play()
+                print("Playing level up sound!")
+        self.player.on_level_up = new_on_level_up
+        
         print("Player created with proper inventory")
         
         # Create camera
@@ -158,6 +352,11 @@ class GameState:
         self.assets = load_assets()
         print("Assets loaded")
         
+        # Load sound effects
+        print("\nLoading sound effects...")
+        self.sounds = load_sounds()
+        print("Sound effects loaded")
+        
         # Initial monster spawn
         self._spawn_initial_monsters()
         print(f"Total monsters spawned: {len(self.monsters)}")
@@ -184,6 +383,16 @@ class GameState:
                     self.camera.zoom_in()
                 elif event.y < 0:  # Scroll down to zoom out
                     self.camera.zoom_out()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                # Handle mouse clicks
+                if event.button == 1:  # Left mouse button for attack
+                    # Only process attack if no UI is visible
+                    if not (self.inventory_ui.visible or self.equipment_ui.visible or 
+                           self.generator_ui.visible or self.quest_ui.visible):
+                        if self.player.can_attack():
+                            # Attempt a fast attack on click
+                            self.player.try_attack()
+                            self._handle_player_attack()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:  # Reset zoom with 'R' key
                     self.camera.reset_zoom()
@@ -218,6 +427,34 @@ class GameState:
                     # Hide equipment when generator is shown
                     if self.generator_ui.visible and self.equipment_ui.visible:
                         self.equipment_ui.toggle()
+                # Handle attack type switching with number keys
+                elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
+                    # Only switch attack type if no UI is visible
+                    if not (self.inventory_ui.visible or self.equipment_ui.visible or 
+                           self.generator_ui.visible or self.quest_ui.visible):
+                        attack_type = event.key - pygame.K_0  # Convert key to number (1-4)
+                        if self.player.switch_attack_type(attack_type):
+                            # Play a sound effect when switching attacks
+                            if 'player_attack' in self.sounds:
+                                self.sounds['player_attack'].set_volume(0.3)
+                                self.sounds['player_attack'].play()
+                                self.sounds['player_attack'].set_volume(0.7)  # Reset volume
+                            print(f"Switched to {self.player.get_attack_type_name()} Attack")
+                        else:
+                            # Not enough resources for this attack
+                            print(f"Cannot use {['Regular', 'Heavy', 'Magic', 'Quick'][attack_type-1]} Attack - not enough resources")
+                # Handle potion hotkeys (7-9)
+                elif event.key in [pygame.K_7, pygame.K_8, pygame.K_9]:
+                    # Map keys to potion types
+                    potion_types = {
+                        pygame.K_7: "health",
+                        pygame.K_8: "mana",
+                        pygame.K_9: "stamina"
+                    }
+                    potion_type = potion_types[event.key]
+                    
+                    # Try to use potion of this type
+                    self._use_potion_of_type(potion_type)
                 elif event.key == pygame.K_ESCAPE:
                     self.running = False
         
@@ -234,6 +471,10 @@ class GameState:
             
         # Update player
         self.player.update(dt)
+        
+        # Process player attacks
+        if keys[pygame.K_SPACE] and self.player.can_attack():
+            self._handle_player_attack()
         
         # Update UI elements
         self.inventory_ui.inventory = self.player.inventory.items
@@ -273,7 +514,13 @@ class GameState:
             
             if dist <= monster.attack_range * TILE_SIZE and monster.can_attack():
                 damage = monster.attack()
-                print(f"{monster.monster_type.name} attacks player for {damage} damage!")
+                # Apply the damage to the player
+                self.player.take_damage(damage)
+                # Play monster attack sound
+                self.sounds['monster_attack'].play()
+                # Play player hit sound
+                self.sounds['player_hit'].play()
+                print(f"{monster.monster_type.name} lvl {monster.level} attacks player for {damage} damage! Player health: {self.player.health}/{self.player.max_health}")
         
         # Try spawning new monsters occasionally
         if random.random() < 0.01:  # 1% chance each frame
@@ -298,6 +545,10 @@ class GameState:
         
         # Draw player
         self.player.draw(screen, self.camera)
+        
+        # Draw attack effect if active
+        if hasattr(self, 'current_attack_effect') and self.current_attack_effect:
+            self._draw_attack_effect(screen)
         
         # Get current tile type at player position
         current_tile = self.map.get_tile_at_position(self.player.x, self.player.y)
@@ -378,13 +629,16 @@ class GameState:
         # Quest UI is independent
         self.quest_ui.draw(screen)
         
-        # Draw keyboard controls at the bottom of the screen
+        # Draw action toolbar at bottom of screen
+        self._draw_action_toolbar(screen)
+        
+        # Draw keyboard controls at the bottom of the screen (move up to make room for toolbar)
         controls_font = pygame.font.Font(None, 20)
         controls_text = "Controls: I-Inventory | E-Equipment | G-Generator | Q-Quests | WASD-Movement | R-Reset Zoom | Mouse Wheel-Zoom"
         controls_surface = controls_font.render(controls_text, True, (200, 200, 200))
         controls_rect = controls_surface.get_rect()
         controls_rect.centerx = SCREEN_WIDTH // 2
-        controls_rect.bottom = SCREEN_HEIGHT - 10
+        controls_rect.bottom = SCREEN_HEIGHT - 80  # Move up to make room for toolbar
         screen.blit(controls_surface, controls_rect)
             
         # Update display
@@ -417,6 +671,39 @@ class GameState:
         self._draw_status_bar(screen, start_x, start_y + (bar_height + bar_spacing) * 2, 
                             bar_width, bar_height, stamina_percent, (50, 200, 50), "Stamina")
         
+        # Draw XP bar - calculate percentage towards next level
+        # Formula: next level requires current_level * 100 XP
+        xp_needed = self.player.level * 100
+        xp_percent = self.player.experience / xp_needed
+        xp_color = (180, 120, 255)  # Purple for XP
+        self._draw_status_bar(screen, start_x, start_y + (bar_height + bar_spacing) * 3, 
+                            bar_width, bar_height, xp_percent, xp_color, 
+                            f"XP: {self.player.experience}/{xp_needed}")
+        
+        # Draw attack type indicator below status bars
+        attack_type = self.player.attack_type
+        attack_name = self.player.get_attack_type_name()
+        
+        # Set color based on attack type
+        if attack_type == 1:  # Regular
+            attack_color = (200, 200, 200)  # White
+        elif attack_type == 2:  # Heavy
+            attack_color = (255, 150, 0)    # Orange
+        elif attack_type == 3:  # Magic
+            attack_color = (100, 100, 255)  # Blue
+        elif attack_type == 4:  # Quick
+            attack_color = (0, 255, 100)    # Green
+        else:
+            attack_color = (150, 150, 150)  # Gray
+        
+        # Draw attack type text
+        font = pygame.font.Font(None, 20)
+        attack_text = f"Attack: {attack_name} (Press 1-4)"
+        text_surface = font.render(attack_text, True, attack_color)
+        text_rect = text_surface.get_rect()
+        text_rect.topleft = (start_x, start_y + (bar_height + bar_spacing) * 4 + 5)
+        screen.blit(text_surface, text_rect)
+        
         # Draw attack cooldown icon
         icon_size = 40
         icon_x = start_x - icon_size - 10
@@ -425,8 +712,8 @@ class GameState:
         # Create a simple sword icon
         pygame.draw.rect(screen, (150, 150, 150), (icon_x, icon_y, icon_size, icon_size))
         
-        # Draw sword shape
-        sword_color = (200, 200, 200)
+        # Draw sword shape with color matching the attack type
+        sword_color = attack_color
         # Sword handle
         pygame.draw.rect(screen, sword_color, 
                       (icon_x + icon_size//2 - 3, icon_y + icon_size//2, 6, icon_size//2 - 5))
@@ -441,17 +728,19 @@ class GameState:
         ])
         
         # Calculate cooldown overlay
-        # For now just showing a random cooldown for demonstration
-        # In a real implementation, this would use the player's attack cooldown
-        cooldown_percent = (pygame.time.get_ticks() % 3000) / 3000
+        current_time = pygame.time.get_ticks()
+        last_attack_time = self.player.last_attack_time
+        attack_cooldown = self.player.attack_cooldown
+        
+        cooldown_percent = min(1.0, (current_time - last_attack_time) / attack_cooldown)
         
         # Draw cooldown overlay (darker area showing remaining cooldown)
         if cooldown_percent < 1.0:
             # Create a semi-transparent overlay to show cooldown
-            cooldown_height = int(icon_size * cooldown_percent)
+            cooldown_height = int(icon_size * (1 - cooldown_percent))
             cooldown_surface = pygame.Surface((icon_size, cooldown_height), pygame.SRCALPHA)
             cooldown_surface.fill((0, 0, 0, 128))  # Semi-transparent black
-            screen.blit(cooldown_surface, (icon_x, icon_y + icon_size - cooldown_height))
+            screen.blit(cooldown_surface, (icon_x, icon_y))
 
     def _draw_status_bar(self, screen, x, y, width, height, fill_percent, color, label=None):
         """Draw a status bar with border and optional label."""
@@ -569,7 +858,7 @@ class GameState:
                 self.monster_counts[monster_type] += 1
                 spawn_count += 1
                 spawn_location = "water" if is_water_tile else "land"
-                print(f"Spawned {monster_type.name} at ({tile_x}, {tile_y}) on {spawn_location}")
+                print(f"Spawned {monster_type.name} lvl {monster.level} at tile ({tile_x}, {tile_y}) on {spawn_location}")
                 spawn_successful = True
                 break
             
@@ -703,7 +992,7 @@ class GameState:
             self.monsters.append(monster)
             self.monster_counts[monster_type] += 1
             spawn_location = "water" if is_water_tile else "land"
-            print(f"Spawned level {monster.level} {monster_type.name} at tile ({tile_x}, {tile_y}) on {spawn_location}")
+            print(f"Spawned {monster_type.name} lvl {monster.level} at tile ({tile_x}, {tile_y}) on {spawn_location}")
             return True
         
         print(f"Failed to find valid spawn position for {monster_type.name}")
@@ -927,7 +1216,7 @@ class GameState:
         font_large = pygame.font.Font(None, 28)
         font_small = pygame.font.Font(None, 20)
         
-        name_text = f"{monster.monster_type.name} (Level {monster.level})"
+        name_text = f"{monster.monster_type.name} lvl {monster.level}"
         name_surface = font_large.render(name_text, True, (255, 255, 255))
         screen.blit(name_surface, (tooltip_x + padding, tooltip_y + padding))
         
@@ -1025,6 +1314,621 @@ class GameState:
             else:
                 # Update expiry time
                 self.recent_death_locations[i] = (location, expiry, monster_type)
+
+    def _handle_player_attack(self):
+        """Handle player attacks against monsters."""
+        # Get player attack range based on current attack type
+        attack_range = self.player.get_attack_range()
+        
+        # Get player position
+        px, py = self.player.x, self.player.y
+        
+        # Get player facing direction to determine attack area
+        direction = self.player.direction
+        
+        # Add some debug output
+        attack_name = self.player.get_attack_type_name()
+        print(f"DEBUG: Player {attack_name} attack - Range: {attack_range:.1f}, Position: ({px}, {py}), Direction: {direction}")
+        
+        # Get player damage based on current attack type
+        damage = self.player.get_attack_damage()
+        
+        # Add debug info about resource usage
+        attack_type = self.player.attack_type
+        if attack_type == 2:  # Heavy - uses stamina
+            stamina_cost = 15
+            print(f"DEBUG: Heavy attack - Cost: {stamina_cost} stamina, Remaining: {self.player.stamina}/{self.player.max_stamina}")
+        elif attack_type == 3:  # Magic - uses mana
+            mana_cost = 20
+            print(f"DEBUG: Magic attack - Cost: {mana_cost} mana, Remaining: {self.player.mana}/{self.player.max_mana}")
+        elif attack_type == 4:  # Quick - faster cooldown
+            cooldown_reduction = 200  # ms
+            print(f"DEBUG: Quick attack - Cooldown reduced by {cooldown_reduction}ms")
+        
+        # Play player attack sound
+        self.sounds['player_attack'].play()
+        
+        # Show visual effect based on attack type - to be displayed for a few frames
+        # This would be better with a proper particle system, but for now just store the effect
+        # details to be rendered in subsequent frames
+        self.current_attack_effect = {
+            'type': attack_type,
+            'direction': direction,
+            'position': (px, py),
+            'timer': 10,  # frames
+            'color': self._get_attack_type_color(attack_type)
+        }
+        
+        # Check each monster to see if it's in range
+        hit_any = False
+        closest_dist = float('inf')
+        closest_monster = None
+        
+        for monster in self.monsters[:]:
+            # Calculate distance to monster
+            dx = monster.x - px
+            dy = monster.y - py
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            # Track closest monster for debugging
+            if distance < closest_dist:
+                closest_dist = distance
+                closest_monster = monster
+            
+            # Check if monster is in attack range
+            if distance <= attack_range:
+                # For magic attack, no direction check needed (area effect)
+                if attack_type == 3:
+                    hit = True
+                # For other attacks, check if monster is in front of player based on direction
+                else:
+                    # Normalize direction vector
+                    if abs(dx) > abs(dy):  # More horizontal than vertical
+                        if dx > 0 and direction == 'east':
+                            hit = True
+                        elif dx < 0 and direction == 'west':
+                            hit = True
+                        else:
+                            hit = False
+                    else:  # More vertical than horizontal
+                        if dy > 0 and direction == 'south':
+                            hit = True
+                        elif dy < 0 and direction == 'north':
+                            hit = True
+                        else:
+                            hit = False
+                    
+                    # For quick attacks, be more lenient
+                    if attack_type == 4 and distance < attack_range * 0.7:
+                        hit = True
+                
+                # For heavy attacks, larger area
+                if attack_type == 2:
+                    # Wider angle for heavy attack
+                    angle = math.degrees(math.atan2(dy, dx))
+                    
+                    # Get player facing angle based on direction
+                    if direction == 'east':
+                        player_angle = 0
+                    elif direction == 'south':
+                        player_angle = 90
+                    elif direction == 'west':
+                        player_angle = 180
+                    elif direction == 'north':
+                        player_angle = 270
+                    else:
+                        player_angle = 0
+                    
+                    # Calculate angle difference
+                    angle_diff = abs((angle - player_angle + 180) % 360 - 180)
+                    
+                    # If within 90 degrees of facing direction, hit is valid
+                    if angle_diff <= 90:
+                        hit = True
+                    else:
+                        hit = False
+                
+                # Apply damage if hit is valid
+                if hit:
+                    # Apply damage to monster
+                    old_health = monster.health
+                    monster.health -= damage
+                    hit_any = True
+                    
+                    # Play hit sound
+                    self.sounds['monster_hit'].play()
+                    
+                    # Determine attack type name for display
+                    attack_name = self.player.get_attack_type_name()
+                    
+                    print(f"Player hit {monster.monster_type.name} lvl {monster.level} with {attack_name} Attack for {damage} damage! Monster health: {monster.health}/{monster.max_health}")
+                    
+                    # Apply special effects based on attack type
+                    if attack_type == 2:  # Heavy attack
+                        # Knockback effect
+                        knockback_dist = 20  # pixels
+                        angle = math.atan2(dy, dx)
+                        monster.x += math.cos(angle) * knockback_dist
+                        monster.y += math.sin(angle) * knockback_dist
+                        print(f"Heavy attack knocked {monster.monster_type.name} back by {knockback_dist} pixels!")
+                    
+                    elif attack_type == 3:  # Magic attack
+                        # Splash damage to nearby monsters
+                        splash_count = 0
+                        for other_monster in self.monsters:
+                            if other_monster != monster:
+                                other_dx = other_monster.x - monster.x
+                                other_dy = other_monster.y - monster.y
+                                other_dist = math.sqrt(other_dx * other_dx + other_dy * other_dy)
+                                if other_dist < TILE_SIZE * 2:  # 2 tiles splash radius
+                                    splash_damage = damage // 2  # Half damage for splash
+                                    old_health = other_monster.health
+                                    other_monster.health -= splash_damage
+                                    splash_count += 1
+                                    print(f"Magic splash damage! {other_monster.monster_type.name} took {splash_damage} damage (health: {other_monster.health}/{other_monster.max_health})")
+                        if splash_count > 0:
+                            print(f"Magic attack hit {splash_count} additional monsters with splash damage!")
+                    
+                    elif attack_type == 4:  # Quick attack has a chance to hit twice
+                        # 20% chance to strike twice
+                        if random.random() < 0.2:
+                            bonus_damage = damage // 2  # Half damage for bonus hit
+                            monster.health -= bonus_damage
+                            print(f"Quick attack struck twice! Bonus hit for {bonus_damage} damage! Monster health: {monster.health}/{monster.max_health}")
+                    
+                    # Check if monster was killed
+                    if monster.health <= 0 and old_health > 0:
+                        print(f"Player killed {monster.monster_type.name} lvl {monster.level}!")
+                        
+                        # Award experience (simple formula: base 10 XP * monster level)
+                        experience_reward = 10 * monster.level
+                        self.player.add_experience(experience_reward)
+                        print(f"Player gained {experience_reward} experience!")
+        
+        # If we didn't hit anything, show a miss message with debug info
+        if not hit_any:
+            if closest_monster:
+                monster_type = closest_monster.monster_type.name
+                print(f"Player {attack_name} Attack missed! Closest monster: {monster_type} at distance {closest_dist:.1f} (attack range: {attack_range:.1f})")
+            else:
+                print(f"Player {attack_name} Attack missed! No monsters nearby.")
+                
+    def _get_attack_type_color(self, attack_type):
+        """Get color for the specified attack type."""
+        colors = [
+            (200, 200, 200),  # Regular (white)
+            (255, 150, 0),    # Heavy (orange)
+            (100, 100, 255),  # Magic (blue)
+            (0, 255, 100)     # Quick (green)
+        ]
+        return colors[attack_type - 1] if 1 <= attack_type <= 4 else (255, 255, 255)
+        
+    def draw(self, screen):
+        """Draw the game state."""
+        # Clear screen
+        screen.fill((40, 40, 40))  # Dark gray background
+        
+        # Draw game world
+        self.map.draw(screen, self.camera, self.assets)
+        
+        # Draw monsters
+        for monster in self.monsters:
+            monster.draw(screen, self.camera)
+        
+        # Draw player
+        self.player.draw(screen, self.camera)
+        
+        # Draw attack effect if active
+        if hasattr(self, 'current_attack_effect') and self.current_attack_effect:
+            self._draw_attack_effect(screen)
+        
+        # Get current tile type at player position
+        current_tile = self.map.get_tile_at_position(self.player.x, self.player.y)
+        
+        # Draw coordinates and terrain in top-left corner
+        font = pygame.font.Font(None, 24)
+        tile_x = int(self.player.x / TILE_SIZE)
+        tile_y = int(self.player.y / TILE_SIZE)
+        pixel_x = int(self.player.x)
+        pixel_y = int(self.player.y)
+        
+        # Format tile name for display
+        terrain_type = "unknown"
+        if current_tile:
+            terrain_type = current_tile.value.replace('_', ' ').title()
+        
+        # Display player position info
+        coord_text = f"Player Position - Tile: ({tile_x}, {tile_y}) Pixel: ({pixel_x}, {pixel_y})"
+        text_surface = font.render(coord_text, True, (255, 255, 255))
+        screen.blit(text_surface, (10, 10))
+        
+        # Display terrain type - this is the one we're adding
+        terrain_text = f"Player is on [{terrain_type}]"
+        terrain_surface = font.render(terrain_text, True, (255, 255, 255))
+        screen.blit(terrain_surface, (10, 35))
+        
+        # Display monster count
+        monster_text = f"Active Monsters: {len(self.monsters)}"
+        monster_surface = font.render(monster_text, True, (255, 255, 255))
+        screen.blit(monster_surface, (10, 60))
+        
+        # Draw player status bars and attack icon in top-right corner
+        self._draw_player_status_bars(screen)
+        
+        # Draw monster tooltip if hovering over a monster
+        if self.hovered_monster:
+            self._draw_monster_tooltip(screen, self.hovered_monster)
+        
+        # Draw zoom message if active
+        zoom_msg, timer = self.camera.get_zoom_message()
+        if zoom_msg and timer > 0:
+            msg_font = pygame.font.Font(None, 36)
+            msg_surface = msg_font.render(zoom_msg, True, (255, 255, 255))
+            msg_rect = msg_surface.get_rect()
+            msg_rect.centerx = SCREEN_WIDTH // 2
+            msg_rect.top = 10
+            screen.blit(msg_surface, msg_rect)
+        
+        # Draw UI elements - adjust positioning to improve layout
+        
+        # First check if inventory should be drawn
+        if self.inventory_ui.visible:
+            # Position inventory UI on the left
+            self.inventory_ui.x = 10
+            self.inventory_ui.y = 10
+            self.inventory_ui.rect.topleft = (self.inventory_ui.x, self.inventory_ui.y)
+            self.inventory_ui.draw(screen)
+        
+        # Next check if equipment should be drawn    
+        if self.equipment_ui.visible:
+            # Position equipment UI on the right
+            self.equipment_ui.x = SCREEN_WIDTH - self.equipment_ui.rect.width - 10
+            self.equipment_ui.y = 10
+            self.equipment_ui.rect.topleft = (self.equipment_ui.x, self.equipment_ui.y)
+            self.equipment_ui.draw(screen)
+        
+        # Finally check if generator should be drawn
+        if self.generator_ui.visible:
+            # Position generator UI on the right
+            self.generator_ui.x = SCREEN_WIDTH - self.generator_ui.rect.width - 10
+            self.generator_ui.y = 10
+            # Ensure the rect is updated with the new position
+            self.generator_ui.rect.x = self.generator_ui.x
+            self.generator_ui.rect.y = self.generator_ui.y
+            self.generator_ui.rect.topleft = (self.generator_ui.x, self.generator_ui.y)
+            self.generator_ui.draw(screen, self.player)
+        
+        # Quest UI is independent
+        self.quest_ui.draw(screen)
+        
+        # Draw action toolbar at bottom of screen
+        self._draw_action_toolbar(screen)
+        
+        # Draw keyboard controls at the bottom of the screen (move up to make room for toolbar)
+        controls_font = pygame.font.Font(None, 20)
+        controls_text = "Controls: I-Inventory | E-Equipment | G-Generator | Q-Quests | WASD-Movement | R-Reset Zoom | Mouse Wheel-Zoom"
+        controls_surface = controls_font.render(controls_text, True, (200, 200, 200))
+        controls_rect = controls_surface.get_rect()
+        controls_rect.centerx = SCREEN_WIDTH // 2
+        controls_rect.bottom = SCREEN_HEIGHT - 80  # Move up to make room for toolbar
+        screen.blit(controls_surface, controls_rect)
+            
+        # Update display
+        pygame.display.flip()
+
+    def _draw_attack_effect(self, screen):
+        """Draw the current attack effect."""
+        effect = self.current_attack_effect
+        if effect['timer'] <= 0:
+            self.current_attack_effect = None
+            return
+            
+        # Reduce timer
+        effect['timer'] -= 1
+        
+        # Get effect details
+        attack_type = effect['type']
+        direction = effect['direction']
+        px, py = effect['position']
+        color = effect['color']
+        
+        # Calculate screen position with camera zoom
+        zoom = self.camera.get_zoom()
+        screen_x = int((px + self.camera.x) * zoom)
+        screen_y = int((py + self.camera.y) * zoom)
+        
+        # Scale effect size based on zoom
+        base_size = TILE_SIZE * zoom
+        
+        # Draw different effects based on attack type
+        if attack_type == 1:  # Regular attack - simple slash
+            # Draw a slash in the direction player is facing
+            if direction == 'east':
+                points = [
+                    (screen_x + base_size, screen_y),
+                    (screen_x + base_size * 1.5, screen_y - base_size * 0.3),
+                    (screen_x + base_size * 1.7, screen_y),
+                    (screen_x + base_size * 1.5, screen_y + base_size * 0.3)
+                ]
+            elif direction == 'west':
+                points = [
+                    (screen_x, screen_y),
+                    (screen_x - base_size * 0.5, screen_y - base_size * 0.3),
+                    (screen_x - base_size * 0.7, screen_y),
+                    (screen_x - base_size * 0.5, screen_y + base_size * 0.3)
+                ]
+            elif direction == 'south':
+                points = [
+                    (screen_x, screen_y + base_size),
+                    (screen_x - base_size * 0.3, screen_y + base_size * 1.5),
+                    (screen_x, screen_y + base_size * 1.7),
+                    (screen_x + base_size * 0.3, screen_y + base_size * 1.5)
+                ]
+            elif direction == 'north':
+                points = [
+                    (screen_x, screen_y),
+                    (screen_x - base_size * 0.3, screen_y - base_size * 0.5),
+                    (screen_x, screen_y - base_size * 0.7),
+                    (screen_x + base_size * 0.3, screen_y - base_size * 0.5)
+                ]
+                
+            # Draw slash with fading opacity based on timer
+            alpha = int(200 * effect['timer'] / 10)
+            slash_color = (*color, alpha)
+            
+            # Create a temporary surface for alpha blending
+            effect_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            pygame.draw.polygon(effect_surface, slash_color, points)
+            screen.blit(effect_surface, (0, 0))
+            
+        elif attack_type == 2:  # Heavy attack - wide arc
+            # Draw a wider arc in the direction player is facing
+            center_x, center_y = screen_x + base_size//2, screen_y + base_size//2
+            radius = base_size
+            
+            # Arc angles based on direction
+            if direction == 'east':
+                start_angle, end_angle = -45, 45
+            elif direction == 'west':
+                start_angle, end_angle = 135, 225
+            elif direction == 'south':
+                start_angle, end_angle = 45, 135
+            elif direction == 'north':
+                start_angle, end_angle = 225, 315
+                
+            # Convert to radians
+            start_angle, end_angle = math.radians(start_angle), math.radians(end_angle)
+            
+            # Create points for arc
+            arc_points = []
+            steps = 12
+            for i in range(steps + 1):
+                angle = start_angle + (end_angle - start_angle) * i / steps
+                x = center_x + radius * math.cos(angle)
+                y = center_y + radius * math.sin(angle)
+                arc_points.append((x, y))
+            
+            # Add center to create a filled arc
+            arc_points.append((center_x, center_y))
+            
+            # Draw with fading opacity
+            alpha = int(180 * effect['timer'] / 10)
+            arc_color = (*color, alpha)
+            
+            # Create surface for alpha blending
+            effect_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            pygame.draw.polygon(effect_surface, arc_color, arc_points)
+            screen.blit(effect_surface, (0, 0))
+            
+        elif attack_type == 3:  # Magic attack - expanding circle
+            # Calculate expanding circle
+            radius = base_size * (1 + (10 - effect['timer']) / 5)
+            center_x, center_y = screen_x + base_size//2, screen_y + base_size//2
+            
+            # Create fading color based on timer
+            alpha = int(150 * effect['timer'] / 10)
+            circle_color = (*color, alpha)
+            
+            # Create surface for alpha blending
+            effect_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            pygame.draw.circle(effect_surface, circle_color, (center_x, center_y), int(radius))
+            
+            # Draw sparkles
+            for _ in range(5):
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(0, radius * 0.8)
+                spark_x = center_x + distance * math.cos(angle)
+                spark_y = center_y + distance * math.sin(angle)
+                spark_radius = random.uniform(2, 5) * zoom
+                pygame.draw.circle(effect_surface, (255, 255, 255, alpha), 
+                                 (int(spark_x), int(spark_y)), int(spark_radius))
+                
+            screen.blit(effect_surface, (0, 0))
+            
+        elif attack_type == 4:  # Quick attack - multiple small slashes
+            # Draw multiple small slashes in direction
+            center_x, center_y = screen_x + base_size//2, screen_y + base_size//2
+            
+            # Create temporary surface for alpha blending
+            effect_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            
+            # Directional offset for slashes
+            if direction == 'east':
+                dx, dy = 1, 0
+            elif direction == 'west':
+                dx, dy = -1, 0
+            elif direction == 'south':
+                dx, dy = 0, 1
+            elif direction == 'north':
+                dx, dy = 0, -1
+            
+            # Draw multiple small slashes
+            for i in range(3):
+                offset = (10 - effect['timer']) * 5 + i * 15
+                slash_x = center_x + dx * offset * zoom
+                slash_y = center_y + dy * offset * zoom
+                
+                # Small slash size
+                slash_size = base_size * 0.4
+                
+                # Points for small slash
+                if direction in ['east', 'west']:
+                    points = [
+                        (slash_x, slash_y - slash_size),
+                        (slash_x + dx * slash_size, slash_y),
+                        (slash_x, slash_y + slash_size)
+                    ]
+                else:
+                    points = [
+                        (slash_x - slash_size, slash_y),
+                        (slash_x, slash_y + dy * slash_size),
+                        (slash_x + slash_size, slash_y)
+                    ]
+                
+                # Fade based on timer and position
+                alpha = int(200 * effect['timer'] / 10 * (1 - i * 0.2))
+                slash_color = (*color, alpha)
+                
+                pygame.draw.polygon(effect_surface, slash_color, points)
+            
+            screen.blit(effect_surface, (0, 0))
+
+    def _draw_action_toolbar(self, screen):
+        """Draw a toolbar showing attack types (1-4) and potion hotkeys (7-9)."""
+        # Define constants
+        toolbar_height = 60
+        toolbar_y = screen.get_height() - toolbar_height
+        toolbar_width = screen.get_width()
+        
+        # Draw semi-transparent background
+        toolbar_surface = pygame.Surface((toolbar_width, toolbar_height), pygame.SRCALPHA)
+        pygame.draw.rect(toolbar_surface, (0, 0, 0, 128), (0, 0, toolbar_width, toolbar_height))
+        screen.blit(toolbar_surface, (0, toolbar_y))
+        
+        # Draw divider
+        pygame.draw.line(screen, (200, 200, 200), 
+                         (toolbar_width // 2, toolbar_y + 5), 
+                         (toolbar_width // 2, toolbar_y + toolbar_height - 5), 2)
+        
+        font = pygame.font.Font(None, 28)
+        small_font = pygame.font.Font(None, 20)
+        
+        # Draw attack slots (1-4)
+        attack_titles = ["1: Regular", "2: Heavy", "3: Magic", "4: Quick"]
+        attack_desc = [
+            "Balanced damage and speed",
+            "High damage, costs stamina",
+            "Ranged attack, costs mana",
+            "Fast attack, low damage"
+        ]
+        
+        # Highlight current attack type
+        current_attack = self.player.attack_type
+        
+        for i in range(4):
+            slot_x = 20 + i * 120
+            slot_y = toolbar_y + 10
+            slot_width = 100
+            slot_height = 40
+            
+            # Draw slot background (highlight if active)
+            if i + 1 == current_attack:
+                color = (60, 100, 160, 200)
+            else:
+                color = (40, 40, 40, 160)
+                
+            pygame.draw.rect(toolbar_surface, color, (slot_x, 10, slot_width, slot_height), border_radius=5)
+            screen.blit(toolbar_surface, (0, toolbar_y))
+            
+            # Draw attack name
+            text = font.render(attack_titles[i], True, (255, 255, 255))
+            screen.blit(text, (slot_x + 10, slot_y + 5))
+            
+            # Draw attack description (smaller font)
+            desc = small_font.render(attack_desc[i], True, (220, 220, 220))
+            screen.blit(desc, (slot_x + 10, slot_y + 25))
+        
+        # Draw potion slots (7-9)
+        potion_types = ["7: Health", "8: Mana", "9: Stamina"]
+        potion_colors = [(200, 60, 60), (60, 100, 200), (60, 200, 60)]
+        
+        # Get potion counts
+        health_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'type') and hasattr(item, 'subtype') and item.type == "potion" and item.subtype == "health")
+        mana_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'type') and hasattr(item, 'subtype') and item.type == "potion" and item.subtype == "mana")
+        stamina_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'type') and hasattr(item, 'subtype') and item.type == "potion" and item.subtype == "stamina")
+        potion_counts = [health_potions, mana_potions, stamina_potions]
+        
+        for i in range(3):
+            slot_x = toolbar_width // 2 + 20 + i * 120
+            slot_y = toolbar_y + 10
+            slot_width = 100
+            slot_height = 40
+            
+            # Draw slot background
+            pygame.draw.rect(toolbar_surface, (40, 40, 40, 160), (slot_x, 10, slot_width, slot_height), border_radius=5)
+            screen.blit(toolbar_surface, (0, toolbar_y))
+            
+            # Draw potion name with color
+            text = font.render(potion_types[i], True, potion_colors[i])
+            screen.blit(text, (slot_x + 10, slot_y + 5))
+            
+            # Draw potion count
+            count_text = small_font.render(f"Count: {potion_counts[i]}", True, (220, 220, 220))
+            screen.blit(count_text, (slot_x + 10, slot_y + 25))
+
+    def _count_potions_of_type(self, potion_type):
+        """Count the number of potions of a specific type in the player's inventory."""
+        count = 0
+        if hasattr(self.player, 'inventory'):
+            for item in self.player.inventory.items:
+                if item and item.type.lower() == potion_type.lower() + " potion":
+                    count += 1
+        return count
+
+    def _use_potion_of_type(self, potion_type):
+        """Find and use a potion of the specified type from inventory."""
+        # First check if we have a potion of this type
+        potion_index = None
+        potion_item = None
+        
+        # Find the first potion of the requested type
+        for i, item in enumerate(self.player.inventory.items):
+            if (item and hasattr(item, 'consumable_type') and 
+                item.consumable_type == potion_type):
+                potion_index = i
+                potion_item = item
+                break
+                
+        if potion_index is None or potion_item is None:
+            print(f"No {potion_type} potion in inventory")
+            return False
+            
+        # Use the potion
+        print(f"Using {potion_item.display_name} from hotkey...")
+        if potion_type == 'health':
+            old_health = self.player.health
+            self.player.health = min(self.player.max_health, self.player.health + potion_item.effect_value)
+            print(f"Restored {self.player.health - old_health} health. Player health: {self.player.health}/{self.player.max_health}")
+        elif potion_type == 'mana':
+            old_mana = self.player.mana
+            self.player.mana = min(self.player.max_mana, self.player.mana + potion_item.effect_value)
+            print(f"Restored {self.player.mana - old_mana} mana. Player mana: {self.player.mana}/{self.player.max_mana}")
+        elif potion_type == 'stamina':
+            old_stamina = self.player.stamina
+            self.player.stamina = min(self.player.max_stamina, self.player.stamina + potion_item.effect_value)
+            print(f"Restored {self.player.stamina - old_stamina} stamina. Player stamina: {self.player.stamina}/{self.player.max_stamina}")
+        
+        # Play a sound effect
+        if 'player_hit' in self.sounds:
+            self.sounds['player_hit'].play()
+        
+        # Remove the used potion from inventory
+        self.player.inventory.items[potion_index] = None
+        
+        # Update UI
+        self.inventory_ui.inventory = self.player.inventory.items
+        
+        return True
 
 class Equipment:
     """Class to manage equipped items."""
@@ -1263,6 +2167,19 @@ class Game:
 
 def main():
     """Start the game."""
+    # Initialize pygame with audio support
+    pygame.init()
+    
+    # Initialize the mixer module specifically with good audio settings
+    try:
+        pygame.mixer.quit()  # Close any existing mixer
+        pygame.mixer.pre_init(44100, -16, 2, 512)  # CD quality with small buffer
+        pygame.mixer.init()
+        pygame.mixer.set_num_channels(16)  # Set more channels for multiple sounds
+        print("Audio system initialized successfully with 16 channels")
+    except pygame.error as e:
+        print(f"Warning: Audio system initialization failed: {e}")
+    
     # Create and run the game
     game = Game()
     game.run()

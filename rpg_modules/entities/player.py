@@ -34,6 +34,13 @@ class Player:
         self.level = 1
         self.experience = 0
         self.gold = 0
+        self.direction = 'south'  # Default facing direction: north, east, south, west
+        
+        # Combat attributes
+        self.attack_range = 1.5 * TILE_SIZE  # Attack range in pixels
+        self.attack_cooldown = 500  # Cooldown in milliseconds
+        self.last_attack_time = 0  # Last attack timestamp
+        self.attack_type = 1  # Current attack type (1-4)
         
         # Create proper inventory and equipment objects
         self.inventory = Inventory(40)  # Inventory with 40 slots
@@ -69,13 +76,26 @@ class Player:
         # Handle movement input
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             target_dx = -self.speed
+            self.direction = 'west'
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             target_dx = self.speed
+            self.direction = 'east'
             
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             target_dy = -self.speed
+            # Only set north direction if not also moving horizontally
+            if target_dx == 0:
+                self.direction = 'north'
         elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
             target_dy = self.speed
+            # Only set south direction if not also moving horizontally
+            if target_dx == 0:
+                self.direction = 'south'
+            
+        # Handle attack input (spacebar)
+        if keys[pygame.K_SPACE]:
+            # Attempt to attack if cooldown has passed
+            self.try_attack()
             
         # Smooth acceleration
         acceleration = 2000  # Pixels per second squared
@@ -142,6 +162,43 @@ class Player:
         
         # Draw player using animation system
         self.animation.draw(screen, (screen_x, screen_y), scaled_size)
+        
+        # Draw health bar above the player
+        bar_width = scaled_size
+        bar_height = max(4, int(6 * zoom))
+        health_percent = self.health / self.max_health
+        
+        # Position the health bar above the player
+        bar_x = screen_x
+        bar_y = screen_y - int(15 * zoom)
+        
+        # Draw health bar background (dark red)
+        pygame.draw.rect(screen, (100, 0, 0), 
+                         (bar_x, bar_y, bar_width, bar_height))
+        
+        # Draw health bar fill (bright green/yellow/red based on health)
+        if health_percent > 0:
+            # Change color from green to red as health decreases
+            if health_percent > 0.7:
+                fill_color = (0, 200, 0)  # Green for high health
+            elif health_percent > 0.3:
+                fill_color = (200, 200, 0)  # Yellow for medium health
+            else:
+                fill_color = (200, 0, 0)  # Red for low health
+            
+            fill_width = int(bar_width * health_percent)
+            pygame.draw.rect(screen, fill_color, 
+                            (bar_x, bar_y, fill_width, bar_height))
+        
+        # Draw player level above health bar if not in debug mode
+        if not hasattr(self, 'DEBUG') or not self.DEBUG:
+            font_size = max(10, int(20 * zoom))
+            font = pygame.font.Font(None, font_size)
+            level_text = f"Player lvl {self.level}"
+            level_surface = font.render(level_text, True, (255, 255, 255))
+            level_x = screen_x + (scaled_size - level_surface.get_width()) // 2
+            level_y = screen_y - int(35 * zoom)
+            screen.blit(level_surface, (level_x, level_y))
         
         # Draw debug info if needed
         if hasattr(self, 'DEBUG') and self.DEBUG:
@@ -283,7 +340,37 @@ class Player:
             amount: Amount of experience to add
         """
         self.experience += amount
-        # TODO: Add level up logic based on experience thresholds
+        
+        # Check for level up
+        # Simple formula: next level requires current_level * 100 XP
+        xp_needed = self.level * 100
+        
+        if self.experience >= xp_needed:
+            # Level up!
+            self.level += 1
+            self.experience -= xp_needed  # Subtract XP needed for level up
+            
+            # Increase stats
+            self.max_health += 10
+            self.health = self.max_health  # Heal to full on level up
+            self.max_mana += 5
+            self.mana = self.max_mana  # Restore mana on level up
+            self.max_stamina += 5
+            self.stamina = self.max_stamina  # Restore stamina on level up
+            self.attack += 2
+            self.defense += 1
+            
+            print(f"LEVEL UP! Player is now level {self.level}!")
+            print(f"Health: {self.max_health}, Mana: {self.max_mana}, Attack: {self.attack}, Defense: {self.defense}")
+            
+            # Signal that a level-up occurred
+            self.on_level_up()
+        
+    def on_level_up(self):
+        """Called when player levels up - can be used to play sounds or show effects."""
+        # This method is meant to be used by GameState to play sounds
+        # It doesn't directly play sounds to maintain separation of concerns
+        pass
         
     def add_gold(self, amount: int) -> None:
         """
@@ -293,6 +380,39 @@ class Player:
             amount: Amount of gold to add
         """
         self.gold += amount
+        
+    def take_damage(self, damage: int) -> None:
+        """
+        Handle player taking damage from attacks.
+        
+        Args:
+            damage: Amount of damage to take
+        """
+        # Apply defense reduction (simple formula: damage - defense/2)
+        actual_damage = max(1, damage - (self.defense // 2))
+        
+        # Apply damage
+        self.health -= actual_damage
+        
+        # Ensure health doesn't go below 0
+        self.health = max(0, self.health)
+        
+        # Check if player died
+        if self.health <= 0:
+            self._handle_death()
+            
+    def _handle_death(self) -> None:
+        """Handle player death."""
+        # Reset health to 25% of max
+        self.health = self.max_health // 4
+        
+        # Respawn at center of map (simple respawn logic)
+        map_width = 50 * TILE_SIZE
+        map_height = 50 * TILE_SIZE
+        self.x = map_width // 2
+        self.y = map_height // 2
+        
+        print("Player died and respawned!")
         
     def get_center_position(self) -> Tuple[int, int]:
         """Get the center position of the player for camera tracking."""
@@ -337,3 +457,107 @@ class Player:
                 player.equipment[slot] = Item.from_dict(item_data)
                 
         return player 
+
+    def try_attack(self) -> bool:
+        """
+        Attempt to perform an attack. Returns True if attack was performed.
+        """
+        current_time = pygame.time.get_ticks()
+        
+        # Check if cooldown has passed
+        if current_time - self.last_attack_time < self.attack_cooldown:
+            return False
+            
+        # Reset attack timer
+        self.last_attack_time = current_time
+        
+        # Signal that attack was successful (actual target hit detection happens in GameState)
+        return True
+        
+    def can_attack(self) -> bool:
+        """Check if player can attack (cooldown has passed)."""
+        current_time = pygame.time.get_ticks()
+        return current_time - self.last_attack_time >= self.attack_cooldown
+        
+    def get_attack_damage(self) -> int:
+        """Get the player's attack damage, accounting for equipment and attack type."""
+        base_damage = self.attack
+        
+        # Add weapon damage if equipped
+        weapon = self.equipment.get_equipped_item('weapon') if hasattr(self.equipment, 'get_equipped_item') else None
+        if weapon and hasattr(weapon, 'attack_power'):
+            base_damage += weapon.attack_power
+        
+        # Apply modifiers based on attack type
+        if self.attack_type == 1:
+            # Regular attack - standard damage
+            multiplier = 1.0
+        elif self.attack_type == 2:
+            # Heavy attack - more damage but uses stamina
+            multiplier = 1.5
+            self.stamina = max(0, self.stamina - 15)  # Cost: 15 stamina
+        elif self.attack_type == 3:
+            # Magic attack - uses mana
+            multiplier = 2.0
+            self.mana = max(0, self.mana - 20)  # Cost: 20 mana
+        elif self.attack_type == 4:
+            # Quick attack - less damage but faster cooldown
+            multiplier = 0.7
+            self.last_attack_time -= 200  # 200ms less cooldown
+        else:
+            multiplier = 1.0
+            
+        # Random variation (±10%)
+        variation = random.uniform(0.9, 1.1)
+        
+        # Return final damage as integer
+        return max(1, int(base_damage * multiplier * variation))
+    
+    def get_attack_type_name(self) -> str:
+        """Get the name of the current attack type."""
+        if self.attack_type == 1:
+            return "Regular"
+        elif self.attack_type == 2:
+            return "Heavy"
+        elif self.attack_type == 3:
+            return "Magic"
+        elif self.attack_type == 4:
+            return "Quick"
+        else:
+            return "Unknown"
+    
+    def get_attack_range(self) -> float:
+        """Get attack range, which may be modified by attack type."""
+        base_range = self.attack_range
+        
+        # Magic attacks have longer range
+        if self.attack_type == 3:
+            return base_range * 1.5
+        
+        # Heavy attacks have slightly shorter range
+        if self.attack_type == 2:
+            return base_range * 0.8
+            
+        return base_range
+    
+    def switch_attack_type(self, new_type: int) -> bool:
+        """
+        Switch to a different attack type.
+        
+        Args:
+            new_type: The attack type to switch to (1-4)
+            
+        Returns:
+            True if the switch was successful, False otherwise
+        """
+        if not (1 <= new_type <= 4):
+            return False
+            
+        # Check resource requirements
+        if new_type == 2 and self.stamina < 15:  # Heavy attack
+            return False
+        if new_type == 3 and self.mana < 20:  # Magic attack
+            return False
+            
+        self.attack_type = new_type
+        return True 

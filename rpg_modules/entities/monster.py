@@ -289,13 +289,37 @@ class Monster:
                                self.direction,
                                size=scaled_size)
             
-            # Draw monster type text above monster
+            # Draw health bar above the monster
+            bar_width = scaled_size
+            bar_height = max(4, int(6 * zoom))
+            health_percent = self.health / self.max_health
+            
+            # Position the health bar above the monster and its name
+            bar_x = screen_x
+            bar_y = screen_y - int(28 * zoom)
+            
+            # Draw health bar background (dark red)
+            pygame.draw.rect(screen, (100, 0, 0), 
+                            (bar_x, bar_y, bar_width, bar_height))
+            
+            # Draw health bar fill (bright red/green based on health)
+            if health_percent > 0:
+                # Change color from green to red as health decreases
+                green = int(200 * health_percent)
+                red = int(200 * (1 - health_percent) + 55)
+                fill_color = (red, green, 0)
+                
+                fill_width = int(bar_width * health_percent)
+                pygame.draw.rect(screen, fill_color, 
+                               (bar_x, bar_y, fill_width, bar_height))
+            
+            # Draw monster type text above health bar
             font_size = max(10, int(20 * zoom))
             font = pygame.font.Font(None, font_size)
             text = f"{self.monster_type.name} lvl {self.level}"
             text_surface = font.render(text, True, (255, 255, 255))
             text_x = screen_x + (scaled_size - text_surface.get_width()) // 2
-            text_y = screen_y - int(20 * zoom)
+            text_y = screen_y - int(45 * zoom)
             screen.blit(text_surface, (text_x, text_y))
 
     def _get_monster_color(self):
