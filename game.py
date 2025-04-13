@@ -1976,11 +1976,33 @@ class GameState:
         potion_types = ["7: Health", "8: Mana", "9: Stamina"]
         potion_colors = [(200, 60, 60), (60, 100, 200), (60, 200, 60)]
         
-        # Get potion counts
+        # Get current player stats for showing usability
+        current_health = self.player.health
+        max_health = self.player.max_health
+        current_mana = self.player.mana
+        max_mana = self.player.max_mana
+        current_stamina = self.player.stamina
+        max_stamina = self.player.max_stamina
+        
+        # Get potion counts - Use direct attribute access to ensure we see current values
         health_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'health')
         mana_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'mana')
         stamina_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'stamina')
         potion_counts = [health_potions, mana_potions, stamina_potions]
+        
+        # Check if stats need potions - explicitly cast to boolean for clarity
+        need_health = bool(current_health < max_health)
+        need_mana = bool(current_mana < max_mana)
+        need_stamina = bool(current_stamina < max_stamina)
+        can_use_potion = [need_health, need_mana, need_stamina]
+        
+        # Special case for health potions - force strong red highlight when injured
+        if current_health < max_health and health_potions > 0:
+            health_highlight_color = (90, 40, 40, 220)  # Much brighter background for health when injured
+            health_text_color = (255, 80, 80)  # Bright red text for health when injured
+        else:
+            health_highlight_color = (60, 60, 60, 200) if (need_health and health_potions > 0) else (40, 40, 40, 160)
+            health_text_color = potion_colors[0] if (need_health and health_potions > 0) else tuple(c//2.5 for c in potion_colors[0])
         
         for i in range(3):
             slot_x = toolbar_width // 2 + 20 + i * 120
@@ -1988,16 +2010,47 @@ class GameState:
             slot_width = 100
             slot_height = 40
             
-            # Draw slot background
-            pygame.draw.rect(toolbar_surface, (40, 40, 40, 160), (slot_x, 10, slot_width, slot_height), border_radius=5)
+            # Determine if this potion can be used (has potions AND needs effect)
+            potion_usable = potion_counts[i] > 0 and can_use_potion[i]
+            
+            # Special highlight for health potions when injured
+            if i == 0 and current_health < max_health and health_potions > 0:
+                bg_color = health_highlight_color
+                text_color = health_text_color
+            else:
+                # Draw slot background - highlight if potions are available and usable
+                if potion_usable:
+                    # Use a brighter background for usable potions
+                    bg_color = (60, 60, 60, 200)
+                else:
+                    # Use darker background for unusable potions
+                    bg_color = (40, 40, 40, 160)
+                
+                # Draw potion name with appropriate color
+                if potion_usable:
+                    # Full brightness for available and usable potions
+                    text_color = potion_colors[i]
+                elif potion_counts[i] > 0:
+                    # Medium brightness when you have potions but at max stats
+                    text_color = tuple(c//1.5 for c in potion_colors[i])
+                else:
+                    # Dim color if no potions available
+                    text_color = tuple(c//2.5 for c in potion_colors[i])
+            
+            pygame.draw.rect(toolbar_surface, bg_color, (slot_x, 10, slot_width, slot_height), border_radius=5)
             screen.blit(toolbar_surface, (0, toolbar_y))
             
-            # Draw potion name with color
-            text = font.render(potion_types[i], True, potion_colors[i])
+            text = font.render(potion_types[i], True, text_color)
             screen.blit(text, (slot_x + 10, slot_y + 5))
             
-            # Draw potion count
-            count_text = small_font.render(f"Count: {potion_counts[i]}", True, (220, 220, 220))
+            # Draw potion count and status
+            if potion_counts[i] > 0 and not can_use_potion[i]:
+                # Show that player is at max for this stat
+                status_text = f"Count: {potion_counts[i]} (At Max)"
+            else:
+                status_text = f"Count: {potion_counts[i]}"
+                
+            count_text = small_font.render(status_text, True, (220, 220, 220))
             screen.blit(count_text, (slot_x + 10, slot_y + 25))
 
     def _count_potions_of_type(self, potion_type):
@@ -2025,7 +2078,7 @@ class GameState:
                 
         if potion_index is None or potion_item is None:
             print(f"No {potion_type} potion in inventory")
-        return False
+            return False
 
         # Use the potion
         print(f"Using {potion_item.display_name} from hotkey...")
@@ -2051,6 +2104,7 @@ class GameState:
         
         # Update UI
         self.inventory_ui.inventory = self.player.inventory.items
+        self.refresh_inventory_ui()  # Make sure UI is completely refreshed
         
         return True
 
