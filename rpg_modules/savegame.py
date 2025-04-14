@@ -109,11 +109,14 @@ def load_game(game_state):
             print(f"Reset inventory with capacity {inventory_capacity}.")
             
             # Load inventory items
-            for item_data in save_data.get('player', {}).get('inventory', []):
+            for i, item_data in enumerate(player_data.get('inventory', [])):
                 if item_data:  # Only process non-None items
                     item = create_item_from_data(item_data)
                     if item:
-                        game_state.player.inventory.add_item(item)
+                        # Add directly to inventory slot instead of using add_item
+                        # This preserves the exact item positions from the save file
+                        if i < inventory_capacity:
+                            game_state.player.inventory.items[i] = item
             print(f"Loaded {sum(1 for item in game_state.player.inventory.items if item is not None)} items into inventory.")
             
             # Clear current equipment
@@ -122,20 +125,26 @@ def load_game(game_state):
             print("Current equipment cleared.")
             
             # Load equipped items
-            for slot, item_data in save_data.get('player', {}).get('equipment', {}).items():
+            for slot, item_data in player_data.get('equipment', {}).items():
                 item = create_item_from_data(item_data)
                 if item:
                     game_state.player.equipment.equip_item(item)
-            print(f"Loaded {len(save_data.get('player', {}).get('equipment', {}))} equipped items.")
+            print(f"Loaded {len(player_data.get('equipment', {}))} equipped items.")
             
             # Make sure the inventory UI is updated with the new inventory
             game_state.refresh_inventory_ui()
             
-            # Update equipment UI with player
+            # Update equipment UI with player's equipment
             game_state.equipment_ui.equipment = game_state.player.equipment.slots
             game_state.equipment_ui.set_player(game_state.player)
             
-            print("Refreshed inventory UI after loading.")
+            # Force a complete UI refresh
+            if hasattr(game_state.inventory_ui, 'rebuild'):
+                game_state.inventory_ui.rebuild()
+            if hasattr(game_state.equipment_ui, 'rebuild'):
+                game_state.equipment_ui.rebuild()
+            
+            print("Refreshed inventory and equipment UI after loading.")
             
             print(f"Game loaded from {save_path}")
             # Only close the system menu if it's currently visible

@@ -24,6 +24,11 @@ from rpg_modules.core.constants import (
     QUALITY_COLORS, UI_DIMENSIONS
 )
 from rpg_modules.core.map import TileType
+# Import save game functionality
+from rpg_modules.savegame import save_game as module_save_game
+from rpg_modules.savegame import load_game as module_load_game
+from rpg_modules.savegame import resume_game as module_resume_game
+from rpg_modules.savegame import create_item_from_data as module_create_item
 import traceback
 import numpy as np
 import types
@@ -448,180 +453,23 @@ class GameState:
         
     def _resume_game(self):
         """Resume the game by hiding the system menu."""
-        self.system_menu_ui.toggle()
-        print("Game resumed")
+        # Call the module's resume_game function
+        module_resume_game(self)
         
     def _save_game(self):
-        print("Saving game...")
-        # Save the game state to a file
-        save_data = {
-            'player': {
-                'x': self.player.x,
-                'y': self.player.y,
-                'health': self.player.health,
-                'max_health': self.player.max_health,
-                'mana': getattr(self.player, 'mana', 0),
-                'max_mana': getattr(self.player, 'max_mana', 0),
-                'xp': getattr(self.player, 'xp', getattr(self.player, 'experience', 0)),
-                'level': self.player.level,
-                'inventory': [item.to_dict() if item is not None else None for item in self.player.inventory.items],
-                'equipment': {slot: item.to_dict() for slot, item in self.player.equipment.slots.items() if item is not None}
-            },
-            'map': {
-                'current_map': getattr(self.map, 'name', 'default_map'),
-                'player_visited': list(self.player_visited) if hasattr(self, 'player_visited') else []
-            }
-        }
-        os.makedirs('save', exist_ok=True)
-        with open('save/savegame.json', 'w') as f:
-            json.dump(save_data, f, indent=2)
-        print("Game saved to save\\savegame.json")
-        try:
-            # Only close the system menu if it's currently visible
-            if self.system_menu_ui.visible:
-                self.system_menu_ui.toggle()
-        except Exception as e:
-            print(f"Error saving game: {e}")
-        self.paused = False
+        """Save the current game state to a file."""
+        # Call the module's save_game function
+        module_save_game(self)
 
     def load_game(self):
         """Load the game state from a file if it exists."""
-        import os
-        import json
-        save_path = os.path.join(self.save_path, self.save_file)
-        print(f"Attempting to load game from: {save_path}")
-        if os.path.exists(save_path):
-            try:
-                with open(save_path, 'r') as f:
-                    save_data = json.load(f)
-                    print("Save data loaded successfully.")
-                
-                # Load player data
-                player_data = save_data.get('player', {})
-                self.player.rect.x = player_data.get('x', self.player.rect.x)
-                self.player.rect.y = player_data.get('y', self.player.rect.y)
-                self.player.level = player_data.get('level', self.player.level)
-                if hasattr(self.player, 'xp'):
-                    self.player.xp = player_data.get('xp', getattr(self.player, 'xp', 0))
-                elif hasattr(self.player, 'experience'):
-                    self.player.experience = player_data.get('xp', getattr(self.player, 'experience', 0))
-                if hasattr(self.player, 'gold'):
-                    self.player.gold = player_data.get('gold', getattr(self.player, 'gold', 0))
-                if hasattr(self.player, 'health'):
-                    self.player.health = player_data.get('health', getattr(self.player, 'health', 0))
-                elif hasattr(self.player, 'hp'):
-                    self.player.hp = player_data.get('health', getattr(self.player, 'hp', 0))
-                if hasattr(self.player, 'max_health'):
-                    self.player.max_health = player_data.get('max_health', getattr(self.player, 'max_health', 0))
-                elif hasattr(self.player, 'max_hp'):
-                    self.player.max_hp = player_data.get('max_health', getattr(self.player, 'max_hp', 0))
-                if hasattr(self.player, 'mana'):
-                    self.player.mana = player_data.get('mana', getattr(self.player, 'mana', 0))
-                if hasattr(self.player, 'max_mana'):
-                    self.player.max_mana = player_data.get('max_mana', getattr(self.player, 'max_mana', 0))
-                if hasattr(self.player, 'stamina'):
-                    self.player.stamina = player_data.get('stamina', getattr(self.player, 'stamina', 0))
-                if hasattr(self.player, 'max_stamina'):
-                    self.player.max_stamina = player_data.get('max_stamina', getattr(self.player, 'max_stamina', 0))
-                if hasattr(self.player, 'attack_type'):
-                    self.player.attack_type = player_data.get('attack_type', getattr(self.player, 'attack_type', ''))
-                if hasattr(self.player, 'base_attack'):
-                    self.player.base_attack = player_data.get('base_attack', getattr(self.player, 'base_attack', 0))
-                if hasattr(self.player, 'defense'):
-                    self.player.defense = player_data.get('defense', getattr(self.player, 'defense', 0))
-                if hasattr(self.player, 'dexterity'):
-                    self.player.dexterity = player_data.get('dexterity', getattr(self.player, 'dexterity', 0))
-                print("Player data applied.")
-                
-                # Reset inventory with proper capacity
-                inventory_capacity = len(self.player.inventory.items)
-                self.player.inventory.items = [None] * inventory_capacity
-                print(f"Reset inventory with capacity {inventory_capacity}.")
-                
-                # Load inventory items
-                for item_data in save_data.get('inventory', []):
-                    if item_data:  # Only process non-None items
-                        item = self._create_item_from_data(item_data)
-                        if item:
-                            self.player.inventory.add_item(item)
-                print(f"Loaded {sum(1 for item in self.player.inventory.items if item is not None)} items into inventory.")
-                
-                # Clear current equipment
-                for slot in self.player.equipment.slots:
-                    self.player.equipment.unequip_item(slot)
-                print("Current equipment cleared.")
-                
-                # Load equipped items
-                for slot, item_data in save_data.get('equipment', {}).items():
-                    item = self._create_item_from_data(item_data)
-                    if item:
-                        self.player.equipment.equip_item(item)
-                print(f"Loaded {len(save_data.get('equipment', {}))} equipped items.")
-                
-                # Make sure the inventory UI is updated with the new inventory
-                self.refresh_inventory_ui()
-                
-                # Update equipment UI with player
-                self.equipment_ui.equipment = self.player.equipment.slots
-                self.equipment_ui.set_player(self.player)
-                
-                print("Refreshed inventory UI after loading.")
-                
-                print(f"Game loaded from {save_path}")
-                # Only close the system menu if it's currently visible
-                if self.system_menu_ui.visible:
-                    self.system_menu_ui.toggle()
-            except Exception as e:
-                print(f"Error loading game: {str(e)}")
-                import traceback
-                traceback.print_exc()
-        else:
-            print(f"No saved game found at {save_path}.")
-
-    def _create_item_from_data(self, item_data):
-        """Create an item object from saved data."""
-        if not item_data:
-            return None
-        
-        quality = item_data.get('quality', 'Common')
-        if item_data.get('weapon_type'):
-            return Weapon(
-                weapon_type=item_data.get('weapon_type', 'Sword'),
-                attack_power=item_data.get('attack_power', 5),
-                quality=quality,
-                material=item_data.get('material', 'Iron'),
-                prefix=item_data.get('prefix', None)
-            )
-        elif item_data.get('armor_type'):
-            if item_data.get('armor_type') == 'hands':
-                return Hands(
-                    defense=item_data.get('defense', 3),
-                    dexterity=item_data.get('dexterity', 1),
-                    quality=quality,
-                    material=item_data.get('material', 'Leather'),
-                    prefix=item_data.get('prefix', None)
-                )
-            else:
-                return Armor(
-                    armor_type=item_data.get('armor_type', 'Chest'),
-                    defense=item_data.get('defense', 5),
-                    quality=quality,
-                    material=item_data.get('material', 'Iron'),
-                    prefix=item_data.get('prefix', None)
-                )
-        elif item_data.get('consumable_type'):
-            return Consumable(
-                consumable_type=item_data.get('consumable_type', 'health'),
-                effect_value=item_data.get('effect_value', 20),
-                quality=quality
-            )
-        return None
+        # Call the module's load_game function
+        module_load_game(self)
 
     def _load_game(self):
         """Load a previously saved game."""
-        print("Loading game...")
+        print("Loading game using module function...")
         self.load_game()
-        # The system menu toggle is now handled in load_game() based on menu visibility
 
     def _new_game(self):
         """Start a new game."""
