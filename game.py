@@ -710,8 +710,26 @@ class GameState:
                     # Toggle quest UI
                     self.quest_ui.toggle()
                 elif event.key == pygame.K_ESCAPE:
-                    # Show system menu instead of quitting
-                    self.system_menu_ui.toggle()
+                    # Handle ESC key: First close any open UI windows, then toggle system menu if needed
+                    if self.inventory_ui.visible:
+                        self.inventory_ui.toggle()
+                        # Make equipment UI match inventory UI visibility
+                        if self.equipment_ui.visible:
+                            self.equipment_ui.toggle()
+                        print("Closed inventory UI with ESC key")
+                    elif self.equipment_ui.visible:
+                        self.equipment_ui.toggle()
+                        print("Closed equipment UI with ESC key")
+                    elif self.generator_ui.visible:
+                        self.generator_ui.toggle()
+                        print("Closed generator UI with ESC key")
+                    elif self.quest_ui.visible:
+                        self.quest_ui.toggle()
+                        print("Closed quest UI with ESC key")
+                    else:
+                        # Only open system menu if no other UI is visible
+                        self.system_menu_ui.toggle()
+                        print("Toggled system menu with ESC key")
                 # Attack type switching with number keys
                 elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
                     # Convert key to attack type (1-4)
