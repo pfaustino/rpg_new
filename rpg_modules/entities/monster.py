@@ -195,11 +195,12 @@ class MonsterType(Enum):
 class Monster:
     """Class representing a monster in the game."""
     
-    def __init__(self, x: float, y: float, monster_type: MonsterType):
+    def __init__(self, x: float, y: float, monster_type: MonsterType, game_map=None):
         """Initialize a monster at the given position."""
         self.x = x
         self.y = y
         self.monster_type = monster_type
+        self.game_map = game_map
         
         # Set default attributes based on type
         self.max_health = monster_type.base_health
@@ -227,6 +228,12 @@ class Monster:
 
     def update(self, dt, player_pos):
         """Update monster state and position."""
+        # Import game settings
+        from rpg_modules.core.settings import GameSettings
+        
+        # Get the current monster speed multiplier
+        monster_speed_multiplier = GameSettings.instance().monster_speed_multiplier
+        
         # Calculate distance to player
         dx = player_pos[0] - self.x
         dy = player_pos[1] - self.y
@@ -239,13 +246,28 @@ class Monster:
                 dx /= distance
                 dy /= distance
             
+            # Store current position to check for collisions
+            old_x = self.x
+            old_y = self.y
+            
             # Move in the direction with larger component
             if abs(dx) > abs(dy):
-                self.x += dx * self.speed * dt
+                self.x += dx * self.speed * monster_speed_multiplier * dt
                 self.direction = Direction.RIGHT if dx > 0 else Direction.LEFT
             else:
-                self.y += dy * self.speed * dt
+                self.y += dy * self.speed * monster_speed_multiplier * dt
                 self.direction = Direction.DOWN if dy > 0 else Direction.UP
+            
+            # Check for wall collisions
+            new_tile_x = int(self.x // TILE_SIZE)
+            new_tile_y = int(self.y // TILE_SIZE)
+            
+            # Import is implicit here from game context
+            # Check if the new position is walkable
+            if hasattr(self, 'game_map') and self.game_map and not self.game_map.is_walkable(new_tile_x, new_tile_y):
+                # If not walkable, revert to old position
+                self.x = old_x
+                self.y = old_y
             
             self.moving = True
         else:
@@ -253,15 +275,29 @@ class Monster:
             if random.random() < 0.02:  # 2% chance to change direction each frame
                 self.direction = random.choice(list(Direction))
             
+            # Store current position to check for collisions
+            old_x = self.x
+            old_y = self.y
+            
             # Move in current direction
             if self.direction == Direction.UP:
-                self.y -= self.speed * dt
+                self.y -= self.speed * monster_speed_multiplier * dt
             elif self.direction == Direction.DOWN:
-                self.y += self.speed * dt
+                self.y += self.speed * monster_speed_multiplier * dt
             elif self.direction == Direction.LEFT:
-                self.x -= self.speed * dt
+                self.x -= self.speed * monster_speed_multiplier * dt
             elif self.direction == Direction.RIGHT:
-                self.x += self.speed * dt
+                self.x += self.speed * monster_speed_multiplier * dt
+            
+            # Check for wall collisions
+            new_tile_x = int(self.x // TILE_SIZE)
+            new_tile_y = int(self.y // TILE_SIZE)
+            
+            # Check if the new position is walkable
+            if hasattr(self, 'game_map') and self.game_map and not self.game_map.is_walkable(new_tile_x, new_tile_y):
+                # If not walkable, revert to old position
+                self.x = old_x
+                self.y = old_y
             
             self.moving = True
         

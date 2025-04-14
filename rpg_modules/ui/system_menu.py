@@ -24,7 +24,7 @@ class SystemMenuUI:
         
         # Calculate dimensions
         self.width = 400
-        self.height = 400
+        self.height = 500  # Increased height to accommodate settings
         
         # Position in center of screen
         self.x = (SCREEN_WIDTH - self.width) // 2
@@ -36,6 +36,7 @@ class SystemMenuUI:
         # Initialize fonts
         self.title_font = pygame.font.Font(None, FONT_SIZES['large'])
         self.font = pygame.font.Font(None, FONT_SIZES['medium'])
+        self.settings_font = pygame.font.Font(None, FONT_SIZES['small'])
         
         # Menu options
         self.options = [
@@ -46,10 +47,21 @@ class SystemMenuUI:
             "Quit Game"
         ]
         
+        # Game settings
+        self.difficulty_levels = ["Easy", "Medium", "Hard"]
+        self.current_difficulty = 1  # Default to Medium (index 1)
+        
         # Button rects
         self.button_height = 50
         self.button_spacing = 10
         self.buttons = []
+        
+        # Settings controls
+        self.settings_section_y = 0  # Will be calculated in _create_buttons
+        self.difficulty_label_rect = None
+        self.difficulty_decrease_rect = None
+        self.difficulty_value_rect = None
+        self.difficulty_increase_rect = None
         
         # Set up button callbacks
         self.callbacks = {option: None for option in self.options}
@@ -60,6 +72,19 @@ class SystemMenuUI:
         
         # Create button rects
         self._create_buttons()
+        
+        # Update settings from current game settings
+        self._sync_with_game_settings()
+        
+    def _sync_with_game_settings(self):
+        """Synchronize UI with current game settings."""
+        try:
+            from ..core.settings import GameSettings
+            settings = GameSettings.instance()
+            self.current_difficulty = settings.difficulty_level - 1  # Convert 1-based to 0-based
+        except (ImportError, AttributeError):
+            # Default if settings not available
+            self.current_difficulty = 1  # Medium
         
     def _create_buttons(self):
         """Create button rectangles for each menu option."""
@@ -72,6 +97,39 @@ class SystemMenuUI:
             button_rect = pygame.Rect(button_x, button_y, button_width, self.button_height)
             self.buttons.append(button_rect)
             button_y += self.button_height + self.button_spacing
+        
+        # Calculate settings section position
+        self.settings_section_y = button_y + 20
+        
+        # Create difficulty setting controls
+        label_width = 120
+        control_width = 30
+        value_width = 80
+        control_height = 30
+        
+        # Label rect
+        self.difficulty_label_rect = pygame.Rect(
+            button_x, self.settings_section_y, 
+            label_width, control_height
+        )
+        
+        # Decrease button (-) rect
+        self.difficulty_decrease_rect = pygame.Rect(
+            button_x + label_width + 10, self.settings_section_y,
+            control_width, control_height
+        )
+        
+        # Value display rect
+        self.difficulty_value_rect = pygame.Rect(
+            button_x + label_width + control_width + 20, self.settings_section_y,
+            value_width, control_height
+        )
+        
+        # Increase button (+) rect
+        self.difficulty_increase_rect = pygame.Rect(
+            button_x + label_width + control_width + value_width + 30, self.settings_section_y,
+            control_width, control_height
+        )
             
     def set_callback(self, option: str, callback: Callable[[], None]):
         """Set callback function for a menu option."""
@@ -83,12 +141,27 @@ class SystemMenuUI:
         self.visible = not self.visible
         # Reset selection state when toggling
         if self.visible:
+            self._sync_with_game_settings()
             self.hovered_option = None
             self.selected_option = None
             
     def hide(self):
         """Hide the system menu."""
         self.visible = False
+        
+    def _change_difficulty(self, increment):
+        """Change difficulty level by the given increment."""
+        new_difficulty = max(0, min(len(self.difficulty_levels) - 1, self.current_difficulty + increment))
+        if new_difficulty != self.current_difficulty:
+            self.current_difficulty = new_difficulty
+            # Update game settings
+            try:
+                from ..core.settings import GameSettings
+                # Convert 0-based index to 1-based difficulty level
+                GameSettings.instance().adjust_difficulty(self.current_difficulty + 1)
+                print(f"Difficulty changed to {self.difficulty_levels[self.current_difficulty]}")
+            except (ImportError, AttributeError) as e:
+                print(f"Error updating game settings: {e}")
         
     def handle_event(self, event: pygame.event.Event) -> bool:
         """Handle UI events."""
@@ -109,6 +182,15 @@ class SystemMenuUI:
                         self.callbacks[option]()
                     
                     return True
+            
+            # Check if clicked on difficulty controls
+            if self.difficulty_decrease_rect and self.difficulty_decrease_rect.collidepoint(mouse_pos):
+                self._change_difficulty(-1)  # Decrease difficulty
+                return True
+                
+            if self.difficulty_increase_rect and self.difficulty_increase_rect.collidepoint(mouse_pos):
+                self._change_difficulty(1)   # Increase difficulty
+                return True
                     
         elif event.type == pygame.MOUSEMOTION:
             mouse_pos = pygame.mouse.get_pos()
@@ -175,4 +257,48 @@ class SystemMenuUI:
             text = self.font.render(option, True, UI_COLORS['text'])
             text_x = button.x + (button.width - text.get_width()) // 2
             text_y = button.y + (button.height - text.get_height()) // 2
-            screen.blit(text, (text_x, text_y)) 
+            screen.blit(text, (text_x, text_y))
+        
+        # Draw settings section header
+        settings_header = self.font.render("Game Settings", True, UI_COLORS['text'])
+        settings_x = self.x + 20
+        settings_y = self.settings_section_y - 30
+        screen.blit(settings_header, (settings_x, settings_y))
+        
+        # Draw settings divider line
+        pygame.draw.line(
+            screen, 
+            UI_COLORS['border'], 
+            (self.x + 20, settings_y + 25), 
+            (self.x + self.width - 20, settings_y + 25),
+            1
+        )
+        
+        # Draw difficulty controls
+        # Label
+        difficulty_label = self.settings_font.render("Difficulty:", True, UI_COLORS['text'])
+        screen.blit(difficulty_label, (self.difficulty_label_rect.x, self.difficulty_label_rect.y + 5))
+        
+        # Decrease button (-)
+        pygame.draw.rect(screen, (70, 70, 100), self.difficulty_decrease_rect, border_radius=3)
+        pygame.draw.rect(screen, UI_COLORS['border'], self.difficulty_decrease_rect, 1, border_radius=3)
+        minus_text = self.font.render("-", True, UI_COLORS['text'])
+        minus_x = self.difficulty_decrease_rect.x + (self.difficulty_decrease_rect.width - minus_text.get_width()) // 2
+        minus_y = self.difficulty_decrease_rect.y + (self.difficulty_decrease_rect.height - minus_text.get_height()) // 2
+        screen.blit(minus_text, (minus_x, minus_y))
+        
+        # Value
+        pygame.draw.rect(screen, (60, 60, 80), self.difficulty_value_rect, border_radius=3)
+        pygame.draw.rect(screen, UI_COLORS['border'], self.difficulty_value_rect, 1, border_radius=3)
+        difficulty_text = self.settings_font.render(self.difficulty_levels[self.current_difficulty], True, UI_COLORS['text'])
+        value_x = self.difficulty_value_rect.x + (self.difficulty_value_rect.width - difficulty_text.get_width()) // 2
+        value_y = self.difficulty_value_rect.y + (self.difficulty_value_rect.height - difficulty_text.get_height()) // 2
+        screen.blit(difficulty_text, (value_x, value_y))
+        
+        # Increase button (+)
+        pygame.draw.rect(screen, (70, 70, 100), self.difficulty_increase_rect, border_radius=3)
+        pygame.draw.rect(screen, UI_COLORS['border'], self.difficulty_increase_rect, 1, border_radius=3)
+        plus_text = self.font.render("+", True, UI_COLORS['text'])
+        plus_x = self.difficulty_increase_rect.x + (self.difficulty_increase_rect.width - plus_text.get_width()) // 2
+        plus_y = self.difficulty_increase_rect.y + (self.difficulty_increase_rect.height - plus_text.get_height()) // 2
+        screen.blit(plus_text, (plus_x, plus_y)) 

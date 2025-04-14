@@ -1,16 +1,16 @@
 {
   "player": {
-    "x": 123.62400000000046,
-    "y": 915.0320000000007,
-    "health": 94,
-    "max_health": 180,
-    "mana": 0,
-    "max_mana": 90,
-    "stamina": 115,
-    "max_stamina": 115,
+    "x": 305.6480000000009,
+    "y": 1216.9999999999957,
+    "health": 184,
+    "max_health": 190,
+    "mana": 35,
+    "max_mana": 95,
+    "stamina": 120,
+    "max_stamina": 120,
     "attack_type": 3,
-    "xp": 730,
-    "level": 9,
+    "xp": 120,
+    "level": 10,
     "inventory": [
       {
         "type": "Weapon",

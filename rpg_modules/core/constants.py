@@ -8,6 +8,9 @@ SCREEN_HEIGHT = 720
 TILE_SIZE = 32
 FPS = 60
 
+# Game balance constants
+# Note: Dynamic game settings like MONSTER_SPEED_MULTIPLIER have been moved to the GameSettings class
+
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)

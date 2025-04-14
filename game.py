@@ -623,6 +623,15 @@ class GameState:
                 # Add test items with T key
                 elif event.key == pygame.K_t:
                     self._add_test_items()
+                # Game settings: Adjust monster speed
+                elif event.key == pygame.K_F5:
+                    # Decrease monster speed
+                    from rpg_modules.core.settings import GameSettings
+                    GameSettings.instance().decrease_monster_speed(0.1)
+                elif event.key == pygame.K_F6:
+                    # Increase monster speed
+                    from rpg_modules.core.settings import GameSettings
+                    GameSettings.instance().increase_monster_speed(0.1)
             elif event.type == pygame.MOUSEWHEEL:
                 # Handle zoom immediately
                 if event.y > 0:  # Scroll up to zoom in
@@ -982,7 +991,7 @@ class GameState:
                     continue
                 
                 # Spawn monster
-                monster = Monster(pixel_x, pixel_y, monster_type)
+                monster = Monster(pixel_x, pixel_y, monster_type, self.map)
                 self.monsters.append(monster)
                 self.monster_counts[monster_type] += 1
                 spawn_count += 1
@@ -1106,7 +1115,7 @@ class GameState:
                 return False
             
             # Valid position found, spawn the monster
-            monster = Monster(pixel_x, pixel_y, monster_type)
+            monster = Monster(pixel_x, pixel_y, monster_type, self.map)
             
             # Set monster level to be +/- 1 of player level
             level_diff = random.randint(-1, 1)
@@ -1149,7 +1158,8 @@ class GameState:
                     new_slime = Monster(
                         monster.x + random.randint(-20, 20),
                         monster.y + random.randint(-20, 20),
-                        MonsterType.SLIME
+                        MonsterType.SLIME,
+                        self.map
                     )
                     new_slime.size = max(16, monster.size - 8)
                     new_slime.health = new_slime.size * 2
