@@ -481,6 +481,15 @@ class Player:
         if current_time - self.last_attack_time < self.attack_cooldown:
             return False
             
+        # Check resource requirements based on attack type
+        if self.attack_type == 2 and self.stamina < 15:  # Heavy attack requires stamina
+            print("Not enough stamina for Heavy attack!")
+            return False
+            
+        if self.attack_type == 3 and self.mana < 20:  # Magic attack requires mana
+            print("Not enough mana for Magic attack!")
+            return False
+            
         # Reset attack timer
         self.last_attack_time = current_time
         
@@ -508,11 +517,15 @@ class Player:
         elif self.attack_type == 2:
             # Heavy attack - more damage but uses stamina
             multiplier = 1.5
+            # We've already checked in try_attack that stamina is sufficient
             self.stamina = max(0, self.stamina - 15)  # Cost: 15 stamina
+            print(f"Used 15 stamina. Remaining: {self.stamina}/{self.max_stamina}")
         elif self.attack_type == 3:
             # Magic attack - uses mana
             multiplier = 2.0
+            # We've already checked in try_attack that mana is sufficient
             self.mana = max(0, self.mana - 20)  # Cost: 20 mana
+            print(f"Used 20 mana. Remaining: {self.mana}/{self.max_mana}")
         elif self.attack_type == 4:
             # Quick attack - less damage but faster cooldown
             multiplier = 0.7
