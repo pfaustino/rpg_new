@@ -81,154 +81,43 @@ class Player:
         self.last_movement_keys = set()
         
     def handle_input(self, keys: pygame.key.ScancodeWrapper, walls: List[pygame.Rect]) -> None:
-        """Handle player input using grid-aligned movement."""
+        """Handle player input with direct movement and wall sliding."""
         self.walls = walls
         
-        # Track which movement keys are currently pressed
-        current_movement_keys = set()
-        if keys[pygame.K_w]: current_movement_keys.add(pygame.K_w)
-        if keys[pygame.K_s]: current_movement_keys.add(pygame.K_s)
-        if keys[pygame.K_a]: current_movement_keys.add(pygame.K_a)
-        if keys[pygame.K_d]: current_movement_keys.add(pygame.K_d)
+        # Reset velocity
+        self.dx = 0
+        self.dy = 0
         
-        # Update first pressed key tracking
-        if not self.last_movement_keys and current_movement_keys:
-            # Keys just started being pressed
-            self.first_pressed_key = next(iter(current_movement_keys))
-        elif not current_movement_keys:
-            # All keys released
-            self.first_pressed_key = None
-        
-        self.last_movement_keys = current_movement_keys
-        
-        # Stop movement if no keys are pressed
-        if not current_movement_keys:
-            self.dx = 0
-            self.dy = 0
-            self.current_direction = (0, 0)
-            return
-            
         # Handle attack input
         if keys[pygame.K_SPACE]:
             self.try_attack()
         
-        # Determine primary and secondary movement
-        primary_dx, primary_dy = 0, 0
-        secondary_dx, secondary_dy = 0, 0
+        # Get movement input
+        up = keys[pygame.K_w]
+        down = keys[pygame.K_s]
+        left = keys[pygame.K_a]
+        right = keys[pygame.K_d]
         
-        # Set primary movement based on first pressed key
-        if self.first_pressed_key == pygame.K_w:
-            primary_dx, primary_dy = 0, -1
+        # Calculate base movement
+        if up and not down:
+            self.dy = -self.speed
             self.direction = 'north'
-        elif self.first_pressed_key == pygame.K_s:
-            primary_dx, primary_dy = 0, 1
+        elif down and not up:
+            self.dy = self.speed
             self.direction = 'south'
-        elif self.first_pressed_key == pygame.K_a:
-            primary_dx, primary_dy = -1, 0
+            
+        if left and not right:
+            self.dx = -self.speed
             self.direction = 'west'
-        elif self.first_pressed_key == pygame.K_d:
-            primary_dx, primary_dy = 1, 0
+        elif right and not left:
+            self.dx = self.speed
             self.direction = 'east'
-        
-        # Try primary movement first
-        if primary_dx != 0 or primary_dy != 0:
-            # Store original position
-            original_x = self.x
-            original_y = self.y
             
-            # Try primary movement
-            self.x += primary_dx * self.speed * 0.016  # Approximate for one frame
-            self.y += primary_dy * self.speed * 0.016
-            self.rect.x = self.x + 4
-            self.rect.y = self.y + 4
+        # Normalize diagonal movement
+        if self.dx != 0 and self.dy != 0:
+            self.dx *= 0.7071  # 1/sqrt(2)
+            self.dy *= 0.7071
             
-            if not self._check_collision(walls):
-                # Primary movement successful
-                self.x = original_x
-                self.y = original_y
-                self.rect.x = self.x + 4
-                self.rect.y = self.y + 4
-                self.dx = primary_dx * self.speed
-                self.dy = primary_dy * self.speed
-                return
-            
-            # Revert position if primary movement failed
-            self.x = original_x
-            self.y = original_y
-            self.rect.x = self.x + 4
-            self.rect.y = self.y + 4
-        
-        # If primary movement failed or wasn't set, try other pressed keys
-        for key in current_movement_keys:
-            if key != self.first_pressed_key:
-                if key == pygame.K_w:
-                    self.dx, self.dy = 0, -self.speed
-                    self.direction = 'north'
-                elif key == pygame.K_s:
-                    self.dx, self.dy = 0, self.speed
-                    self.direction = 'south'
-                elif key == pygame.K_a:
-                    self.dx, self.dy = -self.speed, 0
-                    self.direction = 'west'
-                elif key == pygame.K_d:
-                    self.dx, self.dy = self.speed, 0
-                    self.direction = 'east'
-                break
-        
-        # Check if we're at a grid point (tile center)
-        grid_x = round(self.x / TILE_SIZE) * TILE_SIZE
-        grid_y = round(self.y / TILE_SIZE) * TILE_SIZE
-        self.is_grid_aligned = (abs(self.x - grid_x) < 2 and abs(self.y - grid_y) < 2)
-        
-        if self.is_grid_aligned:
-            # We're at a grid point, try to turn if requested
-            if primary_dx != 0 or primary_dy != 0:
-                # Check if we can move in the requested direction
-                test_x = self.x + primary_dx * TILE_SIZE
-                test_y = self.y + primary_dy * TILE_SIZE
-                
-                # Test movement in requested direction
-                old_x, old_y = self.x, self.y
-                self.x = test_x
-                self.y = test_y
-                self.rect.x = self.x + 4  # collision_margin
-                self.rect.y = self.y + 4
-                
-                can_move = not self._check_collision(walls)
-                
-                # Restore position
-                self.x, self.y = old_x, old_y
-                self.rect.x = self.x + 4
-                self.rect.y = self.y + 4
-                
-                if can_move:
-                    self.current_direction = (primary_dx, primary_dy)
-                    self.queued_direction = None
-                else:
-                    # Can't move that way, queue the turn
-                    self.queued_direction = (primary_dx, primary_dy)
-            
-            # If we can't continue in current direction, stop
-            test_x = self.x + self.current_direction[0] * TILE_SIZE
-            test_y = self.y + self.current_direction[1] * TILE_SIZE
-            
-            old_x, old_y = self.x, self.y
-            self.x = test_x
-            self.y = test_y
-            self.rect.x = self.x + 4
-            self.rect.y = self.y + 4
-            
-            if self._check_collision(walls):
-                self.current_direction = (0, 0)
-            
-            self.x, self.y = old_x, old_y
-            self.rect.x = self.x + 4
-            self.rect.y = self.y + 4
-        else:
-            # Not at a grid point, queue turns for later
-            if primary_dx != 0 or primary_dy != 0 and (primary_dx, primary_dy) != self.current_direction:
-                self.queued_direction = (primary_dx, primary_dy)
-        
     def update(self, dt: float):
         """Update player state."""
         # Handle path following if we have a path
@@ -369,43 +258,31 @@ class Player:
                 pygame.draw.circle(screen, (255, 255, 0), (screen_final_x, screen_final_y), 5)
         
     def move(self, dx: int, dy: int, walls: List[pygame.Rect]) -> None:
-        """Move the player with grid-based collision checking."""
-        # Store original position for reverting if needed
+        """Move the player with wall sliding."""
+        # Store original position
         original_x = self.x
         original_y = self.y
         
-        # Try moving in X direction first
+        # Try moving in X direction
         if dx != 0:
             self.x += dx
-            self.rect.x = self.x + 4  # collision_margin
+            self.rect.x = self.x + 4
             if self._check_collision(walls):
                 # Revert X movement if collision
                 self.x = original_x
                 self.rect.x = self.x + 4
-                self.dx = 0  # Stop X movement
-                # Cancel path if we're following one
-                if self.current_path:
-                    print("DEBUG: X collision - Canceling path")
-                    self.current_path = None
-                    self.path_target = None
-                    return
-
-        # Then try moving in Y direction
+                self.dx = 0
+        
+        # Try moving in Y direction
         if dy != 0:
             self.y += dy
-            self.rect.y = self.y + 4  # collision_margin
+            self.rect.y = self.y + 4
             if self._check_collision(walls):
                 # Revert Y movement if collision
                 self.y = original_y
                 self.rect.y = self.y + 4
-                self.dy = 0  # Stop Y movement
-                # Cancel path if we're following one
-                if self.current_path:
-                    print("DEBUG: Y collision - Canceling path")
-                    self.current_path = None
-                    self.path_target = None
-                    return
-
+                self.dy = 0
+        
         # Map boundary constraints
         map_width = 50 * TILE_SIZE
         map_height = 50 * TILE_SIZE
@@ -425,7 +302,7 @@ class Player:
         elif self.y > map_height - TILE_SIZE:
             self.y = map_height - TILE_SIZE
             self.dy = 0
-
+            
         # Update collision rectangle final position
         self.rect.x = self.x + 4
         self.rect.y = self.y + 4
