@@ -1290,6 +1290,9 @@ class GameState:
         # No hover checks if UI is open
         if self.inventory_ui.visible or self.equipment_ui.visible or self.generator_ui.visible or self.quest_ui.visible:
             self.hovered_monster = None
+            # Reset is_hovered flag for all monsters
+            for monster in self.monsters:
+                monster.is_hovered = False
             return
             
         # Get mouse position
@@ -1303,6 +1306,9 @@ class GameState:
         # Check each monster
         self.hovered_monster = None
         for monster in self.monsters:
+            # Reset hover flag first
+            monster.is_hovered = False
+            
             # Simple distance-based hover detection
             dx = monster.x - world_x
             dy = monster.y - world_y
@@ -1311,6 +1317,7 @@ class GameState:
             # If mouse is within monster's hitbox (using size as a radius)
             if distance <= monster.size:
                 self.hovered_monster = monster
+                monster.is_hovered = True
                 break
 
     def _draw_monster_tooltip(self, screen, monster):

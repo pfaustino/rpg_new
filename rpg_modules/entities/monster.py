@@ -258,14 +258,20 @@ class Monster:
                 self.y += dy * self.speed * monster_speed_multiplier * dt
                 self.direction = Direction.DOWN if dy > 0 else Direction.UP
             
-            # Check for wall collisions
-            new_tile_x = int(self.x // TILE_SIZE)
-            new_tile_y = int(self.y // TILE_SIZE)
+            # Simple collision detection - only check the center point
+            # This prevents issues with collision at the edges of walkable areas
+            is_collision = False
+            if hasattr(self, 'game_map') and self.game_map:
+                # Get the tile coordinates for the monster's center
+                center_tile_x = int(self.x // TILE_SIZE)
+                center_tile_y = int(self.y // TILE_SIZE)
+                
+                # Check if the tile at that position is walkable
+                if not self.game_map.is_walkable(center_tile_x, center_tile_y):
+                    is_collision = True
             
-            # Import is implicit here from game context
-            # Check if the new position is walkable
-            if hasattr(self, 'game_map') and self.game_map and not self.game_map.is_walkable(new_tile_x, new_tile_y):
-                # If not walkable, revert to old position
+            # If there's a collision, revert to old position
+            if is_collision:
                 self.x = old_x
                 self.y = old_y
             
@@ -289,13 +295,20 @@ class Monster:
             elif self.direction == Direction.RIGHT:
                 self.x += self.speed * monster_speed_multiplier * dt
             
-            # Check for wall collisions
-            new_tile_x = int(self.x // TILE_SIZE)
-            new_tile_y = int(self.y // TILE_SIZE)
+            # Simple collision detection - only check the center point
+            # This prevents issues with collision at the edges of walkable areas
+            is_collision = False
+            if hasattr(self, 'game_map') and self.game_map:
+                # Get the tile coordinates for the monster's center
+                center_tile_x = int(self.x // TILE_SIZE)
+                center_tile_y = int(self.y // TILE_SIZE)
+                
+                # Check if the tile at that position is walkable
+                if not self.game_map.is_walkable(center_tile_x, center_tile_y):
+                    is_collision = True
             
-            # Check if the new position is walkable
-            if hasattr(self, 'game_map') and self.game_map and not self.game_map.is_walkable(new_tile_x, new_tile_y):
-                # If not walkable, revert to old position
+            # If there's a collision, revert to old position
+            if is_collision:
                 self.x = old_x
                 self.y = old_y
             
@@ -357,6 +370,49 @@ class Monster:
             text_x = screen_x + (scaled_size - text_surface.get_width()) // 2
             text_y = screen_y - int(45 * zoom)
             screen.blit(text_surface, (text_x, text_y))
+            
+            # DEBUG: Draw collision detection bounding box and points
+            # Draw center point (red circle)
+            center_x = int((self.x + camera.x) * zoom)
+            center_y = int((self.y + camera.y) * zoom)
+            pygame.draw.circle(screen, (255, 0, 0), (center_x, center_y), 4)
+            
+            # Draw the collision detection points (the 75% sized box)
+            detect_size = int(self.size * 0.75)
+            half_detect = detect_size // 2
+            scaled_half = int(half_detect * zoom)
+            
+            # Draw the detection box (blue rectangle)
+            detect_rect = pygame.Rect(
+                center_x - scaled_half,
+                center_y - scaled_half,
+                scaled_half * 2,
+                scaled_half * 2
+            )
+            pygame.draw.rect(screen, (0, 0, 255), detect_rect, 2)
+            
+            # Draw the detection points (yellow circles)
+            points = [
+                (center_x - scaled_half, center_y),  # Left
+                (center_x + scaled_half, center_y),  # Right
+                (center_x, center_y - scaled_half),  # Top
+                (center_x, center_y + scaled_half)   # Bottom
+            ]
+            for point in points:
+                pygame.draw.circle(screen, (255, 255, 0), point, 3)
+            
+            # Draw the current tile grid position (green rectangle)
+            tile_x = int(self.x // TILE_SIZE)
+            tile_y = int(self.y // TILE_SIZE)
+            tile_screen_x = int((tile_x * TILE_SIZE + camera.x) * zoom)
+            tile_screen_y = int((tile_y * TILE_SIZE + camera.y) * zoom)
+            tile_rect = pygame.Rect(
+                tile_screen_x,
+                tile_screen_y,
+                int(TILE_SIZE * zoom),
+                int(TILE_SIZE * zoom)
+            )
+            pygame.draw.rect(screen, (0, 255, 0), tile_rect, 2)
 
     def _get_monster_color(self):
         """Get color based on monster type."""
