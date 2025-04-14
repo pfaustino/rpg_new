@@ -736,11 +736,11 @@ class GameState:
             self._draw_monster_tooltip(self.screen, self.hovered_monster)
         
         # DIAGNOSTIC: Draw inventory status directly on screen
-        filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
+        """filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
         font = pygame.font.Font(None, 24)
         inventory_status = f"Inventory: {filled_slots}/{len(self.player.inventory.items)} items"
         status_text = font.render(inventory_status, True, (255, 255, 0))
-        self.screen.blit(status_text, (10, SCREEN_HEIGHT - 30))
+        self.screen.blit(status_text, (10, SCREEN_HEIGHT - 30))"""
         
         # Draw any active UI components
         if self.inventory_ui.visible:
@@ -2038,8 +2038,8 @@ class GameState:
             toolbar_surface.blit(text, (slot_x + 10, slot_y + 5))
             
             # Draw attack description
-            desc = small_font.render(attack_desc[i], True, desc_color)
-            toolbar_surface.blit(desc, (slot_x + 10, slot_y + 25))
+            """desc = small_font.render(attack_desc[i], True, desc_color)
+            toolbar_surface.blit(desc, (slot_x + 10, slot_y + 25))"""
         
         # Draw potion slot text
         for i in range(3):
