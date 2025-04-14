@@ -552,8 +552,16 @@ class GameState:
                     # Toggle equipment only
                     self.equipment_ui.toggle()
                 elif event.key == pygame.K_g:
-                    # Toggle generator UI
+                    # Toggle both generator and inventory UI
                     self.generator_ui.toggle()
+                    # Make inventory UI match generator UI visibility
+                    if self.inventory_ui.visible != self.generator_ui.visible:
+                        self.inventory_ui.toggle()
+                    
+                    if self.generator_ui.visible:
+                        # Refresh inventory UI when opening
+                        self.refresh_inventory_ui()
+                        print(f"Opened generator and inventory UI, refreshed with {sum(1 for item in self.player.inventory.items if item is not None)} items")
                 elif event.key == pygame.K_q:
                     # Toggle quest UI
                     self.quest_ui.toggle()
@@ -570,6 +578,9 @@ class GameState:
                         print("Closed equipment UI with ESC key")
                     elif self.generator_ui.visible:
                         self.generator_ui.toggle()
+                        # Close inventory UI as well if it's open with generator
+                        if self.inventory_ui.visible:
+                            self.inventory_ui.toggle()
                         print("Closed generator UI with ESC key")
                     elif self.quest_ui.visible:
                         self.quest_ui.toggle()
