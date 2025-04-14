@@ -24,7 +24,7 @@ class SystemMenuUI:
         
         # Calculate dimensions
         self.width = 400
-        self.height = 350
+        self.height = 400
         
         # Position in center of screen
         self.x = (SCREEN_WIDTH - self.width) // 2

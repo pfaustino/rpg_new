@@ -2256,22 +2256,72 @@ class GameState:
             self.player.inventory.items = [None] * 40
             print(f"RESET: Forcibly reset inventory to 40 empty slots")
             
-            # Generate and directly place specific items in inventory
-            item_types = ["weapon", "armor", "consumable", "weapon", "armor"]
-            qualities = ["Legendary", "Masterwork", "Polished", "Standard", "Legendary"]
+            # Add 1 weapon (Legendary)
+            weapon = item_gen.generate_item('weapon', 'Legendary')
+            if weapon:
+                self.player.inventory.items[0] = weapon
+                print(f"ADDED: Legendary weapon directly to slot 0")
             
-            for i in range(5):
-                if item_types[i] == "weapon":
-                    item = item_gen.generate_item('weapon', qualities[i])
-                elif item_types[i] == "armor":
-                    item = item_gen.generate_item('armor', qualities[i])
+            # Add 9 armor pieces (mix of qualities)
+            armor_qualities = ["Legendary", "Masterwork", "Polished", "Standard", 
+                              "Legendary", "Masterwork", "Polished", "Standard", "Masterwork"]
+            
+            for i in range(9):
+                armor = item_gen.generate_item('armor', armor_qualities[i])
+                if armor:
+                    self.player.inventory.items[i+1] = armor
+                    print(f"ADDED: {armor_qualities[i]} armor directly to slot {i+1}")
+            
+            # Add 30 potions (roughly 10 of each type: health, mana, stamina)
+            potion_qualities = ["Standard", "Polished", "Masterwork", "Legendary"]
+            health_count = mana_count = stamina_count = 0
+            slot_index = 10
+            
+            # Keep generating potions until we have filled all 30 slots or reached maximum attempts
+            max_attempts = 100  # Prevent infinite loop
+            attempts = 0
+            
+            while slot_index < 40 and attempts < max_attempts:
+                # Determine which quality to use based on distribution:
+                # 50% Standard, 30% Polished, 15% Masterwork, 5% Legendary
+                rand = random.random()
+                if rand < 0.5:
+                    quality = "Standard"
+                elif rand < 0.8:
+                    quality = "Polished" 
+                elif rand < 0.95:
+                    quality = "Masterwork"
                 else:
-                    item = item_gen.generate_item('consumable', qualities[i])
+                    quality = "Legendary"
+                    
+                # Generate a consumable item
+                potion = item_gen.generate_item('consumable', quality)
                 
-                if item:
-                    # Force it directly into the inventory array
-                    self.player.inventory.items[i] = item
-                    print(f"ADDED: {qualities[i]} {item_types[i]} directly to slot {i}")
+                # Check its type and decide whether to keep it based on our counts
+                if not potion:
+                    attempts += 1
+                    continue
+                    
+                potion_type = potion.consumable_type
+                
+                # Determine if we should add this potion based on our current counts
+                add_potion = False
+                if potion_type == 'health' and health_count < 10:
+                    health_count += 1
+                    add_potion = True
+                elif potion_type == 'mana' and mana_count < 10:
+                    mana_count += 1
+                    add_potion = True
+                elif potion_type == 'stamina' and stamina_count < 10:
+                    stamina_count += 1
+                    add_potion = True
+                
+                if add_potion:
+                    self.player.inventory.items[slot_index] = potion
+                    print(f"ADDED: {quality} {potion_type} potion directly to slot {slot_index}")
+                    slot_index += 1
+                
+                attempts += 1
             
             # Refresh the inventory UI reference
             self.inventory_ui.inventory = self.player.inventory.items
@@ -2282,6 +2332,7 @@ class GameState:
             # Debug info
             filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
             print(f"INVENTORY STATUS: {filled_slots}/40 items")
+            print(f"Potion distribution: Health: {health_count}, Mana: {mana_count}, Stamina: {stamina_count}")
             print(f"First 5 slots: {[str(item) if item else 'None' for item in self.player.inventory.items[:5]]}")
             print("==== TEST ITEMS ADDED SUCCESSFULLY ====\n")
         except Exception as e:
