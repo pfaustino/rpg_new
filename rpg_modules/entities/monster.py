@@ -6,6 +6,7 @@ import random
 import math
 from ..core.constants import SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE
 from ..utils.logging import logger
+from ..core.settings import GameSettings
 
 class MonsterType(Enum):
     # Format: (name, base_health, base_damage, base_speed, attack_range, attack_cooldown)
@@ -371,48 +372,49 @@ class Monster:
             text_y = screen_y - int(45 * zoom)
             screen.blit(text_surface, (text_x, text_y))
             
-            # DEBUG: Draw collision detection bounding box and points
-            # Draw center point (red circle)
-            center_x = int((self.x + camera.x) * zoom)
-            center_y = int((self.y + camera.y) * zoom)
-            pygame.draw.circle(screen, (255, 0, 0), (center_x, center_y), 4)
-            
-            # Draw the collision detection points (the 75% sized box)
-            detect_size = int(self.size * 0.75)
-            half_detect = detect_size // 2
-            scaled_half = int(half_detect * zoom)
-            
-            # Draw the detection box (blue rectangle)
-            detect_rect = pygame.Rect(
-                center_x - scaled_half,
-                center_y - scaled_half,
-                scaled_half * 2,
-                scaled_half * 2
-            )
-            pygame.draw.rect(screen, (0, 0, 255), detect_rect, 2)
-            
-            # Draw the detection points (yellow circles)
-            points = [
-                (center_x - scaled_half, center_y),  # Left
-                (center_x + scaled_half, center_y),  # Right
-                (center_x, center_y - scaled_half),  # Top
-                (center_x, center_y + scaled_half)   # Bottom
-            ]
-            for point in points:
-                pygame.draw.circle(screen, (255, 255, 0), point, 3)
-            
-            # Draw the current tile grid position (green rectangle)
-            tile_x = int(self.x // TILE_SIZE)
-            tile_y = int(self.y // TILE_SIZE)
-            tile_screen_x = int((tile_x * TILE_SIZE + camera.x) * zoom)
-            tile_screen_y = int((tile_y * TILE_SIZE + camera.y) * zoom)
-            tile_rect = pygame.Rect(
-                tile_screen_x,
-                tile_screen_y,
-                int(TILE_SIZE * zoom),
-                int(TILE_SIZE * zoom)
-            )
-            pygame.draw.rect(screen, (0, 255, 0), tile_rect, 2)
+            # Only draw debug visualization if enabled in settings
+            if GameSettings.instance().debug_visualization:
+                # Draw center point (red circle)
+                center_x = int((self.x + camera.x) * zoom)
+                center_y = int((self.y + camera.y) * zoom)
+                pygame.draw.circle(screen, (255, 0, 0), (center_x, center_y), 4)
+                
+                # Draw the collision detection points (the 75% sized box)
+                detect_size = int(self.size * 0.75)
+                half_detect = detect_size // 2
+                scaled_half = int(half_detect * zoom)
+                
+                # Draw the detection box (blue rectangle)
+                detect_rect = pygame.Rect(
+                    center_x - scaled_half,
+                    center_y - scaled_half,
+                    scaled_half * 2,
+                    scaled_half * 2
+                )
+                pygame.draw.rect(screen, (0, 0, 255), detect_rect, 2)
+                
+                # Draw the detection points (yellow circles)
+                points = [
+                    (center_x - scaled_half, center_y),  # Left
+                    (center_x + scaled_half, center_y),  # Right
+                    (center_x, center_y - scaled_half),  # Top
+                    (center_x, center_y + scaled_half)   # Bottom
+                ]
+                for point in points:
+                    pygame.draw.circle(screen, (255, 255, 0), point, 3)
+                
+                # Draw the current tile grid position (green rectangle)
+                tile_x = int(self.x // TILE_SIZE)
+                tile_y = int(self.y // TILE_SIZE)
+                tile_screen_x = int((tile_x * TILE_SIZE + camera.x) * zoom)
+                tile_screen_y = int((tile_y * TILE_SIZE + camera.y) * zoom)
+                tile_rect = pygame.Rect(
+                    tile_screen_x,
+                    tile_screen_y,
+                    int(TILE_SIZE * zoom),
+                    int(TILE_SIZE * zoom)
+                )
+                pygame.draw.rect(screen, (0, 255, 0), tile_rect, 2)
 
     def _get_monster_color(self):
         """Get color based on monster type."""

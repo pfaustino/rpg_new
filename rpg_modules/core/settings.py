@@ -36,12 +36,16 @@ class GameSettings:
         # Environment settings
         self.day_night_cycle_enabled = True
         
+        # Debug settings
+        self.debug_visualization = False  # Toggle for debug visualization like bounding boxes
+        
     def reset_to_defaults(self):
         """Reset all settings to their default values."""
         self.monster_speed_multiplier = 1.0
         self.player_speed_multiplier = 1.0
         self.difficulty_level = 1
         self.day_night_cycle_enabled = True
+        self.debug_visualization = False
     
     def adjust_difficulty(self, level):
         """

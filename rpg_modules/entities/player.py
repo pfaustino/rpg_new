@@ -8,7 +8,10 @@ from ..items import Item, Inventory, Equipment
 from ..quests import QuestLog
 from ..core.constants import TILE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT
 from ..animations.base import PlayerIcon
+from ..core.pathfinding import find_path
+from ..core.settings import GameSettings
 import random
+import math
 
 class Player:
     """Class representing the player character."""
@@ -57,6 +60,12 @@ class Player:
             TILE_SIZE - (collision_margin * 2),
             TILE_SIZE - (collision_margin * 2)
         )
+        
+        # Pathfinding attributes
+        self.current_path = None  # Current path being followed
+        self.current_path_index = 0  # Current position in the path
+        self.path_target = None  # Target position of current path
+        self.game_map = None  # Reference to game map for pathfinding
         
     def handle_input(self, keys: pygame.key.ScancodeWrapper, walls: List[pygame.Rect]) -> None:
         """
@@ -130,6 +139,36 @@ class Player:
             
     def update(self, dt: float):
         """Update player state."""
+        # Handle path following if we have a path
+        if self.current_path and self.current_path_index < len(self.current_path):
+            # Get current target point
+            target_x, target_y = self.current_path[self.current_path_index]
+            
+            # Calculate direction to target
+            dx = target_x - self.x
+            dy = target_y - self.y
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            # If we're close enough to the current point, move to next point
+            if distance < 5:  # 5 pixels threshold
+                self.current_path_index += 1
+                if self.current_path_index >= len(self.current_path):
+                    self.current_path = None
+                    self.dx = 0
+                    self.dy = 0
+                    return
+            else:
+                # Normalize direction and set velocity
+                if distance > 0:
+                    self.dx = (dx / distance) * self.speed
+                    self.dy = (dy / distance) * self.speed
+                    
+                    # Update facing direction
+                    if abs(dx) > abs(dy):
+                        self.direction = 'east' if dx > 0 else 'west'
+                    else:
+                        self.direction = 'south' if dy > 0 else 'north'
+        
         # Move based on current velocity
         if self.dx != 0 or self.dy != 0:
             # Calculate movement for this frame
@@ -137,7 +176,7 @@ class Player:
             move_y = self.dy * dt
             
             # Apply movement with collision check
-            self.move(move_x, move_y, self.walls)  # Use the walls list stored from handle_input
+            self.move(move_x, move_y, self.walls)
             
         # Update animation
         self.animation.update(dt)
@@ -209,6 +248,36 @@ class Player:
             font = pygame.font.Font(None, int(24 * zoom))
             text = font.render(f"({int(self.x)}, {int(self.y)})", True, (255, 255, 255))
             screen.blit(text, (screen_x, screen_y - int(20 * zoom)))
+        
+        # Draw the path if it exists and debug visualization is enabled
+        if self.current_path and GameSettings.instance().debug_visualization:
+            zoom = camera.get_zoom()
+            
+            # Draw lines between path points
+            for i in range(len(self.current_path) - 1):
+                start_x, start_y = self.current_path[i]
+                end_x, end_y = self.current_path[i + 1]
+                
+                # Convert to screen coordinates
+                screen_start_x = int((start_x + camera.x) * zoom)
+                screen_start_y = int((start_y + camera.y) * zoom)
+                screen_end_x = int((end_x + camera.x) * zoom)
+                screen_end_y = int((end_y + camera.y) * zoom)
+                
+                # Draw line (yellow for remaining path, gray for traversed)
+                color = (128, 128, 128) if i < self.current_path_index else (255, 255, 0)
+                pygame.draw.line(screen, color, (screen_start_x, screen_start_y), 
+                               (screen_end_x, screen_end_y), 2)
+                
+                # Draw points
+                pygame.draw.circle(screen, color, (screen_start_x, screen_start_y), 3)
+            
+            # Draw the final point
+            if self.current_path:
+                final_x, final_y = self.current_path[-1]
+                screen_final_x = int((final_x + camera.x) * zoom)
+                screen_final_y = int((final_y + camera.y) * zoom)
+                pygame.draw.circle(screen, (255, 255, 0), (screen_final_x, screen_final_y), 5)
         
     def move(self, dx: int, dy: int, walls: List[pygame.Rect]) -> None:
         """
@@ -586,4 +655,31 @@ class Player:
             return False
             
         self.attack_type = new_type
-        return True 
+        return True
+
+    def set_game_map(self, game_map):
+        """Set the game map reference for pathfinding."""
+        self.game_map = game_map
+
+    def handle_right_click(self, screen_x: int, screen_y: int, camera) -> None:
+        """Handle right-click to set path to target position."""
+        if not self.game_map:
+            return
+            
+        # Convert screen coordinates to world coordinates
+        zoom = camera.get_zoom()
+        world_x = int((screen_x / zoom) - camera.x)
+        world_y = int((screen_y / zoom) - camera.y)
+        
+        # Find path to target
+        start_pos = (self.x, self.y)
+        target_pos = (world_x, world_y)
+        
+        path = find_path(self.game_map, start_pos, target_pos)
+        if path:
+            self.current_path = path
+            self.current_path_index = 0
+            self.path_target = target_pos
+            print(f"Path set with {len(path)} points")
+        else:
+            print("No path found") 

@@ -536,6 +536,26 @@ class GameState:
             # Process different event types
             if event.type == pygame.QUIT:
                 self.running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                # Handle mouse clicks
+                if event.button == 1:  # Left mouse button for attack
+                    # Only process attack if no UI is visible
+                    if not (self.inventory_ui.visible or self.equipment_ui.visible or 
+                           self.generator_ui.visible or self.quest_ui.visible):
+                        if self.player.can_attack():
+                            # Attempt a fast attack on click
+                            self.player.try_attack()
+                            self._handle_player_attack()
+                elif event.button == 3:  # Right mouse button for pathing
+                    # Only process pathing if no UI is visible
+                    if not (self.inventory_ui.visible or self.equipment_ui.visible or 
+                           self.generator_ui.visible or self.quest_ui.visible):
+                        # Set the game map reference if not already set
+                        if not self.player.game_map:
+                            self.player.set_game_map(self.map)
+                        # Get mouse position and handle right click
+                        mouse_x, mouse_y = pygame.mouse.get_pos()
+                        self.player.handle_right_click(mouse_x, mouse_y, self.camera)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_i:
                     # Toggle both inventory and equipment UI
@@ -632,22 +652,18 @@ class GameState:
                     # Increase monster speed
                     from rpg_modules.core.settings import GameSettings
                     GameSettings.instance().increase_monster_speed(0.1)
+                elif event.key == pygame.K_F7:
+                    # Toggle debug visualization
+                    from rpg_modules.core.settings import GameSettings
+                    settings = GameSettings.instance()
+                    settings.debug_visualization = not settings.debug_visualization
+                    print(f"Debug visualization {'enabled' if settings.debug_visualization else 'disabled'}")
             elif event.type == pygame.MOUSEWHEEL:
                 # Handle zoom immediately
                 if event.y > 0:  # Scroll up to zoom in
                     self.camera.zoom_in()
                 elif event.y < 0:  # Scroll down to zoom out
                     self.camera.zoom_out()
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                # Handle mouse clicks
-                if event.button == 1:  # Left mouse button for attack
-                    # Only process attack if no UI is visible
-                    if not (self.inventory_ui.visible or self.equipment_ui.visible or 
-                           self.generator_ui.visible or self.quest_ui.visible):
-                        if self.player.can_attack():
-                            # Attempt a fast attack on click
-                            self.player.try_attack()
-                            self._handle_player_attack()
         
         # Update death location expiry times
         self._update_death_locations()
