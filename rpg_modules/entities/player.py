@@ -80,6 +80,9 @@ class Player:
         self.first_pressed_key = None
         self.last_movement_keys = set()
         
+        # Basic attributes
+        self.name = "Hero"  # Default name
+        
     def handle_input(self, keys: pygame.key.ScancodeWrapper, walls: List[pygame.Rect]) -> None:
         """Handle player input with direct movement and wall sliding."""
         self.walls = walls
@@ -207,11 +210,11 @@ class Player:
             pygame.draw.rect(screen, fill_color, 
                             (bar_x, bar_y, fill_width, bar_height))
         
-        # Draw player level above health bar if not in debug mode
+        # Draw player name and level above health bar
         if not hasattr(self, 'DEBUG') or not self.DEBUG:
             font_size = max(10, int(20 * zoom))
             font = pygame.font.Font(None, font_size)
-            level_text = f"Player lvl {self.level}"
+            level_text = f"{self.name} lvl {self.level}"
             level_surface = font.render(level_text, True, (255, 255, 255))
             level_x = screen_x + (scaled_size - level_surface.get_width()) // 2
             level_y = screen_y - int(35 * zoom)
@@ -488,7 +491,16 @@ class Player:
             "equipment": {
                 slot: item.to_dict() if item else None
                 for slot, item in self.equipment.items()
-            }
+            },
+            "name": self.name,
+            "health": self.health,
+            "max_health": self.max_health,
+            "mana": self.mana,
+            "max_mana": self.max_mana,
+            "stamina": self.stamina,
+            "max_stamina": self.max_stamina,
+            "attack": self.attack,
+            "defense": self.defense
         }
         
     @classmethod
@@ -510,6 +522,16 @@ class Player:
             if item_data:
                 player.equipment[slot] = Item.from_dict(item_data)
                 
+        player.name = data.get("name", "Hero")
+        player.health = data.get("health", 100)
+        player.max_health = data.get("max_health", 100)
+        player.mana = data.get("mana", 50)
+        player.max_mana = data.get("max_mana", 50)
+        player.stamina = data.get("stamina", 100)
+        player.max_stamina = data.get("max_stamina", 100)
+        player.attack = data.get("attack", 10)
+        player.defense = data.get("defense", 5)
+        
         return player 
 
     def try_attack(self) -> bool:
