@@ -1,0 +1,79 @@
+{
+  "quests": [
+    {
+      "id": "ancient_grove_quest",
+      "title": "Whispers of the Ancient Grove",
+      "description": "Elder Malik has asked you to investigate the strange whispers coming from the Ancient Grove. Collect Moonlight Flowers that can help recharge the sacred grove relic.",
+      "objectives": [
+        {
+          "type": "dialog",
+          "dialog_id": "elder_malik_quest_start",
+          "description": "Speak with Elder Malik about the Ancient Grove"
+        },
+        {
+          "type": "collect",
+          "target_item": "moonlight_flower",
+          "amount": 5,
+          "description": "Collect 5 Moonlight Flowers from the Ancient Grove"
+        },
+        {
+          "type": "dialog",
+          "dialog_id": "elder_malik_quest_return_success",
+          "description": "Return to Elder Malik with the Moonlight Flowers"
+        }
+      ],
+      "rewards": {
+        "xp": 500,
+        "gold": 250,
+        "items": [
+          {
+            "id": "cloak_of_night_whispers",
+            "name": "Cloak of Night Whispers",
+            "amount": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "crystal_cave_quest",
+      "title": "Secrets of the Crystal Cave",
+      "description": "Deep within the mountains lies a crystal cave filled with ancient power. The cave has been overrun by corrupted guardians. Clear the cave and collect crystal shards to help the village mage craft a powerful artifact.",
+      "objectives": [
+        {
+          "type": "explore",
+          "target_location": "crystal_cave_entrance",
+          "description": "Find the entrance to the Crystal Cave"
+        },
+        {
+          "type": "kill",
+          "target_monster": "corrupted_guardian",
+          "amount": 3,
+          "description": "Defeat 3 Corrupted Guardians"
+        },
+        {
+          "type": "collect",
+          "target_item": "crystal_shard",
+          "amount": 7,
+          "description": "Collect 7 Crystal Shards"
+        },
+        {
+          "type": "kill",
+          "target_monster": "crystal_guardian",
+          "amount": 1,
+          "description": "Defeat the Crystal Guardian boss"
+        }
+      ],
+      "rewards": {
+        "xp": 1000,
+        "gold": 500,
+        "items": [
+          {
+            "id": "crystal_amulet",
+            "name": "Crystal Amulet of Protection",
+            "amount": 1
+          }
+        ]
+      }
+    }
+  ]
+} 

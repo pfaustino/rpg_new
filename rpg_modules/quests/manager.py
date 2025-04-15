@@ -1,157 +1,284 @@
 """
-Quest management system.
+Quest manager module for managing quests in the game.
 """
 
-from typing import Dict, List, Optional, Any
+import os
+import json
+from typing import Dict, List, Optional, Any, Tuple
 from .base import Quest, QuestStatus, QuestType
+from .log import QuestLog
+from .loader import QuestLoader, add_quest_to_file, add_quest_chain_to_file
 
-class QuestLog:
-    """Manages all quests in the game."""
+class QuestManager:
+    """Manages all quest-related functionality in the game."""
     
-    def __init__(self):
+    def __init__(self, quest_data_path: str = "data/quests"):
         """Initialize the quest manager."""
-        self.available_quests: Dict[str, Quest] = {}  # All quests in the game
-        self.active_quests: Dict[str, Quest] = {}    # Currently active quests
-        self.completed_quests: Dict[str, Quest] = {} # Completed and turned in quests
+        self.quest_data_path = quest_data_path
+        self.loader = QuestLoader(quest_data_path)
+        self.quest_log = QuestLog()
+        self.all_quests: Dict[str, Quest] = {}
+        self.active_quests: Dict[str, Quest] = {}
+        self.completed_quests: Dict[str, Quest] = {}
+        self.available_quests: Dict[str, Quest] = {}
         
-    def add_quest(self, quest: Quest) -> bool:
-        """
-        Add a new quest to the available quests.
+        # Ensure quest data directory exists
+        os.makedirs(quest_data_path, exist_ok=True)
         
-        Args:
-            quest: The quest to add
-            
-        Returns:
-            bool: True if quest was added successfully
-        """
-        if quest.id in self.available_quests:
+        # Track event handlers
+        self.event_listeners = []
+    
+    def initialize(self, player=None):
+        """Initialize the quest system."""
+        # Load all quests
+        self.all_quests = self.loader.load_all_quests()
+        
+        # Update quest availability based on player
+        if player:
+            self.update_quest_availability(player)
+    
+    def update_quest_availability(self, player):
+        """Update which quests are available to the player."""
+        self.available_quests = {}
+        
+        for quest_id, quest in self.all_quests.items():
+            # Skip quests already in the quest log
+            if self.quest_log.has_quest(quest) or self.quest_log.has_completed_quest(quest):
+                continue
+                
+            # Check if quest is available to the player
+            if quest.is_available(player):
+                self.available_quests[quest_id] = quest
+    
+    def start_quest(self, quest_id: str, player=None) -> bool:
+        """Start a quest by ID."""
+        quest = self.all_quests.get(quest_id)
+        if not quest:
+            print(f"Quest not found: {quest_id}")
             return False
             
-        self.available_quests[quest.id] = quest
-        return True
-        
-    def get_quest(self, quest_id: str) -> Optional[Quest]:
-        """Get a quest by its ID."""
-        return (
-            self.active_quests.get(quest_id) or
-            self.completed_quests.get(quest_id) or
-            self.available_quests.get(quest_id)
-        )
-        
-    def get_available_quests(self, player) -> List[Quest]:
-        """Get all quests available to the player."""
-        return [
-            quest for quest in self.available_quests.values()
-            if quest.is_available(player)
-        ]
-        
-    def get_active_quests(self) -> List[Quest]:
-        """Get all currently active quests."""
-        return list(self.active_quests.values())
-        
-    def get_completed_quests(self) -> List[Quest]:
-        """Get all completed quests."""
-        return list(self.completed_quests.values())
-        
-    def start_quest(self, quest_id: str, player) -> bool:
-        """
-        Start a quest if it's available.
-        
-        Args:
-            quest_id: ID of the quest to start
-            player: The player starting the quest
-            
-        Returns:
-            bool: True if quest was started successfully
-        """
-        quest = self.available_quests.get(quest_id)
-        if not quest or not quest.is_available(player):
+        # Check if quest is available to the player
+        if player and not quest.is_available(player):
+            print(f"Quest {quest_id} is not available to the player")
             return False
             
+        # Start the quest
         if quest.start():
+            # Add to quest log
+            self.quest_log.add_quest(quest)
             self.active_quests[quest_id] = quest
-            del self.available_quests[quest_id]
-            return True
-        return False
-        
-    def complete_quest(self, quest_id: str, player) -> bool:
-        """
-        Complete a quest and grant rewards.
-        
-        Args:
-            quest_id: ID of the quest to complete
-            player: The player completing the quest
             
-        Returns:
-            bool: True if quest was completed successfully
-        """
+            print(f"Started quest: {quest.title}")
+            return True
+            
+        return False
+    
+    def complete_quest(self, quest_id: str, player=None) -> bool:
+        """Mark a quest as completed."""
         quest = self.active_quests.get(quest_id)
-        if not quest or quest.status != QuestStatus.COMPLETED:
+        if not quest:
+            print(f"Active quest not found: {quest_id}")
             return False
             
+        # Check if all objectives are complete
+        if not all(obj.is_complete() for obj in quest.objectives):
+            print(f"Cannot complete quest {quest_id}: not all objectives are complete")
+            return False
+            
+        # Complete the quest
+        quest.status = QuestStatus.COMPLETED
+        
+        print(f"Completed quest: {quest.title}")
+        return True
+    
+    def turn_in_quest(self, quest_id: str, player) -> bool:
+        """Turn in a completed quest to receive rewards."""
+        quest = self.active_quests.get(quest_id)
+        if not quest:
+            print(f"Active quest not found: {quest_id}")
+            return False
+            
+        # Check if quest is completed
+        if quest.status != QuestStatus.COMPLETED:
+            print(f"Cannot turn in quest {quest_id}: quest is not completed")
+            return False
+            
+        # Turn in the quest
         if quest.turn_in(player):
+            # Move to completed quests
             self.completed_quests[quest_id] = quest
-            del self.active_quests[quest_id]
+            self.quest_log.complete_quest(quest)
+            self.active_quests.pop(quest_id, None)
+            
+            # Check for next quest in chain
+            if quest.next_quest_id and quest.next_quest_id in self.all_quests:
+                print(f"Next quest in chain available: {self.all_quests[quest.next_quest_id].title}")
+                self.update_quest_availability(player)
+                
+            print(f"Turned in quest: {quest.title}")
             return True
+            
         return False
-        
-    def update_quests(self, event_data: Dict[str, Any]) -> List[str]:
-        """
-        Update all active quests based on an event.
-        
-        Args:
-            event_data: Dictionary containing event information
+    
+    def fail_quest(self, quest_id: str) -> bool:
+        """Mark a quest as failed."""
+        quest = self.active_quests.get(quest_id)
+        if not quest:
+            print(f"Active quest not found: {quest_id}")
+            return False
             
-        Returns:
-            List[str]: IDs of quests that were updated
-        """
+        # Fail the quest
+        quest.status = QuestStatus.FAILED
+        
+        # Remove from active quests
+        self.active_quests.pop(quest_id, None)
+        
+        print(f"Failed quest: {quest.title}")
+        return True
+    
+    def abandon_quest(self, quest_id: str) -> bool:
+        """Abandon a quest."""
+        quest = self.active_quests.get(quest_id)
+        if not quest:
+            print(f"Active quest not found: {quest_id}")
+            return False
+            
+        # Remove from quest log
+        if self.quest_log.has_quest(quest):
+            # Remove from active quests
+            self.active_quests.pop(quest_id, None)
+            
+            # Reset quest status
+            quest.status = QuestStatus.NOT_STARTED
+            
+            print(f"Abandoned quest: {quest.title}")
+            return True
+            
+        return False
+    
+    def process_event(self, event_data: Dict[str, Any], player=None) -> List[str]:
+        """Process game events and update quest progress."""
         updated_quests = []
-        for quest in self.active_quests.values():
-            if quest.update_objectives(event_data):
-                updated_quests.append(quest.id)
+        
+        for quest_id, quest in self.active_quests.items():
+            if quest.status == QuestStatus.IN_PROGRESS:
+                if quest.update_objectives(event_data):
+                    updated_quests.append(quest_id)
+                    
+                    # Check if quest is now complete
+                    if quest.status == QuestStatus.COMPLETED:
+                        print(f"Quest completed: {quest.title}")
+        
+        # Update quest availability based on event
+        if player:
+            self.update_quest_availability(player)
+            
         return updated_quests
-        
-    def get_quests_by_type(self, quest_type: QuestType) -> List[Quest]:
-        """Get all quests of a specific type."""
-        all_quests = {
-            **self.available_quests,
-            **self.active_quests,
-            **self.completed_quests
-        }
-        return [
-            quest for quest in all_quests.values()
-            if quest.quest_type == quest_type
-        ]
-        
-    def get_quest_chain(self, quest_id: str) -> List[Quest]:
-        """
-        Get a quest and all its prerequisites in order.
-        
-        Args:
-            quest_id: ID of the final quest in the chain
+    
+    def get_available_quests(self) -> Dict[str, Quest]:
+        """Get quests that are available to the player."""
+        return self.available_quests
+    
+    def get_active_quests(self) -> Dict[str, Quest]:
+        """Get quests that are currently active."""
+        return self.active_quests
+    
+    def get_completed_quests(self) -> Dict[str, Quest]:
+        """Get quests that have been completed."""
+        return self.completed_quests
+    
+    def get_quest(self, quest_id: str) -> Optional[Quest]:
+        """Get a quest by ID."""
+        return self.all_quests.get(quest_id)
+    
+    def save_all_quests(self, file_path: str = None) -> bool:
+        """Save all quests to a file."""
+        if file_path is None:
+            file_path = os.path.join(self.quest_data_path, "quests.json")
             
-        Returns:
-            List[Quest]: List of quests in prerequisite order
-        """
-        quest_chain = []
-        current_quest = self.get_quest(quest_id)
-        
-        if not current_quest:
-            return []
+        try:
+            data = {"quests": []}
             
-        # Build chain backwards
-        while current_quest:
-            quest_chain.insert(0, current_quest)
-            if not current_quest.prerequisites:
-                break
+            # Convert quests to dict and add to data
+            for quest in self.all_quests.values():
+                quest_dict = self.loader._quest_to_dict(quest)
+                data["quests"].append(quest_dict)
+            
+            # Save to file
+            with open(file_path, 'w') as file:
+                json.dump(data, file, indent=2)
                 
-            # Get the first incomplete prerequisite
-            for prereq_id in current_quest.prerequisites:
-                prereq = self.get_quest(prereq_id)
-                if prereq and prereq.status != QuestStatus.TURNED_IN:
-                    current_quest = prereq
-                    break
-            else:
-                break
+            print(f"Saved {len(self.all_quests)} quests to {file_path}")
+            return True
+            
+        except Exception as e:
+            print(f"Error saving quests to {file_path}: {e}")
+            return False
+    
+    def add_quest(self, quest_data: Dict[str, Any], save_to_file: bool = True) -> Optional[Quest]:
+        """Add a new quest from data."""
+        # Create quest object
+        quest = self.loader._create_quest_from_data(quest_data)
+        if not quest:
+            return None
+            
+        # Add to all quests
+        self.all_quests[quest.id] = quest
+        
+        # Save to file if requested
+        if save_to_file:
+            file_path = os.path.join(self.quest_data_path, f"{quest.quest_type.name.lower()}_quests.json")
+            self.loader.save_quest_to_file(quest, file_path)
+            
+        return quest
+    
+    def add_quest_chain(self, chain_id: str, chain_data: Dict[str, Any], save_to_file: bool = True) -> bool:
+        """Add a new quest chain."""
+        try:
+            # Add chain to loader
+            if "quests" in chain_data:
+                self.loader.quest_chains[chain_id] = chain_data["quests"]
                 
-        return quest_chain 
+                # Set chain references on quests
+                for i, quest_id in enumerate(chain_data["quests"]):
+                    if quest_id in self.all_quests:
+                        quest = self.all_quests[quest_id]
+                        quest.chain_id = chain_id
+                        quest.chain_position = i + 1
+                        
+                        # Set next quest reference if not the last quest
+                        if i < len(chain_data["quests"]) - 1:
+                            quest.next_quest_id = chain_data["quests"][i + 1]
+            
+            # Save to file if requested
+            if save_to_file:
+                file_path = os.path.join(self.quest_data_path, "quest_chains.json")
+                add_quest_chain_to_file(chain_id, chain_data, file_path)
+                
+            return True
+            
+        except Exception as e:
+            print(f"Error adding quest chain {chain_id}: {e}")
+            return False
+    
+    def get_quest_chain(self, chain_id: str) -> List[str]:
+        """Get a quest chain by ID."""
+        return self.loader.get_quest_chain(chain_id)
+    
+    def get_all_quest_chains(self) -> Dict[str, Any]:
+        """Get all quest chains."""
+        return self.loader.get_all_quest_chains()
+    
+    def register_event_listener(self, listener):
+        """Register an event listener."""
+        self.event_listeners.append(listener)
+    
+    def unregister_event_listener(self, listener):
+        """Unregister an event listener."""
+        if listener in self.event_listeners:
+            self.event_listeners.remove(listener)
+    
+    def _notify_listeners(self, event_type: str, quest_id: str):
+        """Notify event listeners of a quest event."""
+        for listener in self.event_listeners:
+            listener(event_type, quest_id) 

@@ -1,0 +1,519 @@
+{
+  "quests": [
+    {
+      "id": "mq_001",
+      "title": "The Veilmaster's Calling",
+      "description": "The village elder has asked you to investigate rumors of strange energy emanating from the ancient fortress to the north. This abandoned structure, known as the Veilmaster's Fortress, was once home to a powerful mage who studied the boundaries between dimensions.",
+      "quest_type": "MAIN",
+      "level_requirement": 1,
+      "difficulty": "EASY",
+      "giver_id": "elder_malik",
+      "turn_in_id": "elder_malik",
+      "chain_id": "main_fortress",
+      "chain_position": 1,
+      "next_quest_id": "mq_002",
+      "location_id": "town_center",
+      "objectives": [
+        {
+          "type": "dialog",
+          "description": "Speak with Elder Malik about the Veilmaster's Fortress",
+          "target_npc": "elder_malik",
+          "dialog_id": "elder_malik_quest_start"
+        },
+        {
+          "type": "explore",
+          "description": "Travel to the Veilmaster's Fortress entrance",
+          "target_location": "fortress_entrance",
+          "radius": 5
+        }
+      ],
+      "rewards": [
+        {
+          "type": "exp",
+          "amount": 100
+        },
+        {
+          "type": "gold",
+          "amount": 50
+        },
+        {
+          "type": "item",
+          "item_id": "scroll_of_mapping",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "mq_002",
+      "title": "Secrets of the Fortress",
+      "description": "You've reached the entrance to the Veilmaster's Fortress. Now you must venture inside and discover what has awakened within its ancient halls.",
+      "quest_type": "MAIN",
+      "level_requirement": 2,
+      "difficulty": "MEDIUM",
+      "giver_id": "auto_start",
+      "turn_in_id": "none",
+      "chain_id": "main_fortress",
+      "chain_position": 2,
+      "next_quest_id": "mq_003",
+      "location_id": "fortress_entrance",
+      "objectives": [
+        {
+          "type": "explore",
+          "description": "Enter the Veilmaster's Fortress",
+          "target_location": "dungeon_entrance",
+          "radius": 3
+        },
+        {
+          "type": "explore",
+          "description": "Find the Hall of Echoes",
+          "target_location": "hall_of_echoes",
+          "radius": 5
+        }
+      ],
+      "rewards": [
+        {
+          "type": "exp",
+          "amount": 200
+        },
+        {
+          "type": "item",
+          "item_id": "resonance_stone",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "mq_01_mysterious_arrival",
+      "title": "Mysterious Arrival",
+      "description": "The player arrives in the town of Eldervale to find it plagued by strange occurrences. Captain Thorne, the town's guard captain, seeks the player's help to investigate.",
+      "quest_type": "MAIN",
+      "level_requirement": 1,
+      "objectives": [
+        {
+          "type": "dialog",
+          "target": "captain_thorne",
+          "description": "Speak with Captain Thorne",
+          "completed": false
+        },
+        {
+          "type": "explore",
+          "target": "town_square",
+          "description": "Visit the town square",
+          "completed": false
+        },
+        {
+          "type": "interact",
+          "target": "strange_energy",
+          "description": "Investigate the strange energy",
+          "completed": false
+        },
+        {
+          "type": "dialog",
+          "target": "captain_thorne",
+          "description": "Return to Captain Thorne",
+          "completed": false
+        }
+      ],
+      "rewards": [
+        {
+          "type": "EXPERIENCE",
+          "amount": 100,
+          "description": "For investigating the strange occurrences"
+        },
+        {
+          "type": "GOLD",
+          "amount": 50,
+          "description": "Payment from Captain Thorne"
+        }
+      ],
+      "prerequisites": [],
+      "dialog_start": "thorne_introduction",
+      "dialog_complete": "thorne_introduction_complete",
+      "dialog_flags": {
+        "start": "quest_accepted_mysterious_arrival",
+        "complete": "quest_completed_mysterious_arrival"
+      }
+    },
+    {
+      "id": "mq_02_first_investigation",
+      "title": "First Investigation",
+      "description": "Captain Thorne believes an ancient artifact is causing the disturbances. The player must locate and examine it.",
+      "quest_type": "MAIN",
+      "level_requirement": 2,
+      "objectives": [
+        {
+          "type": "explore",
+          "target": "temple_ruins",
+          "description": "Search the abandoned temple ruins",
+          "completed": false
+        },
+        {
+          "type": "kill",
+          "target": "corrupted_guardian",
+          "description": "Defeat the corrupted guardians",
+          "count": 3,
+          "current_count": 0,
+          "completed": false
+        },
+        {
+          "type": "collect",
+          "target": "artifact_fragment",
+          "description": "Retrieve the artifact fragment",
+          "completed": false
+        },
+        {
+          "type": "dialog",
+          "target": "captain_thorne",
+          "description": "Return to Captain Thorne",
+          "completed": false
+        }
+      ],
+      "rewards": [
+        {
+          "type": "EXPERIENCE",
+          "amount": 150,
+          "description": "For exploring the temple ruins"
+        },
+        {
+          "type": "GOLD",
+          "amount": 100,
+          "description": "Payment for retrieving the artifact fragment"
+        },
+        {
+          "type": "ITEM",
+          "item_id": "minor_artifact_fragment",
+          "amount": 1,
+          "description": "A fragment of the ancient artifact"
+        }
+      ],
+      "prerequisites": [
+        {
+          "quest_id": "mq_01_mysterious_arrival",
+          "required_status": "COMPLETED"
+        }
+      ],
+      "dialog_start": "thorne_investigation",
+      "dialog_complete": "thorne_investigation_complete",
+      "dialog_flags": {
+        "start": "quest_accepted_first_investigation",
+        "complete": "quest_completed_first_investigation"
+      }
+    },
+    {
+      "id": "mq_03_suspects_trail",
+      "title": "Suspects Trail",
+      "description": "Three people were seen near the temple before the disturbances began: Seren (the royal scholar), Bram (a city guard), and Lysa (a traveling merchant). The player must interrogate each to determine who may be involved.",
+      "quest_type": "MAIN",
+      "level_requirement": 3,
+      "objectives": [
+        {
+          "type": "dialog",
+          "target": "seren",
+          "dialog_id": "seren_interrogation",
+          "description": "Talk to Seren",
+          "completed": false
+        },
+        {
+          "type": "dialog",
+          "target": "bram",
+          "dialog_id": "bram_interrogation",
+          "description": "Talk to Bram",
+          "completed": false
+        },
+        {
+          "type": "dialog",
+          "target": "lysa",
+          "dialog_id": "lysa_interrogation",
+          "description": "Talk to Lysa",
+          "completed": false
+        },
+        {
+          "type": "dialog",
+          "target": "captain_thorne",
+          "dialog_id": "thorne_report",
+          "description": "Report findings to Captain Thorne",
+          "completed": false
+        }
+      ],
+      "rewards": [
+        {
+          "type": "EXPERIENCE",
+          "amount": 200,
+          "description": "For investigating the suspects"
+        },
+        {
+          "type": "GOLD",
+          "amount": 150,
+          "description": "Payment for your detective work"
+        }
+      ],
+      "prerequisites": [
+        {
+          "quest_id": "mq_02_first_investigation",
+          "required_status": "COMPLETED"
+        }
+      ],
+      "dialog_start": "thorne_report",
+      "dialog_complete": "suspect_choice",
+      "dialog_flags": {
+        "start": "quest_accepted_suspects_trail",
+        "complete": "quest_completed_interrogation"
+      }
+    },
+    {
+      "id": "mq_04_truth_revealed",
+      "title": "Truth Revealed",
+      "description": "Following the lead from the chosen suspect, the player discovers that the artifact is connected to an ancient order. Bram is revealed to be involved, but his motives remain unclear.",
+      "quest_type": "MAIN",
+      "level_requirement": 4,
+      "objectives": [
+        {
+          "type": "conditional",
+          "flag": "trusted_suspect",
+          "options": {
+            "seren": {
+              "type": "explore",
+              "target": "library_archives",
+              "description": "Search the royal archives with Seren"
+            },
+            "bram": {
+              "type": "explore",
+              "target": "guard_outpost",
+              "description": "Investigate the guard outpost with Bram"
+            },
+            "lysa": {
+              "type": "explore",
+              "target": "merchant_hideout",
+              "description": "Visit Lysa's secret hideout"
+            },
+            "default": {
+              "type": "explore",
+              "target": "temple_surroundings",
+              "description": "Search the temple surroundings again"
+            }
+          },
+          "completed": false
+        },
+        {
+          "type": "explore",
+          "target": "hidden_chamber",
+          "description": "Explore the hidden chamber",
+          "completed": false
+        },
+        {
+          "type": "collect",
+          "target": "ancient_text",
+          "description": "Recover the ancient text",
+          "completed": false
+        },
+        {
+          "type": "dialog",
+          "target": "bram",
+          "dialog_id": "bram_confrontation_initial",
+          "description": "Confront Bram",
+          "completed": false
+        }
+      ],
+      "rewards": [
+        {
+          "type": "EXPERIENCE",
+          "amount": 300,
+          "description": "For uncovering the truth about the artifact"
+        },
+        {
+          "type": "GOLD",
+          "amount": 200,
+          "description": "Payment for your efforts"
+        },
+        {
+          "type": "ITEM",
+          "item_id": "ancient_order_text",
+          "amount": 1,
+          "description": "A document containing ancient knowledge about the artifact"
+        }
+      ],
+      "prerequisites": [
+        {
+          "quest_id": "mq_03_suspects_trail",
+          "required_status": "COMPLETED"
+        }
+      ],
+      "dialog_start": "bram_confrontation_initial",
+      "dialog_complete": "bram_final_choice",
+      "dialog_flags": {
+        "start": "quest_accepted_truth_revealed",
+        "complete": "quest_completed_truth_revealed"
+      }
+    },
+    {
+      "id": "mq_05_confrontation",
+      "title": "Confrontation",
+      "description": "The player must confront Bram at the ancient shrine where he's attempting to unlock the artifact's power.",
+      "quest_type": "MAIN",
+      "level_requirement": 5,
+      "objectives": [
+        {
+          "type": "explore",
+          "target": "ancient_shrine",
+          "description": "Travel to the ancient shrine",
+          "completed": false
+        },
+        {
+          "type": "kill",
+          "target": "corrupted_ally",
+          "description": "Defeat Bram's corrupted allies",
+          "count": 5,
+          "current_count": 0,
+          "completed": false
+        },
+        {
+          "type": "dialog",
+          "target": "bram",
+          "dialog_id": "bram_confrontation",
+          "description": "Confront Bram",
+          "completed": false
+        }
+      ],
+      "rewards": [
+        {
+          "type": "EXPERIENCE",
+          "amount": 400,
+          "description": "For confronting Bram and preventing the artifact's power from being unleashed"
+        },
+        {
+          "type": "GOLD",
+          "amount": 300,
+          "description": "Payment for your bravery"
+        },
+        {
+          "type": "ITEM",
+          "item_id": "shadow_protection_amulet",
+          "amount": 1,
+          "description": "Amulet that provides protection against shadow energies"
+        }
+      ],
+      "prerequisites": [
+        {
+          "quest_id": "mq_04_truth_revealed",
+          "required_status": "COMPLETED"
+        }
+      ],
+      "dialog_start": "bram_confrontation",
+      "dialog_complete": "bram_confrontation",
+      "dialog_flags": {
+        "start": "quest_accepted_confrontation",
+        "complete": "quest_completed_confrontation"
+      }
+    },
+    {
+      "id": "mq_06_final_choice",
+      "title": "Final Choice",
+      "description": "The player learns that Bram was trying to contain the artifact's power, not unleash it. The player must choose whether to show mercy or bring Bram to justice.",
+      "quest_type": "MAIN",
+      "level_requirement": 5,
+      "auto_start": true,
+      "objectives": [
+        {
+          "type": "dialog",
+          "target": "bram",
+          "dialog_id": "bram_final_choice",
+          "description": "Make your choice",
+          "completed": false
+        },
+        {
+          "type": "conditional",
+          "flag": "bram_fate",
+          "options": {
+            "mercy": {
+              "type": "collect",
+              "target": "sealed_artifact",
+              "description": "Help Bram seal the artifact"
+            },
+            "justice": {
+              "type": "collect",
+              "target": "damaged_artifact",
+              "description": "Secure the damaged artifact"
+            },
+            "default": {
+              "type": "collect",
+              "target": "artifact",
+              "description": "Deal with the artifact"
+            }
+          },
+          "completed": false
+        },
+        {
+          "type": "dialog",
+          "target": "captain_thorne",
+          "description": "Return to Captain Thorne",
+          "completed": false
+        }
+      ],
+      "rewards": [
+        {
+          "type": "EXPERIENCE",
+          "amount": 500,
+          "description": "For completing the final quest"
+        },
+        {
+          "type": "GOLD",
+          "amount": 500,
+          "description": "Final payment for your services"
+        },
+        {
+          "type": "CONDITIONAL_ITEM",
+          "flag": "bram_fate",
+          "options": {
+            "mercy": [
+              {
+                "item_id": "sealed_artifact",
+                "amount": 1,
+                "description": "The artifact, safely sealed away"
+              },
+              {
+                "item_id": "bram_ally_token",
+                "amount": 1,
+                "description": "A token of Bram's gratitude and allegiance"
+              }
+            ],
+            "justice": [
+              {
+                "item_id": "damaged_artifact",
+                "amount": 1,
+                "description": "The artifact, damaged in the confrontation"
+              },
+              {
+                "item_id": "order_emblem",
+                "amount": 1,
+                "description": "An emblem signifying your triumph over the Order"
+              }
+            ],
+            "default": [
+              {
+                "item_id": "artifact_fragment",
+                "amount": 1,
+                "description": "A fragment of the artifact"
+              }
+            ]
+          }
+        }
+      ],
+      "prerequisites": [
+        {
+          "quest_id": "mq_05_confrontation",
+          "required_status": "COMPLETED"
+        }
+      ],
+      "dialog_start": "bram_final_choice",
+      "dialog_complete": "thorne_epilogue",
+      "dialog_flags": {
+        "start": "quest_accepted_final_choice",
+        "complete": "quest_completed_final_choice"
+      },
+      "side_quests_unlocked": {
+        "mercy": "redemptions_price",
+        "justice": "shadows_unleashed"
+      }
+    }
+  ]
+} 

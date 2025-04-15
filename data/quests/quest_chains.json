@@ -1,0 +1,17 @@
+{
+  "quests": [],
+  "quest_chains": {
+    "main_story": {
+      "name": "Shadow of the Artifact",
+      "description": "Uncover the secrets of the ancient artifact and stop the spreading corruption.",
+      "quests": [
+        "mq_01_mysterious_arrival",
+        "mq_02_first_investigation",
+        "mq_03_suspects_trail",
+        "mq_04_truth_revealed",
+        "mq_05_confrontation",
+        "mq_06_final_choice"
+      ]
+    }
+  }
+}

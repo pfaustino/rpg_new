@@ -1,10 +1,20 @@
 """
-RPG Modules - A collection of reusable components for creating RPG games with Pygame.
+Main RPG modules package.
 """
 
-from . import core
-from . import items
-from . import ui
+# Be selective about what we import to avoid circular dependencies
+from rpg_modules.core import settings, constants, assets
+from rpg_modules.entities import player, monster, monster_factory, monster_spawner
 
-__version__ = "0.1.0"
-__all__ = ['core', 'items', 'ui'] 
+# Don't import UI components directly at package level
+# Instead, let them be imported directly from the appropriate modules
+
+__all__ = [
+    'core',
+    'entities',
+    'items',
+    'ui',
+    'quests',
+    'utils',
+    'animations'
+] 

@@ -171,4 +171,68 @@ class DeliverObjective(QuestObjective):
             (x, y + self.marker_size),  # Bottom point
             (x - self.marker_size, y)   # Left point
         ]
-        pygame.draw.polygon(screen, self.marker_color, points) 
+        pygame.draw.polygon(screen, self.marker_color, points)
+
+@dataclass
+class DialogObjective(QuestObjective):
+    """Objective to talk to NPCs and complete dialog sequences."""
+    dialog_id: str = field(init=False)
+    description: str = field(init=False)
+    required_progress: int = field(init=False)
+    npc_id: Optional[str] = field(default=None, init=False)
+    dialog_completed: bool = field(default=False, init=False)
+    
+    def __init__(self, dialog_id: str, description: str = "", required_progress: int = 1, npc_id: Optional[str] = None):
+        self.dialog_id = dialog_id
+        self.description = description
+        self.required_progress = required_progress
+        self.npc_id = npc_id
+        if not self.description:
+            self.description = f"Talk to NPC about {self.dialog_id}"
+        self.marker_color = (255, 255, 0)  # Yellow for dialog
+        self.marker_shape = "diamond"  # Diamond for NPCs
+        self.marker_size = 10
+        self.icon = "dialog"  # Dialog icon
+        
+    def check_progress(self, event_data: Dict[str, Any]) -> bool:
+        """Check if a dialog event matches this objective."""
+        if event_data.get('type') != 'dialog':
+            return False
+            
+        dialog_id = event_data.get('dialog_id')
+        
+        # Check if the dialog matches our target
+        if dialog_id != self.dialog_id:
+            return False
+            
+        # Check NPC ID if specified
+        if self.npc_id and event_data.get('npc_id') != self.npc_id:
+            return False
+            
+        # Check if dialog reached a conclusion state
+        dialog_state = event_data.get('dialog_state', '')
+        if dialog_state != 'conclusion' and 'complete' not in dialog_state:
+            return False
+            
+        if not self.dialog_completed:
+            self.dialog_completed = True
+            return self.update_progress()
+            
+        return False
+        
+    def draw_marker(self, screen: pygame.Surface, x: int, y: int):
+        """Draw a marker for dialog objectives."""
+        # Draw a speech bubble shape
+        bubble_radius = self.marker_size
+        # Main circle
+        pygame.draw.circle(screen, self.marker_color, (x, y), bubble_radius)
+        # Outline
+        pygame.draw.circle(screen, (0, 0, 0), (x, y), bubble_radius, 2)
+        # Speech pointer
+        points = [
+            (x, y + bubble_radius - 2),
+            (x - bubble_radius//2, y + bubble_radius + bubble_radius//2),
+            (x + bubble_radius//4, y + bubble_radius + bubble_radius//4)
+        ]
+        pygame.draw.polygon(screen, self.marker_color, points)
+        pygame.draw.polygon(screen, (0, 0, 0), points, 2) 

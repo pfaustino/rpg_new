@@ -24,11 +24,6 @@ from rpg_modules.core.constants import (
     QUALITY_COLORS, UI_DIMENSIONS
 )
 from rpg_modules.core.map import TileType
-# Import save game functionality
-from rpg_modules.savegame import save_game as module_save_game
-from rpg_modules.savegame import load_game as module_load_game
-from rpg_modules.savegame import resume_game as module_resume_game
-from rpg_modules.savegame import create_item_from_data as module_create_item
 import traceback
 import numpy as np
 import types
@@ -61,9 +56,6 @@ LEVEL_UP_SOUND = "level_up.wav"
 
 # Global reference to the current game state
 game_state = None
-
-# Global variables
-global_game_state = None
 
 def load_assets():
     """Load all game assets"""
@@ -237,117 +229,30 @@ def _create_simple_sound(sound_type):
         samples = 128 + amplitude * envelope * np.sin(2 * np.pi * freq * t) + noise
             
     elif sound_type == 'level_up':
-        # Glorious level up sound - grand ascending fanfare
-        duration = 2.0  # Full 2 seconds
+        # Level up - 3 ascending notes
+        duration = 0.5  # seconds
+        note_duration = duration / 3
+        frequencies = [440, 550, 660]  # A4, C#5, E5 (A major triad)
         
-        # Time array for the full sound
-        t = np.linspace(0, duration, int(duration * sample_rate), endpoint=False)
+        all_samples = []
         
-        # Create multiple sections for a more complex sound
-        samples = np.zeros(len(t)) + 128  # Start with silence at center point
-        
-        # First part: ascending major chord sequence (C, E, G, C)
-        frequencies = [262, 330, 392, 523]  # C4, E4, G4, C5
-        note_duration = 0.25  # each note is 0.25 seconds
-        
-        for i, freq in enumerate(frequencies):
-            # Calculate start and end indices for this note
-            start_idx = int(i * note_duration * sample_rate)
-            end_idx = int((i + 1) * note_duration * sample_rate)
+        for note_idx, freq in enumerate(frequencies):
+            # Time array for this note
+            t = np.linspace(0, note_duration, int(note_duration * sample_rate), endpoint=False)
             
-            if end_idx > len(t):
-                break
-                
-            # Create a time array for just this segment
-            t_segment = t[start_idx:end_idx] - t[start_idx]
-            
-            # Create an envelope that fades in and out
-            envelope = np.sin(np.pi * t_segment / note_duration)
-            
-            # Generate the note and add it to our samples
-            note = amplitude * 0.8 * envelope * np.sin(2 * np.pi * freq * t_segment)
-            samples[start_idx:end_idx] += note
-            
-        # Second part: triumphant fanfare (t = 1.0 to 2.0)
-        fanfare_start = int(1.0 * sample_rate)
-        
-        # Base frequencies for fanfare chords
-        chord1 = [523, 659, 784]  # C5, E5, G5
-        chord2 = [587, 740, 880]  # D5, F#5, A5
-        chord3 = [659, 784, 988]  # E5, G5, B5
-        chord4 = [523, 659, 784, 1047]  # C5, E5, G5, C6 (Final chord with octave)
-        
-        # Add chord progression
-        chords = [chord1, chord2, chord3, chord4]
-        chord_duration = 0.25  # each chord is 0.25 seconds
-        
-        for i, chord in enumerate(chords):
-            # Calculate start and end indices for this chord
-            start_idx = fanfare_start + int(i * chord_duration * sample_rate)
-            end_idx = fanfare_start + int((i + 1) * chord_duration * sample_rate)
-            
-            if end_idx > len(t):
-                break
-                
-            # Create a time array for just this segment
-            t_segment = t[start_idx:end_idx] - t[start_idx]
-            
-            # Different envelope for each chord - last chord sustains longer
-            if i < 3:
-                envelope = np.sin(np.pi * t_segment / chord_duration)
+            # Each note fades in and out
+            if note_idx < 2:
+                envelope = np.sin(np.pi * t / note_duration)
             else:
-                # Final chord has longer release
-                envelope = np.sin(np.pi * t_segment / chord_duration * 0.5)
-                envelope = np.clip(envelope, 0, 1)  # Keep only the attack/sustain part
+                # Last note has longer release
+                envelope = np.sin(np.pi * t / note_duration * 0.5)
             
-            # Layer all frequencies in the chord
-            chord_samples = np.zeros(end_idx - start_idx)
-            for freq in chord:
-                note = amplitude * 0.3 * envelope * np.sin(2 * np.pi * freq * t_segment)
-                chord_samples += note
-                
-                # Add a subtle fifth above for richness on the final chord
-                if i == 3:
-                    overtone = amplitude * 0.1 * envelope * np.sin(2 * np.pi * freq * 1.5 * t_segment)
-                    chord_samples += overtone
-            
-            # Add some subtle shimmer to the final chord
-            if i == 3:
-                shimmer_freq = 1400  # High frequency shimmer
-                shimmer = amplitude * 0.05 * envelope * np.sin(2 * np.pi * shimmer_freq * t_segment)
-                shimmer *= (0.5 + 0.5 * np.sin(2 * np.pi * 8 * t_segment))  # Modulate the shimmer
-                chord_samples += shimmer
-            
-            # Add the chord to our main samples
-            samples[start_idx:end_idx] += chord_samples
+            # Generate note samples
+            note_samples = 128 + amplitude * envelope * np.sin(2 * np.pi * freq * t)
+            all_samples.append(note_samples)
         
-        # Add some subtle bells/sparkles throughout (especially in second half)
-        for i in range(8):
-            # Random timings for sparkle effects
-            start_time = 1.0 + (i / 8) * 0.8  # Spread throughout the second half
-            start_idx = int(start_time * sample_rate)
-            sparkle_duration = 0.1
-            end_idx = min(len(t), start_idx + int(sparkle_duration * sample_rate))
-            
-            if end_idx > len(t):
-                break
-                
-            # Create a time array for just this segment
-            t_segment = t[start_idx:end_idx] - t[start_idx]
-            
-            # Brief bell-like sound
-            bell_freq = 1200 + i * 100  # Increasing frequencies
-            envelope = np.exp(-t_segment * 40)  # Quick decay
-            
-            bell = amplitude * 0.15 * envelope * np.sin(2 * np.pi * bell_freq * t_segment)
-            samples[start_idx:end_idx] += bell
-        
-        # Apply overall envelope to entire sound
-        overall_envelope = 1.0 - 0.5 * np.exp(-(t/duration) * 3)  # Starts at 0.5, quickly rises to 1.0
-        overall_envelope *= (1.0 - np.exp(-(2.0-t) * 10))  # Quick fade out at the end
-        
-        # Apply the overall envelope
-        samples = 128 + (samples - 128) * overall_envelope
+        # Combine all notes
+        samples = np.concatenate(all_samples)
     else:
         # Default beep
         duration = 0.2  # seconds
@@ -378,79 +283,82 @@ def _create_simple_sound(sound_type):
 
 # Game states
 class GameState:
-    """Manages the global game state."""
+    """Manages the main game state."""
     
-    def __init__(self, screen: pygame.Surface):
+    def __init__(self, screen):
         """Initialize the game state."""
-        print("\n=== Initializing Game State ===")
+        global game_state
+        game_state = self
         
-        # Store screen reference
+        # Set up game window
         self.screen = screen
+        self.clock = pygame.time.Clock()
+        self.running = True
+        self.paused = False
         
-        # Create map
-        print("Creating game map...")
-        self.map = Map()
-        print(f"Map created with dimensions: {self.map.width}x{self.map.height}")
+        # Initialize random number generator
+        random.seed()
         
-        # Create player
-        print("Creating player...")
-        self.player = Player(self.map.width * TILE_SIZE // 2, self.map.height * TILE_SIZE // 2)
-        print(f"Player spawn position: ({self.player.x // TILE_SIZE}, {self.player.y // TILE_SIZE})")
+        # Screen dimensions and settings
+        self.screen_width = SCREEN_WIDTH
+        self.screen_height = SCREEN_HEIGHT
         
-        # Make sure player's inventory is set up properly with correct capacity
-        if not hasattr(self.player, 'inventory') or not isinstance(self.player.inventory, Inventory):
-            print("Creating new inventory for player")
-            self.player.inventory = Inventory(40)  # Ensure capacity is set to 40
+        # Load assets
+        self.assets = load_assets()
+        self.font = pygame.font.Font(None, 28)  # Default font
+        self.debug_font = pygame.font.Font(None, 18)  # Smaller font for debug info
+        self.title_font = pygame.font.Font(None, 48)  # Larger font for titles
         
-        # Add some initial items to player inventory for testing
-        print("Adding some test items to player inventory...")
+        # Load sounds
         try:
-            from rpg_modules.items.generator import ItemGenerator
-            item_gen = ItemGenerator()
-            
-            # Add a few test items of different types
-            for _ in range(5):
-                item = item_gen.generate_item()
-                if item:
-                    success = self.player.inventory.add_item(item)
-                    print(f"Added test item: {item.display_name} - Success: {success}")
-            
-            # Debug info about inventory state
-            filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
-            print(f"Player inventory now has {filled_slots}/{len(self.player.inventory.items)} items")
-            print(f"First few inventory slots: {[str(item) if item else 'None' for item in self.player.inventory.items[:5]]}")
+            self.sounds = load_sounds()
         except Exception as e:
-            print(f"Error adding test items: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"Error loading sounds: {e}")
+            self.sounds = {}
+            
+        # Set up game map
+        self.map = Map(width=50, height=50, tile_size=TILE_SIZE)
+        self.map.generate_map()
         
-        # Make sure player's equipment is set up properly
-        if not hasattr(self.player, 'equipment') or not isinstance(self.player.equipment, Equipment):
-            print("Creating new equipment for player")
-            self.player.equipment = Equipment()
+        # Set up player
+        player_pos = self.map.find_empty_tile()
+        self.player = Player(player_pos[0], player_pos[1], self.assets)
+        self.player.inventory = Inventory(40)  # Player can carry 40 items
+        self.player.equipment = EquipmentManager()
         
-        # Override player's on_level_up method to play sound
-        original_on_level_up = self.player.on_level_up
-        def new_on_level_up():
-            # Call the original method
-            original_on_level_up()
-            # Play level up sound
-            if hasattr(self, 'sounds') and 'level_up' in self.sounds:
-                self.sounds['level_up'].play()
-                print("Playing level up sound!")
-            # Start level up visual effect
-            self._start_level_up_effect()
-        self.player.on_level_up = new_on_level_up
+        # Initialize player stats
+        self.player.health = PLAYER_HP
+        self.player.max_health = PLAYER_HP
+        self.player.mana = PLAYER_ATTACK
+        self.player.max_mana = PLAYER_ATTACK
+        self.player.stamina = PLAYER_DEFENSE
+        self.player.max_stamina = PLAYER_DEFENSE
         
-        print(f"Player created with inventory capacity: {len(self.player.inventory.items)}")
+        # Initialize player equipment
+        self.player.equipment.slots['weapon'] = Weapon(weapon_type="Sword", attack_power=10, quality="Common", material="Iron")
+        self.player.equipment.slots['chest'] = Armor(armor_type="Chest", defense=5, quality="Common", material="Leather")
+        self.player.equipment.slots['head'] = Armor(armor_type="Head", defense=2, quality="Common", material="Leather")
+        self.player.equipment.slots['hands'] = Hands(defense=3, dexterity=1, quality="Common", material="Leather")
+        self.player.equipment.slots['legs'] = Armor(armor_type="Legs", defense=4, quality="Common", material="Leather")
+        self.player.equipment.slots['feet'] = Armor(armor_type="Feet", defense=2, quality="Common", material="Leather")
         
-        # Create camera
-        print("Creating camera...")
+        # Initialize player quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
         self.camera = Camera(self.player)
-        print("Camera created")
         
         # Initialize monster system
-        print("\nInitializing monster system...")
         self.monsters = []
         self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
         self.hovered_monster = None  # Track which monster is currently being hovered
@@ -459,2142 +367,4514 @@ class GameState:
         self.recent_death_locations = []
         self.death_location_expiry = 500  # Frames before a death location expires
         
-        # Create UI elements
-        print("\nCreating UI elements...")
-        # Create inventory UI with explicit reference to player's inventory
-        self.inventory_ui = InventoryUI(screen)
-        # Explicitly set the inventory reference
+        # Initialize UI references
         self.inventory_ui.inventory = self.player.inventory.items
-        print(f"Inventory UI created with reference to player inventory: {id(self.player.inventory.items)}")
-        
-        # Create equipment UI with direct reference to player equipment
-        self.equipment_ui = EquipmentUI(screen)
         self.equipment_ui.equipment = self.player.equipment.slots
-        self.equipment_ui.set_player(self.player)  # Set player reference for stat calculations
-        print(f"Equipment UI created with reference to player equipment: {id(self.player.equipment.slots)}")
         
-        # Create other UI components
-        self.generator_ui = GeneratorUI(SCREEN_WIDTH - 400, 10)
-        
-        # Add a method to refresh the inventory UI reference
-        def refresh_inventory_ui(self):
-            """Refresh the inventory UI to make sure it uses the current player inventory items."""
-            print(f"DEBUG: Refreshing inventory UI - Inventory has {sum(1 for item in self.player.inventory.items if item is not None)}/{len(self.player.inventory.items)} items")
-            # Ensure the UI is using the player's current inventory reference
-            self.inventory_ui.inventory = self.player.inventory.items
-            
-        self.refresh_inventory_ui = types.MethodType(refresh_inventory_ui, self)
-        
-        # Call refresh to ensure UI is using the correct inventory reference
+        # Initialize UI state
         self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
         
-        # Set up equipment callback
-        self.inventory_ui.set_equip_callback(self.equip_item_from_inventory)
-        print("Equipment callback set for inventory UI")
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
         
-        # Create quest log and initialize quest UI with it
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
         self.quest_log = QuestLog()
-        self.quest_ui = QuestUI(screen, self.quest_log)
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
         
-        # Create system menu UI
-        self.system_menu_ui = SystemMenuUI(screen)
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
         self._setup_system_menu_callbacks()
         
-        # Create character selection UI
-        from rpg_modules.ui.character_select import CharacterSelectUI
-        self.character_select_ui = CharacterSelectUI(
-            screen,
-            on_select=self._load_character,
-            on_cancel=self._cancel_character_select
-        )
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
         
-        print("UI elements created")
-        
-        # Load assets
-        print("\nLoading assets...")
-        self.assets = load_assets()
-        print("Assets loaded")
-        
-        # Load sound effects
-        print("\nLoading sound effects...")
-        self.sounds = load_sounds()
-        print("Sound effects loaded")
-        
-        # Initial monster spawn
-        self._spawn_initial_monsters()
-        print(f"Total monsters spawned: {len(self.monsters)}")
-        for monster_type in MonsterType:
-            if self.monster_counts[monster_type] > 0:
-                print(f"- {monster_type.name}: {self.monster_counts[monster_type]}")
-            
-        # Game running state
-        self.running = True
-        self.paused = False
-        self.current_attack_effect = None  # Track current attack animation
-        
-        # Level up effect tracking
-        self.level_up_effect = None
-        self.level_up_effect_duration = 2000  # 2 seconds in milliseconds
-        self.level_up_effect_start_time = 0
-        
-        # Game save path
-        self.save_path = "save"
-        if not os.path.exists(self.save_path):
-            os.makedirs(self.save_path)
-        
-        # We don't automatically load a saved game at startup anymore
-        # Instead, the player must use the Load Game option from the system menu
-        
-        print("\n=== Game State Initialized ===")
-        
-    def _setup_system_menu_callbacks(self):
-        """Set up callbacks for system menu options."""
-        self.system_menu_ui.set_callback("Resume Game", self._resume_game)
-        self.system_menu_ui.set_callback("Save Game", self._save_game)
-        self.system_menu_ui.set_callback("Load Game", self._load_game)
-        self.system_menu_ui.set_callback("New Game", self._new_game)
-        self.system_menu_ui.set_callback("Quit Game", self._quit_game)
-        
-    def _resume_game(self):
-        """Resume the game by hiding the system menu."""
-        # Call the module's resume_game function
-        module_resume_game(self)
-        
-    def _save_game(self):
-        """Save the current game state to a file."""
-        # Call the module's save_game function
-        module_save_game(self)
-
-    def load_game(self):
-        """Load the game state from a file if it exists."""
-        # Call the module's load_game function
-        module_load_game(self)
-
-    def _load_game(self):
-        """Load a previously saved game."""
-        print("Loading game using module function...")
-        self.load_game()
-
-    def _new_game(self):
-        """Start a new game."""
-        print("Starting new game")
-        # Show name input dialog first
-        from rpg_modules.ui.character_select import NameInputDialog
-        if not hasattr(self, 'name_input_dialog'):
-            self.name_input_dialog = NameInputDialog(
-                self.screen,
-                on_confirm=self._start_new_game_with_name,
-                on_cancel=self._cancel_new_game
-            )
-        self.name_input_dialog.show()
-    
-    def _start_new_game_with_name(self, hero_name):
-        """Start a new game with the given hero name."""
-        print(f"Starting new game with hero name: {hero_name}")
-        self.name_input_dialog.hide()
-        self.restart_game(hero_name)
-        self.system_menu_ui.toggle()
-    
-    def _cancel_new_game(self):
-        """Cancel new game creation."""
-        print("New game canceled")
-        self.name_input_dialog.hide()
-
-    def _quit_game(self):
-        """Signal the game to quit."""
-        self._save_game()  # Save before quitting
-        self.running = False
-        print("Game quitting...")
-        
-    def restart_game(self, hero_name="Hero"):
-        """Restart the game with a fresh state."""
-        # Reset player position to center of screen
-        player_x = SCREEN_WIDTH // 2
-        player_y = SCREEN_HEIGHT // 2
-        
-        # Create a new player at this position
-        self.player = Player(player_x, player_y)
-        
-        # Set the player's name from the input dialog
-        self.player.name = hero_name
-        
-        # Reset camera with player reference
+        # Initialize camera
         self.camera = Camera(self.player)
         
-        # Reset monsters
+        # Initialize monster system
         self.monsters = []
         self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
         
-        # Reset map with explicit dimensions
-        self.map = Map()
-        
-        # Set the game map reference for the player for pathfinding
-        self.player.set_game_map(self.map)
-        
-        # Spawn initial monsters
-        self._spawn_initial_monsters()
-        
-        # Reset death locations
+        # Track recently killed monster locations to prevent immediate respawning
         self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
         
-        # Make sure the inventory UI is updated with the new player's inventory
+        # Initialize UI references
         self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
         self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
         
-        # Update equipment UI with new player reference
-        self.equipment_ui.equipment = self.player.equipment.slots
-        self.equipment_ui.set_player(self.player)
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
         
-        print(f"Game restarted. New player '{hero_name}' created at position ({player_x}, {player_y})")
-        print(f"Reset inventory UI to new player inventory with {len(self.player.inventory.items)} slots")
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
         
-    def update(self, dt, events):
-        """Update game state."""
-        # Process events passed from main loop (not calling pygame.event.get() again)
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
         
-        # Skip updating if paused
-        if self.paused:
-            return events
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
         
-        # Check for name input dialog visibility
-        if hasattr(self, 'name_input_dialog') and self.name_input_dialog.visible:
-            # When name input dialog is open, only handle its events
-            for event in events:
-                if self.name_input_dialog.handle_event(event):
-                    return  # Event was handled by name input dialog
-            
-            # Update name input dialog
-            self.name_input_dialog.update(dt)
-            return
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
         
-        # Check for system menu visibility first
-        if self.system_menu_ui.visible:
-            # When system menu is open, only handle its events
-            for event in events:
-                if self.system_menu_ui.handle_event(event):
-                    return  # Event was handled by system menu
-                
-                # Also handle character select UI events if it's visible
-                if hasattr(self, 'character_select_ui') and self.character_select_ui.visible:
-                    if self.character_select_ui.handle_event(event):
-                        return  # Event was handled by character select UI
-            
-            # Update system menu
-            self.system_menu_ui.update()
-            return
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
         
-        # Handle UI component visibility and interaction
-        for event in events:
-            # Process different event types
-            if event.type == pygame.QUIT:
-                self.running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                # Handle mouse clicks
-                if event.button == 1:  # Left mouse button for attack
-                    # Only process attack if no UI is visible
-                    if not (self.inventory_ui.visible or self.equipment_ui.visible or 
-                           self.generator_ui.visible or self.quest_ui.visible):
-                        if self.player.can_attack():
-                            # Attempt a fast attack on click
-                            self.player.try_attack()
-                            self._handle_player_attack()
-                elif event.button == 3:  # Right mouse button for pathing
-                    # Only process pathing if no UI is visible
-                    if not (self.inventory_ui.visible or self.equipment_ui.visible or 
-                           self.generator_ui.visible or self.quest_ui.visible):
-                        # Set the game map reference if not already set
-                        if not self.player.game_map:
-                            self.player.set_game_map(self.map)
-                        # Get mouse position and handle right click
-                        mouse_x, mouse_y = pygame.mouse.get_pos()
-                        self.player.handle_right_click(mouse_x, mouse_y, self.camera)
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_i:
-                    # Toggle both inventory and equipment UI
-                    self.inventory_ui.toggle()
-                    # Make equipment UI match inventory UI visibility
-                    if self.equipment_ui.visible != self.inventory_ui.visible:
-                        self.equipment_ui.toggle()
-                    
-                    if self.inventory_ui.visible:
-                        # Refresh inventory UI when opening
-                        self.refresh_inventory_ui()
-                        print(f"Opened inventory and equipment UI, refreshed with {sum(1 for item in self.player.inventory.items if item is not None)} items")
-                elif event.key == pygame.K_e:
-                    # Toggle equipment only
-                    self.equipment_ui.toggle()
-                elif event.key == pygame.K_g:
-                    # Toggle both generator and inventory UI
-                    self.generator_ui.toggle()
-                    # Make inventory UI match generator UI visibility
-                    if self.inventory_ui.visible != self.generator_ui.visible:
-                        self.inventory_ui.toggle()
-                    
-                    if self.generator_ui.visible:
-                        # Refresh inventory UI when opening
-                        self.refresh_inventory_ui()
-                        print(f"Opened generator and inventory UI, refreshed with {sum(1 for item in self.player.inventory.items if item is not None)} items")
-                elif event.key == pygame.K_q:
-                    # Toggle quest UI
-                    self.quest_ui.toggle()
-                elif event.key == pygame.K_ESCAPE:
-                    # Handle ESC key: First close any open UI windows, then toggle system menu if needed
-                    if self.inventory_ui.visible:
-                        self.inventory_ui.toggle()
-                        # Make equipment UI match inventory UI visibility
-                        if self.equipment_ui.visible:
-                            self.equipment_ui.toggle()
-                        print("Closed inventory UI with ESC key")
-                    elif self.equipment_ui.visible:
-                        self.equipment_ui.toggle()
-                        print("Closed equipment UI with ESC key")
-                    elif self.generator_ui.visible:
-                        self.generator_ui.toggle()
-                        # Close inventory UI as well if it's open with generator
-                        if self.inventory_ui.visible:
-                            self.inventory_ui.toggle()
-                        print("Closed generator UI with ESC key")
-                    elif self.quest_ui.visible:
-                        self.quest_ui.toggle()
-                        print("Closed quest UI with ESC key")
-                    else:
-                        # Only open system menu if no other UI is visible
-                        self.system_menu_ui.toggle()
-                        print("Toggled system menu with ESC key")
-                # Attack type switching with number keys
-                elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
-                    # Convert key to attack type (1-4)
-                    attack_type = event.key - pygame.K_0
-                    
-                    # Check resource requirements before switching
-                    if attack_type == 2 and self.player.stamina < 15:  # Heavy attack
-                        print("Not enough stamina for Heavy attack! (Requires 15 stamina)")
-                    elif attack_type == 3 and self.player.mana < 20:  # Magic attack
-                        print("Not enough mana for Magic attack! (Requires 20 mana)")
-                    else:
-                        # Switch attack type if resources are available
-                        success = self.player.switch_attack_type(attack_type)
-                        if success:
-                            attack_name = self.player.get_attack_type_name()
-                            attack_range = self.player.get_attack_range()
-                            print(f"Switched to {attack_name} attack! Range: {attack_range:.1f}")
-                        else:
-                            print("Could not switch attack type. Unknown error.")
-                # Potion hotkeys
-                elif event.key in [pygame.K_7, pygame.K_8, pygame.K_9]:
-                    potion_type = None
-                    if event.key == pygame.K_7:  # Health potion
-                        potion_type = 'health'
-                    elif event.key == pygame.K_8:  # Mana potion
-                        potion_type = 'mana'
-                    elif event.key == pygame.K_9:  # Stamina potion
-                        potion_type = 'stamina'
-                    
-                    if potion_type:
-                        self._use_potion_of_type(potion_type)
-                # Add test items with T key
-                elif event.key == pygame.K_t:
-                    self._add_test_items()
-                # Game settings: Adjust monster speed
-                elif event.key == pygame.K_F5:
-                    # Decrease monster speed
-                    from rpg_modules.core.settings import GameSettings
-                    GameSettings.instance().decrease_monster_speed(0.1)
-                elif event.key == pygame.K_F6:
-                    # Increase monster speed
-                    from rpg_modules.core.settings import GameSettings
-                    GameSettings.instance().increase_monster_speed(0.1)
-                elif event.key == pygame.K_F7:
-                    # Toggle debug visualization
-                    from rpg_modules.core.settings import GameSettings
-                    settings = GameSettings.instance()
-                    settings.debug_visualization = not settings.debug_visualization
-                    print(f"Debug visualization {'enabled' if settings.debug_visualization else 'disabled'}")
-            elif event.type == pygame.MOUSEWHEEL:
-                # Handle zoom immediately
-                if event.y > 0:  # Scroll up to zoom in
-                    self.camera.zoom_in()
-                elif event.y < 0:  # Scroll down to zoom out
-                    self.camera.zoom_out()
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
         
-        # Update death location expiry times
-        self._update_death_locations()
+        # Initialize camera
+        self.camera = Camera(self.player)
         
-        # Handle player input
-        keys = pygame.key.get_pressed()
-        walls = self.map.get_walls()
-        # Only print wall count occasionally to reduce console spam
-        if random.random() < 0.005:
-            print(f"DEBUG: Passing {len(walls)} walls to player.handle_input()")
-        self.player.handle_input(keys, walls)
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
         
-        # Update player
-        self.player.update(dt)
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
         
-        # Process player attacks
-        if keys[pygame.K_SPACE] and self.player.can_attack():
-            self._handle_player_attack()
-        
-        # Update UI elements
+        # Initialize UI references
         self.inventory_ui.inventory = self.player.inventory.items
         self.equipment_ui.equipment = self.player.equipment.slots
-        self.inventory_ui.update()
-        self.equipment_ui.update()
-        self.quest_ui.update()
-        self.generator_ui.update()
         
-        # Check for monster hover
-        self._check_monster_hover()
-        
-        # Pass events to UI elements after handling zoom
-        for event in events:
-            if event.type != pygame.MOUSEWHEEL:  # Skip wheel events for UI
-                self.inventory_ui.handle_event(event)
-                self.equipment_ui.handle_event(event)
-                self.quest_ui.handle_event(event)
-                if self.generator_ui.visible:  # Only handle events when visible
-                    self.generator_ui.handle_event(event, self.player)
-                    # Re-sync inventory after possible item generation
-                    self.inventory_ui.inventory = self.player.inventory.items
-        
-        # Update monsters
-        for monster in self.monsters[:]:
-            monster.update(dt, (self.player.x, self.player.y))
-            
-            # Check for monster death
-            if monster.health <= 0:
-                self._handle_monster_death(monster)
-                continue
-                
-            # Handle monster attacks
-            dx = monster.x - self.player.x
-            dy = monster.y - self.player.y
-            dist = (dx * dx + dy * dy) ** 0.5
-            
-            if dist <= monster.attack_range * TILE_SIZE and monster.can_attack():
-                damage = monster.attack()
-                # Apply the damage to the player
-                self.player.take_damage(damage)
-                # Play monster attack sound
-                self.sounds['monster_attack'].play()
-                # Play player hit sound
-                self.sounds['player_hit'].play()
-                print(f"{monster.monster_type.name} lvl {monster.level} attacks player for {damage} damage! Player health: {self.player.health}/{self.player.max_health}")
-        
-        # Try spawning new monsters occasionally
-        if random.random() < 0.01:  # 1% chance each frame
-            monster_type = random.choice([MonsterType.SLIME, MonsterType.SPIDER, MonsterType.WOLF])
-            if self._try_spawn_monster(monster_type):
-                print(f"New {monster_type.name} spawned!")
-        
-        # Update camera
-        self.camera.update(self.player)
-        
-        # Update level up effect
-        self._update_level_up_effect()
-        
-    def draw(self):
-        """Draw the game state."""
-        # Clear the screen
-        self.screen.fill((0, 0, 0))
-        
-        # Draw in layers: map, entities, UI, system menu
-        
-        # Map and entities
-        self._draw_map()
-        self._draw_entities()
-        
-        # Draw player stats
-        self._draw_player_stats()
-        
-        # Draw UI components
-        if self.inventory_ui.visible:
-            self.inventory_ui.draw(self.screen)
-        
-        if self.equipment_ui.visible:
-            self.equipment_ui.draw(self.screen)
-            
-        if self.generator_ui.visible:
-            self.generator_ui.draw(self.screen, self.player)
-            
-        if self.quest_ui.visible:
-            self.quest_ui.draw(self.screen)
-        
-        # Draw action toolbar
-        self._draw_action_toolbar(self.screen)
-        
-        # Draw attack effect if active
-        if self.current_attack_effect:
-            self._draw_attack_effect(self.screen)
-        
-        # Draw monster tooltip if hovering
-        if self.hovered_monster:
-            self._draw_monster_tooltip(self.screen, self.hovered_monster)
-            
-        # Draw system menu last (on top of everything)
-        if self.system_menu_ui.visible:
-            self.system_menu_ui.draw(self.screen)
-            
-            # Draw character select UI if visible
-            if hasattr(self, 'character_select_ui') and self.character_select_ui.visible:
-                self.character_select_ui.draw(self.screen)
-                
-        # Draw name input dialog if visible (on top of everything)
-        if hasattr(self, 'name_input_dialog') and self.name_input_dialog.visible:
-            self.name_input_dialog.draw(self.screen)
-        
-        # Draw level up effect if active
-        if self.level_up_effect:
-            self._draw_level_up_effect()
-        
-        # Update the display
-        pygame.display.flip()
-
-    def _draw_map(self):
-        """Draw the game map."""
-        self.map.draw(self.screen, self.camera, self.assets)
-
-    def _draw_entities(self):
-        """Draw the game entities (player and monsters)."""
-        # Draw player
-        self.player.draw(self.screen, self.camera)
-        # Draw monsters
-        for monster in self.monsters:
-            monster.draw(self.screen, self.camera)
-
-    def _draw_player_stats(self):
-        """Draw player health, mana, stamina bars and attack cooldown icon."""
-        # Calculate bar dimensions and positions
-        bar_width = 150
-        bar_height = 20
-        bar_spacing = 5
-        border_width = 2
-        
-        # Position in top-right corner with some margin
-        start_x = SCREEN_WIDTH - bar_width - 20
-        start_y = 15
-        
-        # Draw health bar
-        health_percent = self.player.health / self.player.max_health
-        self._draw_status_bar(self.screen, start_x, start_y, bar_width, bar_height, 
-                            health_percent, (200, 50, 50), "Health")
-        
-        # Draw mana bar
-        mana_percent = self.player.mana / self.player.max_mana
-        self._draw_status_bar(self.screen, start_x, start_y + bar_height + bar_spacing, 
-                            bar_width, bar_height, mana_percent, (50, 50, 200), "Mana")
-        
-        # Draw stamina bar
-        stamina_percent = self.player.stamina / self.player.max_stamina
-        self._draw_status_bar(self.screen, start_x, start_y + (bar_height + bar_spacing) * 2, 
-                            bar_width, bar_height, stamina_percent, (50, 200, 50), "Stamina")
-        
-        # Draw XP bar - calculate percentage towards next level
-        # Formula: next level requires current_level * 100 XP
-        xp_needed = self.player.level * 100
-        xp_percent = self.player.experience / xp_needed
-        xp_color = (180, 120, 255)  # Purple for XP
-        self._draw_status_bar(self.screen, start_x, start_y + (bar_height + bar_spacing) * 3, 
-                            bar_width, bar_height, xp_percent, xp_color, 
-                            f"XP: {self.player.experience}/{xp_needed}")
-        
-        # Draw attack type indicator below status bars
-        attack_type = self.player.attack_type
-        attack_name = self.player.get_attack_type_name()
-        
-        # Set color based on attack type
-        if attack_type == 1:  # Regular
-            attack_color = (200, 200, 200)  # White
-        elif attack_type == 2:  # Heavy
-            attack_color = (255, 150, 0)    # Orange
-        elif attack_type == 3:  # Magic
-            attack_color = (100, 100, 255)  # Blue
-        elif attack_type == 4:  # Quick
-            attack_color = (0, 255, 100)    # Green
-        else:
-            attack_color = (150, 150, 150)  # Gray
-        
-        # Draw attack type text
-        font = pygame.font.Font(None, 20)
-        attack_text = f"Attack: {attack_name} (Press 1-4)"
-        text_surface = font.render(attack_text, True, attack_color)
-        text_rect = text_surface.get_rect()
-        text_rect.topleft = (start_x, start_y + (bar_height + bar_spacing) * 4 + 5)
-        self.screen.blit(text_surface, text_rect)
-        
-        # Draw attack cooldown icon
-        icon_size = 40
-        icon_x = start_x - icon_size - 10
-        icon_y = start_y
-        
-        # Create a simple sword icon
-        pygame.draw.rect(self.screen, (150, 150, 150), (icon_x, icon_y, icon_size, icon_size))
-        
-        # Draw sword shape with color matching the attack type
-        sword_color = attack_color
-        # Sword handle
-        pygame.draw.rect(self.screen, sword_color, 
-                      (icon_x + icon_size//2 - 3, icon_y + icon_size//2, 6, icon_size//2 - 5))
-        # Sword guard
-        pygame.draw.rect(self.screen, sword_color, 
-                      (icon_x + icon_size//4, icon_y + icon_size//2, icon_size//2, 5))
-        # Sword blade
-        pygame.draw.polygon(self.screen, sword_color, [
-            (icon_x + icon_size//2, icon_y + 5),
-            (icon_x + icon_size//2 - 7, icon_y + icon_size//2),
-            (icon_x + icon_size//2 + 7, icon_y + icon_size//2)
-        ])
-        
-        # Calculate cooldown overlay
-        current_time = pygame.time.get_ticks()
-        last_attack_time = self.player.last_attack_time
-        attack_cooldown = self.player.attack_cooldown
-        
-        cooldown_percent = min(1.0, (current_time - last_attack_time) / attack_cooldown)
-        
-        # Draw cooldown overlay (darker area showing remaining cooldown)
-        if cooldown_percent < 1.0:
-            # Create a semi-transparent overlay to show cooldown
-            cooldown_height = int(icon_size * (1 - cooldown_percent))
-            cooldown_surface = pygame.Surface((icon_size, cooldown_height), pygame.SRCALPHA)
-            cooldown_surface.fill((0, 0, 0, 128))  # Semi-transparent black
-            self.screen.blit(cooldown_surface, (icon_x, icon_y))
-
-    def _draw_status_bar(self, screen, x, y, width, height, fill_percent, color, label=None):
-        """Draw a status bar with border and optional label."""
-        # Draw border
-        border_rect = pygame.Rect(x, y, width, height)
-        pygame.draw.rect(screen, (200, 200, 200), border_rect, 2)
-        
-        # Draw fill
-        fill_width = int((width - 4) * fill_percent)
-        fill_rect = pygame.Rect(x + 2, y + 2, fill_width, height - 4)
-        pygame.draw.rect(screen, color, fill_rect)
-        
-        # Draw label if provided
-        if label:
-            font = pygame.font.Font(None, 18)
-            label_surface = font.render(label, True, (255, 255, 255))
-            label_x = x + 5
-            label_y = y + (height - label_surface.get_height()) // 2
-            screen.blit(label_surface, (label_x, label_y))
-        
-        # Draw percentage text
-        percent_text = f"{int(fill_percent * 100)}%"
-        font = pygame.font.Font(None, 18)
-        percent_surface = font.render(percent_text, True, (255, 255, 255))
-        percent_x = x + width - percent_surface.get_width() - 5
-        percent_y = y + (height - percent_surface.get_height()) // 2
-        screen.blit(percent_surface, (percent_x, percent_y))
-
-    def _spawn_initial_monsters(self):
-        """Spawn initial set of monsters."""
-        # Use a wider variety of monster types for initial spawn
-        land_monster_types = [
-            # Original monsters
-            MonsterType.SLIME, MonsterType.SPIDER, MonsterType.WOLF,
-            # Elemental creatures
-            MonsterType.FIRE_ELEMENTAL, MonsterType.ICE_ELEMENTAL, MonsterType.STORM_ELEMENTAL,
-            # Undead
-            MonsterType.ZOMBIE, MonsterType.WRAITH, MonsterType.VAMPIRE,
-            # Magical creatures
-            MonsterType.PIXIE, MonsterType.PHOENIX, MonsterType.UNICORN,
-            # Forest creatures
-            MonsterType.TREANT, MonsterType.BEAR, MonsterType.DRYAD,
-            # Dark creatures
-            MonsterType.DEMON, MonsterType.SHADOW_STALKER, MonsterType.NIGHTMARE,
-            # Constructs
-            MonsterType.CLOCKWORK_KNIGHT, MonsterType.STEAM_GOLEM, MonsterType.ARCANE_TURRET,
-            # Crystal Creatures
-            MonsterType.CRYSTAL_GOLEM, MonsterType.PRISM_ELEMENTAL, MonsterType.GEM_BASILISK
-        ]
-        
-        water_monster_types = [
-            MonsterType.WATER_SPIRIT, 
-            MonsterType.MERFOLK, 
-            MonsterType.KRAKEN, 
-            MonsterType.SIREN, 
-            MonsterType.LEVIATHAN
-        ]
-        
-        spawn_count = 0
-        
-        # Shuffle the monster types to randomize which ones get spawned
-        random.shuffle(land_monster_types)
-        random.shuffle(water_monster_types)
-        
-        # Get player level (default to 1 if not set)
-        player_level = getattr(self.player, 'level', 1)
-        
-        print("\nStarting initial monster spawn...")
-        # Try to spawn monsters until we reach MAX_MONSTERS
-        while spawn_count < MAX_MONSTERS and (land_monster_types or water_monster_types):
-            # Alternate between water and land monsters to ensure diversity
-            if spawn_count % 2 == 0 and land_monster_types:
-                monster_type = land_monster_types.pop(0)  # Get next land monster type
-                is_water_monster = False
-            elif water_monster_types:
-                monster_type = water_monster_types.pop(0)  # Get next water monster type
-                is_water_monster = True
-            elif land_monster_types:
-                monster_type = land_monster_types.pop(0)  # Fallback to land if no water types left
-                is_water_monster = False
-            else:
-                break  # No more monster types available
-            
-            print(f"Attempting to spawn {monster_type.name}...")
-            
-            # Try up to 20 positions for each monster type
-            spawn_successful = False
-            for _ in range(20):
-                # Generate position away from player
-                tile_x = random.randint(5, self.map.width - 6)
-                tile_y = random.randint(5, self.map.height - 6)
-                
-                # Get the tile type at this location (directly access the base_grid)
-                tile_type = self.map.base_grid[tile_y][tile_x]
-                is_water_tile = tile_type == TileType.WATER
-                
-                # Skip if water type mismatch
-                if is_water_monster != is_water_tile:
-                    continue
-                    
-                pixel_x = tile_x * TILE_SIZE
-                pixel_y = tile_y * TILE_SIZE
-                
-                # Check distance from player
-                dx = pixel_x - self.player.x
-                dy = pixel_y - self.player.y
-                distance = math.sqrt(dx * dx + dy * dy)
-                
-                if distance < 200:  # Minimum spawn distance
-                    continue
-                
-                if self.map.is_wall(tile_x, tile_y):
-                    continue
-                
-                # Spawn monster
-                monster = Monster(pixel_x, pixel_y, monster_type, self.map, self.player.level)
-                
-                # Scale monster level based on player level
-                if player_level >= 11:
-                    # For high-level players, ensure monsters are at least level 10
-                    min_level = 10
-                    max_level = player_level + 2
-                else:
-                    # For lower level players, scale monsters more gradually
-                    min_level = max(1, player_level - 2)
-                    max_level = player_level + 2
-                
-                monster.level = random.randint(min_level, max_level)
-                    
-                # Scale monster stats based on level
-                level_multiplier = 1.0 + (monster.level - 1) * 0.2  # 20% increase per level
-                monster.max_health = int(monster_type.base_health * level_multiplier)
-                monster.health = monster.max_health
-                monster.attack_damage = int(monster_type.base_damage * level_multiplier)
-                
-                self.monsters.append(monster)
-                self.monster_counts[monster_type] += 1
-                spawn_count += 1
-                spawn_location = "water" if is_water_tile else "land"
-                print(f"Spawned {monster_type.name} lvl {monster.level} at tile ({tile_x}, {tile_y}) on {spawn_location}")
-                spawn_successful = True
-                break
-            
-            # If spawn was unsuccessful, put the monster type back but at the end
-            if not spawn_successful:
-                print(f"Failed to find valid spawn position for {monster_type.name}")
-                if is_water_monster:
-                    water_monster_types.append(monster_type)
-                else:
-                    land_monster_types.append(monster_type)
-        
-        print(f"\nInitial spawn complete - {spawn_count} monsters spawned")
-
-    def _try_spawn_monster(self, monster_type=None):
-        """Try to spawn a monster of the given type or a random type."""
-        if len(self.monsters) >= MAX_MONSTERS:
-            print("Maximum monster count reached")
-            return False
-
-        # Get player level (default to 1 if not set)
-        player_level = getattr(self.player, 'level', 1)
-
-        # If no specific type provided, choose a random one from an expanded list
-        if monster_type is None:
-            monster_type = random.choice([
-                # Original monsters
-                MonsterType.SLIME, MonsterType.SPIDER, MonsterType.WOLF,
-                # Elemental creatures
-                MonsterType.FIRE_ELEMENTAL, MonsterType.ICE_ELEMENTAL, MonsterType.STORM_ELEMENTAL,
-                # Undead
-                MonsterType.ZOMBIE, MonsterType.WRAITH, MonsterType.VAMPIRE,
-                # Magical creatures
-                MonsterType.PIXIE, MonsterType.PHOENIX, MonsterType.UNICORN,
-                # Forest creatures
-                MonsterType.TREANT, MonsterType.BEAR, MonsterType.DRYAD,
-                # Dark creatures
-                MonsterType.DEMON, MonsterType.SHADOW_STALKER, MonsterType.NIGHTMARE,
-                # Constructs
-                MonsterType.CLOCKWORK_KNIGHT, MonsterType.STEAM_GOLEM, MonsterType.ARCANE_TURRET,
-                # Crystal Creatures
-                MonsterType.CRYSTAL_GOLEM, MonsterType.PRISM_ELEMENTAL, MonsterType.GEM_BASILISK,
-                # Water Creatures
-                MonsterType.WATER_SPIRIT, MonsterType.MERFOLK, MonsterType.KRAKEN, MonsterType.SIREN, MonsterType.LEVIATHAN
-            ])
-
-        # Determine if this is a water monster
-        is_water_monster = monster_type in [
-            MonsterType.WATER_SPIRIT, 
-            MonsterType.MERFOLK, 
-            MonsterType.KRAKEN, 
-            MonsterType.SIREN, 
-            MonsterType.LEVIATHAN
-        ]
-        
-        # Monsters with special respawn behavior that can ignore death location restrictions
-        can_respawn_anywhere = monster_type in [
-            MonsterType.SLIME,  # Slimes can spawn anywhere as they split
-            MonsterType.WRAITH,  # Wraiths can appear in death locations
-            MonsterType.PHOENIX  # Phoenix respawns from its ashes
-        ]
-        
-        # Define minimum distance from player and from death locations
-        min_player_distance = 200
-        min_death_distance = 150  # Minimum distance from recent death locations
-        
-        # Try multiple positions until we find a valid one
-        for _ in range(30):  # Increased attempts to handle death location checks
-            # Generate random position in tile coordinates
-            tile_x = random.randint(2, self.map.width - 3)
-            tile_y = random.randint(2, self.map.height - 3)
-            
-            # Get the tile type at this location (directly access the base_grid)
-            tile_type = self.map.base_grid[tile_y][tile_x]
-            is_water_tile = tile_type == TileType.WATER
-            
-            # Skip if water type mismatch (water monsters should only spawn in water, non-water monsters not in water)
-            if is_water_monster != is_water_tile:
-                continue
-            
-            # Convert to pixel coordinates
-            pixel_x = tile_x * TILE_SIZE
-            pixel_y = tile_y * TILE_SIZE
-            
-            # Check if position is walkable
-            if self.map.is_wall(tile_x, tile_y):
-                continue
-            
-            # Check distance from player
-            dx = pixel_x - self.player.x
-            dy = pixel_y - self.player.y
-            distance_to_player = math.sqrt(dx * dx + dy * dy)
-            
-            if distance_to_player < min_player_distance:
-                continue
-            
-            # Check if too close to recent death locations (unless monster has special respawn)
-            if not can_respawn_anywhere:
-                too_close_to_death = False
-                for death_loc, _, death_type in self.recent_death_locations:
-                    death_x, death_y = death_loc
-                    dx = pixel_x - death_x
-                    dy = pixel_y - death_y
-                    death_distance = math.sqrt(dx * dx + dy * dy)
-                    
-                    if death_distance < min_death_distance:
-                        too_close_to_death = True
-                        break
-                
-                if too_close_to_death:
-                    continue
-            
-            # Check if we've reached max count for this type
-            max_count = 10  # Default max count per type
-            if self.monster_counts[monster_type] >= max_count:
-                print(f"Max count reached for {monster_type.name}")
-                return False
-            
-            # Valid position found, spawn the monster
-            monster = Monster(pixel_x, pixel_y, monster_type, self.map, self.player.level)
-            
-            # Scale monster level based on player level
-            if player_level >= 11:
-                # For high-level players, ensure monsters are at least level 10
-                min_level = 10
-                max_level = player_level + 2
-            else:
-                # For lower level players, scale monsters more gradually
-                min_level = max(1, player_level - 2)
-                max_level = player_level + 2
-            
-            monster.level = random.randint(min_level, max_level)
-            
-            # Adjust monster stats based on level
-            level_multiplier = 1.0 + (monster.level - 1) * 0.2  # 20% increase per level
-            monster.max_health = int(monster_type.base_health * level_multiplier)
-            monster.health = monster.max_health
-            monster.attack_damage = int(monster_type.base_damage * level_multiplier)
-            
-            self.monsters.append(monster)
-            self.monster_counts[monster_type] += 1
-            spawn_location = "water" if is_water_tile else "land"
-            print(f"Spawned {monster_type.name} lvl {monster.level} at tile ({tile_x}, {tile_y}) on {spawn_location}")
-            return True
-        
-        print(f"Failed to find valid spawn position for {monster_type.name}")
-        return False
-
-    def _handle_monster_death(self, monster: Monster):
-        """Handle monster death and potential item drops."""
-        self.monster_counts[monster.monster_type] -= 1
-        
-        # Record death location to prevent immediate respawning in same area
-        death_location = (monster.x, monster.y)
-        self.recent_death_locations.append((
-            death_location, 
-            self.death_location_expiry,
-            monster.monster_type
-        ))
-        
-        self.monsters.remove(monster)
-        
-        # Handle special death effects
-        if monster.monster_type == MonsterType.SLIME:
-            # Create smaller slimes
-            if monster.size > 16:  # Minimum size check
-                for _ in range(2):
-                    new_slime = Monster(
-                        monster.x + random.randint(-20, 20),
-                        monster.y + random.randint(-20, 20),
-                        MonsterType.SLIME,
-                        self.map,
-                        self.player.level
-                    )
-                    new_slime.size = max(16, monster.size - 8)
-                    new_slime.health = new_slime.size * 2
-                    new_slime.max_health = new_slime.health
-                    
-                    # Set level to match player level +/- 1
-                    player_level = getattr(self.player, 'level', 1)
-                    level_diff = random.randint(-1, 1)
-                    new_slime.level = max(1, player_level + level_diff)
-                    
-                    # Scale monster level based on player level
-                    if player_level >= 11:
-                        # For high-level players, ensure monsters are at least level 10
-                        min_level = 10
-                        max_level = player_level + 2
-                    else:
-                        # For lower level players, scale monsters more gradually
-                        min_level = max(1, player_level - 2)
-                        max_level = player_level + 2
-                    
-                    new_slime.level = random.randint(min_level, max_level)
-                    
-                    # Scale slime stats based on level
-                    level_multiplier = 1.0 + (new_slime.level - 1) * 0.2  # 20% increase per level
-                    new_slime.max_health = int(new_slime.size * 2 * level_multiplier)
-                    new_slime.health = new_slime.max_health
-                    new_slime.attack_damage = int(5 * level_multiplier)  # Base damage for small slimes
-                    
-                    self.monsters.append(new_slime)
-                    self.monster_counts[MonsterType.SLIME] += 1
-
-    def equip_item_from_inventory(self, inventory_index):
-        """Equip an item from the inventory to the appropriate equipment slot."""
-        print(f"\nDEBUG: ==== EQUIP ATTEMPT START ====")
-        print(f"DEBUG: Attempting to equip item from inventory index {inventory_index}")
-        print(f"DEBUG: Total items in inventory: {len(self.player.inventory.items)}")
-        print(f"DEBUG: Equipment instance: {self.player.equipment}")
-        print(f"DEBUG: Available equipment slots: {self.player.equipment.slots.keys()}")
-        
-        if not (0 <= inventory_index < len(self.player.inventory.items)):
-            print(f"DEBUG: Invalid inventory index: {inventory_index}")
-            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - INVALID INDEX ====\n")
-            return False
-        
-        item = self.player.inventory.items[inventory_index]
-        if item is None:
-            print("DEBUG: No item at this inventory index")
-            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - NO ITEM ====\n")
-            return False
-        
-        print(f"DEBUG: Attempting to equip {item.display_name} from inventory slot {inventory_index}")
-        print(f"DEBUG: Item type: {type(item).__name__}")
-        
-        # Handle consumable items differently - use them immediately
-        if hasattr(item, 'consumable_type'):
-            # Apply consumable effect to player
-            print(f"DEBUG: Item is a consumable of type: {item.consumable_type}")
-            print(f"Using {item.display_name}...")
-            if item.consumable_type == 'health':
-                old_health = self.player.health
-                self.player.health = min(self.player.max_health, self.player.health + item.effect_value)
-                print(f"Restored {self.player.health - old_health} health. Player health: {self.player.health}/{self.player.max_health}")
-            elif item.consumable_type == 'mana':
-                old_mana = self.player.mana
-                self.player.mana = min(self.player.max_mana, self.player.mana + item.effect_value)
-                print(f"Restored {self.player.mana - old_mana} mana. Player mana: {self.player.mana}/{self.player.max_mana}")
-            elif item.consumable_type == 'stamina':
-                old_stamina = self.player.stamina
-                self.player.stamina = min(self.player.max_stamina, self.player.stamina + item.effect_value)
-                print(f"Restored {self.player.stamina - old_stamina} stamina. Player stamina: {self.player.stamina}/{self.player.max_stamina}")
-            
-            # Remove the consumable from inventory
-            self.player.inventory.items[inventory_index] = None
-            print(f"DEBUG: Removed consumable from inventory slot {inventory_index}")
-            
-            # Update UI immediately
-            self.inventory_ui.inventory = self.player.inventory.items
-            print(f"DEBUG: Updated inventory UI after consuming item")
-            print(f"DEBUG: ==== EQUIP ATTEMPT SUCCESS - CONSUMED ITEM ====\n")
-            return True
-        
-        # Get the current item from the slot this item would go into before equipping
-        # This allows us to swap the items
-        slot = None
-        
-        # Determine which slot this item belongs in
-        if hasattr(item, 'weapon_type'):
-            slot = 'weapon'
-            print(f"DEBUG: Item is a weapon of type {item.weapon_type}, will use slot '{slot}'")
-        elif hasattr(item, 'armor_type'):
-            slot = item.armor_type.lower()
-            print(f"DEBUG: Item is armor of type {item.armor_type}, will use slot '{slot}'")
-        elif hasattr(item, 'is_hands'):
-            slot = 'hands'
-            print(f"DEBUG: Item is hands armor, will use slot '{slot}'")
-            
-        if slot is None:
-            print(f"DEBUG: Could not determine appropriate slot for item")
-            print(f"DEBUG: Item has attributes: {dir(item)}")
-            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - UNKNOWN ITEM TYPE ====\n")
-            return False
-            
-        # Verify slot exists in equipment
-        if slot not in self.player.equipment.slots:
-            print(f"DEBUG: Determined slot '{slot}' not found in equipment slots")
-            print(f"DEBUG: Available slots: {list(self.player.equipment.slots.keys())}")
-            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - INVALID SLOT ====\n")
-            return False
-            
-        # Get the current item in that slot before equipping
-        current_equipped_item = self.player.equipment.slots[slot]
-        if current_equipped_item:
-            print(f"DEBUG: Current item in slot '{slot}': {current_equipped_item.display_name}")
-        else:
-            print(f"DEBUG: No item currently in slot '{slot}'")
-        
-        # Use Equipment.equip_item method instead of direct slot manipulation
-        equip_success = self.player.equipment.equip_item(item)
-        if not equip_success:
-            print(f"DEBUG: Equipment.equip_item failed to equip the item")
-            print(f"DEBUG: ==== EQUIP ATTEMPT FAILED - EQUIP_ITEM FAILED ====\n")
-            return False
-            
-        print(f"DEBUG: Successfully equipped '{item.display_name}' in slot '{slot}'")
-        
-        # Return the previously equipped item to inventory
-        self.player.inventory.items[inventory_index] = current_equipped_item
-        if current_equipped_item:
-            print(f"DEBUG: Returned '{current_equipped_item.display_name}' to inventory slot {inventory_index}")
-        else:
-            print(f"DEBUG: Cleared inventory slot {inventory_index}")
-            
-        # Update UI immediately
-        self.inventory_ui.inventory = self.player.inventory.items
-        self.equipment_ui.equipment = self.player.equipment.slots
-        print(f"DEBUG: Updated inventory and equipment UIs")
-        
-        # Make sure the inventory display is refreshed
+        # Initialize UI state
         self.refresh_inventory_ui()
-        
-        print(f"DEBUG: ==== EQUIP ATTEMPT SUCCESS ====\n")
-        return True
-        
-    def _check_monster_hover(self):
-        """Check if mouse is hovering over any monster."""
-        # No hover checks if UI is open
-        if self.inventory_ui.visible or self.equipment_ui.visible or self.generator_ui.visible or self.quest_ui.visible:
-            self.hovered_monster = None
-            # Reset is_hovered flag for all monsters
-            for monster in self.monsters:
-                monster.is_hovered = False
-            return
-            
-        # Get mouse position
-        mouse_pos = pygame.mouse.get_pos()
-        zoom = self.camera.get_zoom()
-        
-        # Convert screen position to world position
-        world_x = (mouse_pos[0] / zoom) - self.camera.x
-        world_y = (mouse_pos[1] / zoom) - self.camera.y
-        
-        # Check each monster
-        self.hovered_monster = None
-        for monster in self.monsters:
-            # Reset hover flag first
-            monster.is_hovered = False
-            
-            # Simple distance-based hover detection
-            dx = monster.x - world_x
-            dy = monster.y - world_y
-            distance = math.sqrt(dx * dx + dy * dy)
-            
-            # If mouse is within monster's hitbox (using size as a radius)
-            if distance <= monster.size:
-                self.hovered_monster = monster
-                monster.is_hovered = True
-                break
-
-    def _draw_monster_tooltip(self, screen, monster):
-        """Draw a tooltip showing monster stats when hovering over it."""
-        # Calculate tooltip dimensions
-        tooltip_width = 240
-        tooltip_height = 180
-        padding = 10
-        
-        # Get mouse position
-        mouse_pos = pygame.mouse.get_pos()
-        
-        # Position tooltip near mouse but ensure it stays on screen
-        tooltip_x = mouse_pos[0] + 20
-        tooltip_y = mouse_pos[1] - tooltip_height - 10
-        
-        # Adjust if tooltip would go off screen
-        if tooltip_x + tooltip_width > SCREEN_WIDTH:
-            tooltip_x = SCREEN_WIDTH - tooltip_width - 10
-        if tooltip_y < 10:
-            tooltip_y = 10
-        
-        # Create tooltip rectangle
-        tooltip_rect = pygame.Rect(tooltip_x, tooltip_y, tooltip_width, tooltip_height)
-        
-        # Get border color based on monster level
-        # Calculate level from monster attributes
-        # Stronger monsters get more impressive colors
-        monster_power = (monster.health / 100 + monster.attack_damage / 10) * (1 + monster.speed / 5)
-        
-        # Assign color based on power level
-        if monster_power > 20:  # Legendary
-            border_color = QUALITY_COLORS['Legendary']  # Gold
-        elif monster_power > 15:  # Masterwork
-            border_color = QUALITY_COLORS['Masterwork']  # Purple
-        elif monster_power > 10:  # Polished
-            border_color = QUALITY_COLORS['Polished']  # Blue
-        else:  # Standard
-            border_color = QUALITY_COLORS['Standard']  # Green
-        
-        # Draw tooltip background and border
-        pygame.draw.rect(screen, (30, 30, 30, 220), tooltip_rect)  # Dark background
-        pygame.draw.rect(screen, border_color, tooltip_rect, 3)  # Colored border
-        
-        # Draw monster name
-        font_large = pygame.font.Font(None, 28)
-        font_small = pygame.font.Font(None, 20)
-        
-        name_text = f"{monster.monster_type.name} lvl {monster.level}"
-        name_surface = font_large.render(name_text, True, (255, 255, 255))
-        screen.blit(name_surface, (tooltip_x + padding, tooltip_y + padding))
-        
-        # Draw health bar
-        health_percent = monster.health / monster.max_health
-        bar_width = tooltip_width - (padding * 2)
-        bar_height = 15
-        bar_x = tooltip_x + padding
-        bar_y = tooltip_y + 40
-        
-        # Health bar border
-        pygame.draw.rect(screen, (150, 150, 150), (bar_x, bar_y, bar_width, bar_height), 1)
-        
-        # Health bar fill
-        fill_width = int(bar_width * health_percent)
-        pygame.draw.rect(screen, (200, 50, 50), (bar_x, bar_y, fill_width, bar_height))
-        
-        # Health text
-        health_text = f"Health: {monster.health}/{monster.max_health}"
-        health_surface = font_small.render(health_text, True, (255, 255, 255))
-        screen.blit(health_surface, (bar_x + 5, bar_y - 2))
-        
-        # Draw monster stats
-        stats = [
-            f"Attack: {monster.attack_damage}",
-            f"Speed: {monster.speed}",
-            f"Range: {monster.attack_range} tiles"
-        ]
-        
-        y_offset = bar_y + bar_height + 10
-        for stat in stats:
-            stat_surface = font_small.render(stat, True, (255, 255, 255))
-            screen.blit(stat_surface, (tooltip_x + padding, y_offset))
-            y_offset += 20
-        
-        # Draw difficulty rating
-        difficulty_text = self._get_monster_difficulty_text(monster)
-        difficulty_color = self._get_monster_difficulty_color(monster)
-        difficulty_surface = font_small.render(difficulty_text, True, difficulty_color)
-        screen.blit(difficulty_surface, (tooltip_x + padding, y_offset + 10))
-        
-    def _get_monster_difficulty_text(self, monster):
-        """Get a text description of monster difficulty relative to player."""
-        # Calculate monster power
-        monster_power = (monster.health / 100 + monster.attack_damage / 10) * (1 + monster.speed / 5)
-        
-        # Calculate player power (simplified formula)
-        player_power = (self.player.health / 100 + self.player.attack / 10) * (1 + 3 / 5)  # Assuming player speed is 3
-        
-        # Determine difficulty based on power difference
-        power_ratio = monster_power / player_power if player_power > 0 else monster_power
-        
-        if power_ratio < 0.5:
-            return "Difficulty: Trivial"
-        elif power_ratio < 0.75:
-            return "Difficulty: Easy"
-        elif power_ratio < 1.25:
-            return "Difficulty: Normal"
-        elif power_ratio < 2.0:
-            return "Difficulty: Hard"
-        else:
-            return "Difficulty: Deadly"
-    
-    def _get_monster_difficulty_color(self, monster):
-        """Get color based on monster difficulty relative to player."""
-        # Calculate monster power
-        monster_power = (monster.health / 100 + monster.attack_damage / 10) * (1 + monster.speed / 5)
-        
-        # Calculate player power (simplified formula)
-        player_power = (self.player.health / 100 + self.player.attack / 10) * (1 + 3 / 5)  # Assuming player speed is 3
-        
-        # Determine difficulty based on power difference
-        power_ratio = monster_power / player_power if player_power > 0 else monster_power
-        
-        if power_ratio < 0.5:
-            return (128, 128, 128)  # Gray for trivial
-        elif power_ratio < 0.75:
-            return (0, 255, 0)      # Green for easy
-        elif power_ratio < 1.25:
-            return (255, 255, 0)    # Yellow for normal
-        elif power_ratio < 2.0:
-            return (255, 128, 0)    # Orange for hard
-        else:
-            return (255, 0, 0)      # Red for deadly
-
-    def _update_death_locations(self):
-        """Update the list of recent death locations, removing expired ones."""
-        # Decrement time for each death location
-        for i in range(len(self.recent_death_locations) - 1, -1, -1):
-            location, expiry, monster_type = self.recent_death_locations[i]
-            expiry -= 1
-            if expiry <= 0:
-                # Remove expired location
-                self.recent_death_locations.pop(i)
-            else:
-                # Update expiry time
-                self.recent_death_locations[i] = (location, expiry, monster_type)
-
-    def _handle_player_attack(self):
-        """Handle player attacks against monsters."""
-        # Get player attack range based on current attack type
-        attack_range = self.player.get_attack_range()
-        
-        # Get player position
-        px, py = self.player.x, self.player.y
-        
-        # Start with player facing direction to determine attack area
-        direction = self.player.direction
-        
-        # Get mouse position and convert to world coordinates
-        mouse_pos = pygame.mouse.get_pos()
-        zoom = self.camera.get_zoom()
-        mouse_world_x = (mouse_pos[0] / zoom) - self.camera.x
-        mouse_world_y = (mouse_pos[1] / zoom) - self.camera.y
-        
-        # Calculate direction to mouse
-        dx_mouse = mouse_world_x - px
-        dy_mouse = mouse_world_y - py
-        
-        # Check if any monster is close to the mouse position
-        closest_to_mouse = None
-        closest_mouse_dist = float('inf')
-        
-        for monster in self.monsters:
-            # Calculate distance from monster to mouse
-            monster_to_mouse_dx = monster.x - mouse_world_x
-            monster_to_mouse_dy = monster.y - mouse_world_y
-            monster_to_mouse_dist = math.sqrt(monster_to_mouse_dx**2 + monster_to_mouse_dy**2)
-            
-            # Calculate distance from monster to player
-            monster_to_player_dx = monster.x - px
-            monster_to_player_dy = monster.y - py
-            monster_to_player_dist = math.sqrt(monster_to_player_dx**2 + monster_to_player_dy**2)
-            
-            # Check if monster is in attack range and closer to mouse than previous monsters
-            if monster_to_player_dist <= attack_range * 1.2 and monster_to_mouse_dist < closest_mouse_dist:
-                closest_to_mouse = monster
-                closest_mouse_dist = monster_to_mouse_dist
-        
-        # If we found a monster close to mouse and within attack range, use mouse direction
-        if closest_to_mouse is not None and closest_mouse_dist < TILE_SIZE * 2:
-            # Determine direction based on angle to mouse
-            angle = math.degrees(math.atan2(dy_mouse, dx_mouse))
-            
-            # Convert angle to cardinal direction
-            if -45 <= angle < 45:
-                direction = 'east'
-            elif 45 <= angle < 135:
-                direction = 'south'
-            elif -135 <= angle < -45:
-                direction = 'north'
-            else:  # angle >= 135 or angle < -135
-                direction = 'west'
-                
-            print(f"DEBUG: Using mouse direction: {direction} (angle: {angle:.1f}°)")
-        
-        # Add some debug output
-        attack_name = self.player.get_attack_type_name()
-        print(f"DEBUG: Player {attack_name} attack - Range: {attack_range:.1f}, Position: ({px}, {py}), Direction: {direction}")
-        
-        # Get player damage based on current attack type
-        damage = self.player.get_attack_damage()
-        
-        # Add debug info about resource usage
-        attack_type = self.player.attack_type
-        if attack_type == 2:  # Heavy - uses stamina
-            stamina_cost = 15
-            print(f"DEBUG: Heavy attack - Cost: {stamina_cost} stamina, Remaining: {self.player.stamina}/{self.player.max_stamina}")
-        elif attack_type == 3:  # Magic - uses mana
-            mana_cost = 20
-            print(f"DEBUG: Magic attack - Cost: {mana_cost} mana, Remaining: {self.player.mana}/{self.player.max_mana}")
-        elif attack_type == 4:  # Quick - faster cooldown
-            cooldown_reduction = 200  # ms
-            print(f"DEBUG: Quick attack - Cooldown reduced by {cooldown_reduction}ms")
-        
-        # Play player attack sound
-        self.sounds['player_attack'].play()
-        
-        # Show visual effect based on attack type - to be displayed for a few frames
-        # This would be better with a proper particle system, but for now just store the effect
-        # details to be rendered in subsequent frames
-        self.current_attack_effect = {
-            'type': attack_type,
-            'direction': direction,
-            'position': (px, py),
-            'timer': 10,  # frames
-            'color': self._get_attack_type_color(attack_type)
-        }
-        
-        # Check each monster to see if it's in range
-        hit_any = False
-        closest_dist = float('inf')
-        closest_monster = None
-        
-        for monster in self.monsters[:]:
-            # Calculate distance to monster
-            dx = monster.x - px
-            dy = monster.y - py
-            distance = math.sqrt(dx * dx + dy * dy)
-            
-            # Track closest monster for debugging
-            if distance < closest_dist:
-                closest_dist = distance
-                closest_monster = monster
-            
-            # Check if monster is in attack range
-            if distance <= attack_range:
-                # For magic attack, no direction check needed (area effect)
-                if attack_type == 3:
-                    hit = True
-                # For other attacks, check if monster is in front of player based on direction
-                else:
-                    # Normalize direction vector
-                    if abs(dx) > abs(dy):  # More horizontal than vertical
-                        if dx > 0 and direction == 'east':
-                            hit = True
-                        elif dx < 0 and direction == 'west':
-                            hit = True
-                        else:
-                            hit = False
-                    else:  # More vertical than horizontal
-                        if dy > 0 and direction == 'south':
-                            hit = True
-                        elif dy < 0 and direction == 'north':
-                            hit = True
-                        else:
-                            hit = False
-                    
-                    # For quick attacks, be more lenient
-                    if attack_type == 4 and distance < attack_range * 0.7:
-                        hit = True
-                
-                # For heavy attacks, larger area
-                if attack_type == 2:
-                    # Wider angle for heavy attack
-                    angle = math.degrees(math.atan2(dy, dx))
-                    
-                    # Get player facing angle based on direction
-                    if direction == 'east':
-                        player_angle = 0
-                    elif direction == 'south':
-                        player_angle = 90
-                    elif direction == 'west':
-                        player_angle = 180
-                    elif direction == 'north':
-                        player_angle = 270
-                    else:
-                        player_angle = 0
-                    
-                    # Calculate angle difference
-                    angle_diff = abs((angle - player_angle + 180) % 360 - 180)
-                    
-                    # If within 90 degrees of facing direction, hit is valid
-                    if angle_diff <= 90:
-                        hit = True
-                    else:
-                        hit = False
-                
-                # Apply damage if hit is valid
-                if hit:
-                    # Apply damage to monster
-                    old_health = monster.health
-                    monster.health -= damage
-                    hit_any = True
-                    
-                    # Play hit sound
-                    self.sounds['monster_hit'].play()
-                    
-                    # Determine attack type name for display
-                    attack_name = self.player.get_attack_type_name()
-                    
-                    print(f"Player hit {monster.monster_type.name} lvl {monster.level} with {attack_name} Attack for {damage} damage! Monster health: {monster.health}/{monster.max_health}")
-                    
-                    # Apply special effects based on attack type
-                    if attack_type == 2:  # Heavy attack
-                        # Knockback effect
-                        knockback_dist = 20  # pixels
-                        angle = math.atan2(dy, dx)
-                        monster.x += math.cos(angle) * knockback_dist
-                        monster.y += math.sin(angle) * knockback_dist
-                        print(f"Heavy attack knocked {monster.monster_type.name} back by {knockback_dist} pixels!")
-                    
-                    elif attack_type == 3:  # Magic attack
-                        # Splash damage to nearby monsters
-                        splash_count = 0
-                        for other_monster in self.monsters:
-                            if other_monster != monster:
-                                other_dx = other_monster.x - monster.x
-                                other_dy = other_monster.y - monster.y
-                                other_dist = math.sqrt(other_dx * other_dx + other_dy * other_dy)
-                                if other_dist < TILE_SIZE * 2:  # 2 tiles splash radius
-                                    splash_damage = damage // 2  # Half damage for splash
-                                    old_health = other_monster.health
-                                    other_monster.health -= splash_damage
-                                    splash_count += 1
-                                    print(f"Magic splash damage! {other_monster.monster_type.name} took {splash_damage} damage (health: {other_monster.health}/{other_monster.max_health})")
-                        if splash_count > 0:
-                            print(f"Magic attack hit {splash_count} additional monsters with splash damage!")
-                    
-                    elif attack_type == 4:  # Quick attack has a chance to hit twice
-                        # 20% chance to strike twice
-                        if random.random() < 0.2:
-                            bonus_damage = damage // 2  # Half damage for bonus hit
-                            monster.health -= bonus_damage
-                            print(f"Quick attack struck twice! Bonus hit for {bonus_damage} damage! Monster health: {monster.health}/{monster.max_health}")
-                    
-                    # Check if monster was killed
-                    if monster.health <= 0 and old_health > 0:
-                        print(f"Player killed {monster.monster_type.name} lvl {monster.level}!")
-                        
-                        # Award experience (simple formula: base 10 XP * monster level)
-                        experience_reward = 10 * monster.level
-                        self.player.add_experience(experience_reward)
-                        print(f"Player gained {experience_reward} experience!")
-        
-        # If we didn't hit anything, show a miss message with debug info
-        if not hit_any:
-            if closest_monster:
-                monster_type = closest_monster.monster_type.name
-                print(f"Player {attack_name} Attack missed! Closest monster: {monster_type} at distance {closest_dist:.1f} (attack range: {attack_range:.1f})")
-            else:
-                print(f"Player {attack_name} Attack missed! No monsters nearby.")
-                
-    def _get_attack_type_color(self, attack_type):
-        """Get color for the specified attack type."""
-        colors = [
-            (200, 200, 200),  # Regular (white)
-            (255, 150, 0),    # Heavy (orange)
-            (100, 100, 255),  # Magic (blue)
-            (0, 255, 100)     # Quick (green)
-        ]
-        return colors[attack_type - 1] if 1 <= attack_type <= 4 else (255, 255, 255)
-        
-    def _draw_attack_effect(self, screen):
-        """Draw the current attack effect."""
-        effect = self.current_attack_effect
-        if effect['timer'] <= 0:
-            self.current_attack_effect = None
-            return
-            
-        # Reduce timer
-        effect['timer'] -= 1
-        
-        # Get effect details
-        attack_type = effect['type']
-        direction = effect['direction']
-        px, py = effect['position']
-        color = effect['color']
-        
-        # Calculate screen position with camera zoom
-        zoom = self.camera.get_zoom()
-        screen_x = int((px + self.camera.x) * zoom)
-        screen_y = int((py + self.camera.y) * zoom)
-        
-        # Scale effect size based on zoom
-        base_size = TILE_SIZE * zoom
-        
-        # Draw different effects based on attack type
-        if attack_type == 1:  # Regular attack - simple slash
-            # Draw a slash in the direction player is facing
-            if direction == 'east':
-                points = [
-                    (screen_x + base_size, screen_y),
-                    (screen_x + base_size * 1.5, screen_y - base_size * 0.3),
-                    (screen_x + base_size * 1.7, screen_y),
-                    (screen_x + base_size * 1.5, screen_y + base_size * 0.3)
-                ]
-            elif direction == 'west':
-                points = [
-                    (screen_x, screen_y),
-                    (screen_x - base_size * 0.5, screen_y - base_size * 0.3),
-                    (screen_x - base_size * 0.7, screen_y),
-                    (screen_x - base_size * 0.5, screen_y + base_size * 0.3)
-                ]
-            elif direction == 'south':
-                points = [
-                    (screen_x, screen_y + base_size),
-                    (screen_x - base_size * 0.3, screen_y + base_size * 1.5),
-                    (screen_x, screen_y + base_size * 1.7),
-                    (screen_x + base_size * 0.3, screen_y + base_size * 1.5)
-                ]
-            elif direction == 'north':
-                points = [
-                    (screen_x, screen_y),
-                    (screen_x - base_size * 0.3, screen_y - base_size * 0.5),
-                    (screen_x, screen_y - base_size * 0.7),
-                    (screen_x + base_size * 0.3, screen_y - base_size * 0.5)
-                ]
-                
-            # Draw slash with fading opacity based on timer
-            alpha = int(200 * effect['timer'] / 10)
-            slash_color = (*color, alpha)
-            
-            # Create a temporary surface for alpha blending
-            effect_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            pygame.draw.polygon(effect_surface, slash_color, points)
-            screen.blit(effect_surface, (0, 0))
-            
-        elif attack_type == 2:  # Heavy attack - wide arc
-            # Draw a wider arc in the direction player is facing
-            center_x, center_y = screen_x + base_size//2, screen_y + base_size//2
-            radius = base_size
-            
-            # Arc angles based on direction
-            if direction == 'east':
-                start_angle, end_angle = -45, 45
-            elif direction == 'west':
-                start_angle, end_angle = 135, 225
-            elif direction == 'south':
-                start_angle, end_angle = 45, 135
-            elif direction == 'north':
-                start_angle, end_angle = 225, 315
-                
-            # Convert to radians
-            start_angle, end_angle = math.radians(start_angle), math.radians(end_angle)
-            
-            # Create points for arc
-            arc_points = []
-            steps = 12
-            for i in range(steps + 1):
-                angle = start_angle + (end_angle - start_angle) * i / steps
-                x = center_x + radius * math.cos(angle)
-                y = center_y + radius * math.sin(angle)
-                arc_points.append((x, y))
-            
-            # Add center to create a filled arc
-            arc_points.append((center_x, center_y))
-            
-            # Draw with fading opacity
-            alpha = int(180 * effect['timer'] / 10)
-            arc_color = (*color, alpha)
-            
-            # Create surface for alpha blending
-            effect_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            pygame.draw.polygon(effect_surface, arc_color, arc_points)
-            screen.blit(effect_surface, (0, 0))
-            
-        elif attack_type == 3:  # Magic attack - expanding circle
-            # Calculate expanding circle
-            radius = base_size * (1 + (10 - effect['timer']) / 5)
-            center_x, center_y = screen_x + base_size//2, screen_y + base_size//2
-            
-            # Create fading color based on timer
-            alpha = int(150 * effect['timer'] / 10)
-            circle_color = (*color, alpha)
-            
-            # Create surface for alpha blending
-            effect_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            pygame.draw.circle(effect_surface, circle_color, (center_x, center_y), int(radius))
-            
-            # Draw sparkles
-            for _ in range(5):
-                angle = random.uniform(0, 2 * math.pi)
-                distance = random.uniform(0, radius * 0.8)
-                spark_x = center_x + distance * math.cos(angle)
-                spark_y = center_y + distance * math.sin(angle)
-                spark_radius = random.uniform(2, 5) * zoom
-                pygame.draw.circle(effect_surface, (255, 255, 255, alpha), 
-                                 (int(spark_x), int(spark_y)), int(spark_radius))
-                
-            screen.blit(effect_surface, (0, 0))
-            
-        elif attack_type == 4:  # Quick attack - multiple small slashes
-            # Draw multiple small slashes in direction
-            center_x, center_y = screen_x + base_size//2, screen_y + base_size//2
-            
-            # Create temporary surface for alpha blending
-            effect_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            
-            # Directional offset for slashes
-            if direction == 'east':
-                dx, dy = 1, 0
-            elif direction == 'west':
-                dx, dy = -1, 0
-            elif direction == 'south':
-                dx, dy = 0, 1
-            elif direction == 'north':
-                dx, dy = 0, -1
-            
-            # Draw multiple small slashes
-            for i in range(3):
-                offset = (10 - effect['timer']) * 5 + i * 15
-                slash_x = center_x + dx * offset * zoom
-                slash_y = center_y + dy * offset * zoom
-                
-                # Small slash size
-                slash_size = base_size * 0.4
-                
-                # Points for small slash
-                if direction in ['east', 'west']:
-                    points = [
-                        (slash_x, slash_y - slash_size),
-                        (slash_x + dx * slash_size, slash_y),
-                        (slash_x, slash_y + slash_size)
-                    ]
-                else:
-                    points = [
-                        (slash_x - slash_size, slash_y),
-                        (slash_x, slash_y + dy * slash_size),
-                        (slash_x + slash_size, slash_y)
-                    ]
-                
-                # Fade based on timer and position
-                alpha = int(200 * effect['timer'] / 10 * (1 - i * 0.2))
-                slash_color = (*color, alpha)
-                
-                pygame.draw.polygon(effect_surface, slash_color, points)
-            
-            screen.blit(effect_surface, (0, 0))
-
-    def _draw_action_toolbar(self, screen):
-        """Draw a toolbar showing attack types (1-4) and potion hotkeys (7-9)."""
-        # Define constants
-        toolbar_height = 60
-        toolbar_y = screen.get_height() - toolbar_height
-        toolbar_width = screen.get_width()
-        
-        # Create a fresh transparent toolbar surface
-        toolbar_surface = pygame.Surface((toolbar_width, toolbar_height), pygame.SRCALPHA)
-        
-        # Draw main toolbar background
-        pygame.draw.rect(toolbar_surface, (0, 0, 0, 128), (0, 0, toolbar_width, toolbar_height))
-        
-        # Draw divider line
-        pygame.draw.line(toolbar_surface, (200, 200, 200), 
-                         (toolbar_width // 2, 5), 
-                         (toolbar_width // 2, toolbar_height - 5), 2)
-        
-        font = pygame.font.Font(None, 28)
-        small_font = pygame.font.Font(None, 20)
-        
-        # Get current player resource values
-        current_health = self.player.health
-        max_health = self.player.max_health
-        current_mana = self.player.mana
-        max_mana = self.player.max_mana
-        current_stamina = self.player.stamina
-        max_stamina = self.player.max_stamina
-        
-        # FIRST PASS: Draw all button backgrounds
-        
-        # Check if attack types can be used based on resource requirements
-        current_attack = self.player.attack_type
-        
-        # Check if any monsters are in attack range for visual indication
-        closest_monster_dist = float('inf')
-        player_pos = (self.player.x, self.player.y)
-        base_attack_range = self.player.attack_range
-        
-        for monster in self.monsters:
-            dx = monster.x - self.player.x
-            dy = monster.y - self.player.y
-            dist = math.sqrt(dx*dx + dy*dy)
-            closest_monster_dist = min(closest_monster_dist, dist)
-        
-        # Calculate attack range for each attack type
-        attack_ranges = [
-            base_attack_range,             # Regular attack
-            base_attack_range * 0.8,       # Heavy attack (shorter range)
-            base_attack_range * 1.5,       # Magic attack (longer range)
-            base_attack_range              # Quick attack
-        ]
-        
-        # Draw attack slots (1-4) backgrounds
-        for i in range(4):
-            slot_x = 20 + i * 120
-            slot_y = 10
-            slot_width = 100
-            slot_height = 40
-            
-            # Check if this attack type has the resources to be used
-            can_use = True
-            if i + 1 == 2:  # Heavy attack requires stamina
-                can_use = current_stamina >= 15
-            elif i + 1 == 3:  # Magic attack requires mana
-                can_use = current_mana >= 20
-            
-            # Check if any monster is in range for this attack type
-            monster_in_range = closest_monster_dist <= attack_ranges[i]
-            
-            # Set button color based on active state and usability
-            if i + 1 == current_attack:
-                if can_use:
-                    if monster_in_range:
-                        color = (80, 120, 200, 220)  # Bright blue for active and usable with monster in range
-                    else:
-                        color = (60, 100, 160, 200)  # Active attack, no monster in range
-                else:
-                    color = (100, 100, 160, 150)  # Dimmer blue for active but unusable (resource constraints)
-            else:
-                if can_use:
-                    if monster_in_range:
-                        color = (60, 60, 80, 180)  # Slightly brighter for inactive but usable with monster in range
-                    else:
-                        color = (40, 40, 60, 160)  # Inactive attack
-                else:
-                    color = (40, 40, 40, 120)  # Dark gray for unusable attacks
-                
-            # Draw attack button background
-            pygame.draw.rect(toolbar_surface, color, (slot_x, slot_y, slot_width, slot_height), border_radius=5)
-        
-        # Prepare potion data
-        potion_types = ["7: Health", "8: Mana", "9: Stamina"]
-        
-        # Get potion counts
-        health_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'health')
-        mana_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'mana')
-        stamina_potions = sum(1 for item in self.player.inventory.items if item and hasattr(item, 'consumable_type') and item.consumable_type == 'stamina')
-        potion_counts = [health_potions, mana_potions, stamina_potions]
-        
-        # Check if each potion can be used
-        need_health = current_health < max_health
-        need_mana = current_mana < max_mana
-        need_stamina = current_stamina < max_stamina
-        needs = [need_health, need_mana, need_stamina]
-        
-        # Draw potion slot backgrounds (7-9)
-        for i in range(3):
-            slot_x = toolbar_width // 2 + 20 + i * 120
-            slot_y = 10
-            slot_width = 100
-            slot_height = 40
-            
-            # Check if this potion type is available and needed
-            has_potions = potion_counts[i] > 0
-            can_use = needs[i]
-            
-            # Set appropriate colors based on state
-            if i == 0:  # Health potion
-                if has_potions and can_use:
-                    bg_color = (150, 30, 30, 240)  # Bright red for usable health potions
-                elif has_potions:
-                    bg_color = (80, 30, 30, 200)   # Medium red for available but not needed
-                else:
-                    bg_color = (40, 40, 40, 160)   # Dark gray for no potions
-            elif i == 1:  # Mana potion
-                if has_potions and can_use:
-                    bg_color = (30, 30, 150, 240)  # Bright blue for usable mana potions
-                elif has_potions:
-                    bg_color = (30, 30, 80, 200)   # Medium blue for available but not needed
-                else:
-                    bg_color = (40, 40, 40, 160)   # Dark gray for no potions
-            else:  # Stamina potion
-                if has_potions and can_use:
-                    bg_color = (30, 150, 30, 240)  # Bright green for usable stamina potions
-                elif has_potions:
-                    bg_color = (30, 80, 30, 200)   # Medium green for available but not needed
-                else:
-                    bg_color = (40, 40, 40, 160)   # Dark gray for no potions
-            
-            # Draw potion button background
-            pygame.draw.rect(toolbar_surface, bg_color, (slot_x, slot_y, slot_width, slot_height), border_radius=5)
-        
-        # SECOND PASS: Draw all text on top of backgrounds
-        
-        # Draw attack slot text
-        attack_titles = ["1: Regular", "2: Heavy", "3: Magic", "4: Quick"]
-        attack_desc = [
-            "Normal range, balanced damage",
-            "15 Stam, -20% range, +50% dmg",
-            "20 Mana, +50% range, +100% dmg",
-            "Fast cooldown, -30% damage"
-        ]
-        
-        for i in range(4):
-            slot_x = 20 + i * 120
-            slot_y = 10
-            
-            # Check usability for text color
-            can_use = True
-            if i + 1 == 2:  # Heavy attack
-                can_use = current_stamina >= 15
-            elif i + 1 == 3:  # Magic attack
-                can_use = current_mana >= 20
-                
-            # Set text color based on usability
-            if can_use:
-                text_color = (255, 255, 255)  # White text for usable attacks
-                desc_color = (220, 220, 220)  # Light gray for description
-            else:
-                text_color = (150, 150, 150)  # Gray text for unusable attacks
-                desc_color = (130, 130, 130)  # Darker gray for description
-            
-            # Draw attack title
-            text = font.render(attack_titles[i], True, text_color)
-            toolbar_surface.blit(text, (slot_x + 10, slot_y + 5))
-            
-            # Draw attack description
-            """desc = small_font.render(attack_desc[i], True, desc_color)
-            toolbar_surface.blit(desc, (slot_x + 10, slot_y + 25))"""
-        
-        # Draw potion slot text
-        for i in range(3):
-            slot_x = toolbar_width // 2 + 20 + i * 120
-            slot_y = 10
-            
-            has_potions = potion_counts[i] > 0
-            can_use = needs[i]
-            
-            # Always use bold white text for potion name to ensure visibility
-            text = font.render(potion_types[i], True, (255, 255, 255))
-            toolbar_surface.blit(text, (slot_x + 10, slot_y + 5))
-            
-            # Create appropriate status text
-            if has_potions and not can_use:
-                status_text = f"Count: {potion_counts[i]} (At Max)"
-            else:
-                status_text = f"Count: {potion_counts[i]}"
-                
-            # Draw status text (always light gray for consistency)
-            count_text = small_font.render(status_text, True, (220, 220, 220))
-            toolbar_surface.blit(count_text, (slot_x + 10, slot_y + 25))
-        
-        # Finally, blit the complete toolbar to the screen - only once!
-        screen.blit(toolbar_surface, (0, toolbar_y))
-
-    def _count_potions_of_type(self, potion_type):
-        """Count the number of potions of a specific type in the player's inventory."""
-        count = 0
-        if hasattr(self.player, 'inventory'):
-            for item in self.player.inventory.items:
-                if item and hasattr(item, 'consumable_type') and item.consumable_type == potion_type:
-                    count += 1
-        return count
-
-    def _use_potion_of_type(self, potion_type):
-        """Find and use a potion of the specified type from inventory."""
-        # First check if we have a potion of this type
-        potion_index = None
-        potion_item = None
-        
-        # Find the first potion of the requested type
-        for i, item in enumerate(self.player.inventory.items):
-            if (item and hasattr(item, 'consumable_type') and 
-                item.consumable_type == potion_type):
-                potion_index = i
-                potion_item = item
-                break
-                
-        if potion_index is None or potion_item is None:
-            print(f"No {potion_type} potion in inventory")
-            return False
-
-        # Use the potion
-        print(f"Using {potion_item.display_name} from hotkey...")
-        if potion_type == 'health':
-            old_health = self.player.health
-            self.player.health = min(self.player.max_health, self.player.health + potion_item.effect_value)
-            print(f"Restored {self.player.health - old_health} health. Player health: {self.player.health}/{self.player.max_health}")
-        elif potion_type == 'mana':
-            old_mana = self.player.mana
-            self.player.mana = min(self.player.max_mana, self.player.mana + potion_item.effect_value)
-            print(f"Restored {self.player.mana - old_mana} mana. Player mana: {self.player.mana}/{self.player.max_mana}")
-        elif potion_type == 'stamina':
-            old_stamina = self.player.stamina
-            self.player.stamina = min(self.player.max_stamina, self.player.stamina + potion_item.effect_value)
-            print(f"Restored {self.player.stamina - old_stamina} stamina. Player stamina: {self.player.stamina}/{self.player.max_stamina}")
-        
-        # Play a sound effect
-        if 'player_hit' in self.sounds:
-            self.sounds['player_hit'].play()
-        
-        # Remove the used potion from inventory
-        self.player.inventory.items[potion_index] = None
-        
-        # Update UI
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
         self.inventory_ui.inventory = self.player.inventory.items
-        self.refresh_inventory_ui()  # Make sure UI is completely refreshed
+        self.equipment_ui.equipment = self.player.equipment.slots
         
-        return True
-
-    def _add_test_items(self):
-        """Add some test items to the player's inventory for debugging."""
-        print("\n==== FORCING TEST ITEMS INTO INVENTORY ====")
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
         
-        try:
-            from rpg_modules.items.generator import ItemGenerator
-            item_gen = ItemGenerator()
-            
-            # FORCE CLEAR inventory and recreate it (this is drastic but should work)
-            self.player.inventory.items = [None] * 40
-            print(f"RESET: Forcibly reset inventory to 40 empty slots")
-            
-            # Add 1 weapon (Legendary)
-            weapon = item_gen.generate_item('weapon', 'Legendary')
-            if weapon:
-                self.player.inventory.items[0] = weapon
-                print(f"ADDED: Legendary weapon directly to slot 0")
-            
-            # Add 9 armor pieces (mix of qualities)
-            armor_qualities = ["Legendary", "Masterwork", "Polished", "Standard", 
-                              "Legendary", "Masterwork", "Polished", "Standard", "Masterwork"]
-            
-            for i in range(9):
-                armor = item_gen.generate_item('armor', armor_qualities[i])
-                if armor:
-                    self.player.inventory.items[i+1] = armor
-                    print(f"ADDED: {armor_qualities[i]} armor directly to slot {i+1}")
-            
-            # Add 30 potions (roughly 10 of each type: health, mana, stamina)
-            potion_qualities = ["Standard", "Polished", "Masterwork", "Legendary"]
-            health_count = mana_count = stamina_count = 0
-            slot_index = 10
-            
-            # Keep generating potions until we have filled all 30 slots or reached maximum attempts
-            max_attempts = 100  # Prevent infinite loop
-            attempts = 0
-            
-            while slot_index < 40 and attempts < max_attempts:
-                # Determine which quality to use based on distribution:
-                # 50% Standard, 30% Polished, 15% Masterwork, 5% Legendary
-                rand = random.random()
-                if rand < 0.5:
-                    quality = "Standard"
-                elif rand < 0.8:
-                    quality = "Polished" 
-                elif rand < 0.95:
-                    quality = "Masterwork"
-                else:
-                    quality = "Legendary"
-                    
-                # Generate a consumable item
-                potion = item_gen.generate_item('consumable', quality)
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
+        # Track recently killed monster locations to prevent immediate respawning
+        self.recent_death_locations = []
+        self.death_location_expiry = 500  # Frames before a death location expires
+        
+        # Initialize UI references
+        self.inventory_ui.inventory = self.player.inventory.items
+        self.equipment_ui.equipment = self.player.equipment.slots
+        
+        # Initialize UI state
+        self.refresh_inventory_ui()
+        self.refresh_equipment_ui()
+        
+        # Initialize player stats
+        self.player.level = 1
+        self.player.xp = 0
+        self.player.experience = 0
+        self.player.gold = 0
+        self.player.attack_type = 1
+        self.player.base_attack = 10
+        self.player.defense = 5
+        self.player.dexterity = 10
+        
+        # Initialize player stats bars
+        self.health_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (200, 50, 50), "Health")
+        self.mana_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 50, 200), "Mana")
+        self.stamina_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (50, 200, 50), "Stamina")
+        self.xp_bar = self._create_status_bar(self.screen, 150, 20, 150, 20, 100, (180, 120, 255), "XP")
+        
+        # Initialize attack cooldown
+        self.attack_cooldown = 1000  # ms
+        self.last_attack_time = 0
+        
+        # Initialize action toolbar
+        self.action_toolbar = self._create_action_toolbar()
+        
+        # Initialize quest log
+        self.quest_log = QuestLog()
+        self.quest_ui = QuestUI(self.screen, self.quest_log)
+        
+        # Initialize system menu
+        self.system_menu_ui = SystemMenuUI(self.screen)
+        self._setup_system_menu_callbacks()
+        
+        # Initialize UI components
+        self.inventory_ui = InventoryUI(self.screen)
+        self.equipment_ui = EquipmentUI(self.screen)
+        self.generator_ui = GeneratorUI(self.screen_width - 400, 10)
+        
+        # Initialize camera
+        self.camera = Camera(self.player)
+        
+        # Initialize monster system
+        self.monsters = []
+        self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        self.hovered_monster = None  # Track which monster is currently being hovered
+        
                 
-                # Check its type and decide whether to keep it based on our counts
-                if not potion:
-                    attempts += 1
-                    continue
-                    
-                potion_type = potion.consumable_type
-                
-                # Determine if we should add this potion based on our current counts
-                add_potion = False
-                if potion_type == 'health' and health_count < 10:
-                    health_count += 1
-                    add_potion = True
-                elif potion_type == 'mana' and mana_count < 10:
-                    mana_count += 1
-                    add_potion = True
-                elif potion_type == 'stamina' and stamina_count < 10:
-                    stamina_count += 1
-                    add_potion = True
-                
-                if add_potion:
-                    self.player.inventory.items[slot_index] = potion
-                    print(f"ADDED: {quality} {potion_type} potion directly to slot {slot_index}")
-                    slot_index += 1
-                
-                attempts += 1
-            
-            # Refresh the inventory UI reference
-            self.inventory_ui.inventory = self.player.inventory.items
-            
-            # Call the refresh method to ensure UI stays in sync
-            self.refresh_inventory_ui()
+                # Update equipment UI
+                self.equipment_ui.equipment = self.player.equipment.slots
+                self.equipment_ui.set_player(self.player)
+                print("UIs refreshed successfully")
+            except Exception as e:
+                print(f"ERROR refreshing UIs: {e}")
+                traceback.print_exc()
             
             # Debug info
             filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
-            print(f"INVENTORY STATUS: {filled_slots}/40 items")
-            print(f"Potion distribution: Health: {health_count}, Mana: {mana_count}, Stamina: {stamina_count}")
-            print(f"First 5 slots: {[str(item) if item else 'None' for item in self.player.inventory.items[:5]]}")
+            equipped_items = sum(1 for item in self.player.equipment.slots.values() if item is not None)
+            
+            print(f"INVENTORY STATUS: {filled_slots}/{len(self.player.inventory.items)} items added")
+            print(f"EQUIPPED ITEMS: {equipped_items} items equipped")
+            
+            try:
+                print(f"First 6 slots: {[item.display_name if item else 'None' for item in self.player.inventory.items[:6]]}")
+                print(f"Equipment: {[(slot, item.display_name if item else 'None') for slot, item in self.player.equipment.slots.items() if item is not None]}")
+            except Exception as e:
+                print(f"ERROR displaying debug info: {e}")
+            
             print("==== TEST ITEMS ADDED SUCCESSFULLY ====\n")
+            
+            return True
         except Exception as e:
             print(f"ERROR: Failed to add test items: {e}")
             import traceback
             traceback.print_exc()
+            return False
 
-    def _load_character(self, save_filename):
-        """Load the selected character save file."""
-        print(f"Loading game from file: {save_filename}")
-        from rpg_modules.savegame import _process_save_file
-        _process_save_file(self, save_filename)
-        self.character_select_ui.hide()
-    
-    def _cancel_character_select(self):
-        """Cancel character selection."""
-        print("Character selection cancelled.")
-        self.character_select_ui.hide()
-        # Make sure system menu stays visible
-        if not self.system_menu_ui.visible:
-            self.system_menu_ui.toggle()
-            
-    def _start_level_up_effect(self):
-        """Start the level up visual effect."""
-        self.level_up_effect = True
-        self.level_up_effect_start_time = pygame.time.get_ticks()
-        print("Level up effect started!")
-
-    def _update_level_up_effect(self):
-        """Update the level up effect state."""
-        if not self.level_up_effect:
-            return
-            
-        # Check if effect duration has expired
-        current_time = pygame.time.get_ticks()
-        if current_time - self.level_up_effect_start_time > self.level_up_effect_duration:
-            self.level_up_effect = None
-            return
-            
-    def _draw_level_up_effect(self):
-        """Draw the level up special effect."""
-        if not self.level_up_effect:
-            return
-            
-        # Calculate effect progress (0.0 to 1.0)
-        current_time = pygame.time.get_ticks()
-        progress = min(1.0, (current_time - self.level_up_effect_start_time) / self.level_up_effect_duration)
-        
-        # Create a surface for the glow effect with alpha
-        glow_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        
-        # Calculate pulsing opacity - starts at 0, peaks at 0.5, back to 0 at 1.0
-        pulse_opacity = int(200 * (1.0 - abs(2 * progress - 1.0)))
-        
-        # Draw golden glow around player
-        player_screen_x = int(self.player.x + self.camera.x * self.camera.get_zoom())
-        player_screen_y = int(self.player.y + self.camera.y * self.camera.get_zoom())
-        
-        # Calculate pulsing radius
-        min_radius = 30
-        max_radius = 150
-        pulse_radius = min_radius + (max_radius - min_radius) * (1.0 - abs(2 * progress - 1.0))
-        
-        # Draw multiple concentric circles with decreasing opacity
-        for radius_offset in range(0, 70, 10):
-            radius = pulse_radius - radius_offset
-            if radius <= 0:
-                continue
-                
-            # Decrease opacity for outer circles
-            circle_opacity = max(0, pulse_opacity - radius_offset * 3)
-            
-            # Gold color with variable opacity
-            circle_color = (255, 215, 0, circle_opacity)
-            
-            # Draw circle on glow surface
-            pygame.draw.circle(
-                glow_surface, 
-                circle_color,
-                (player_screen_x + TILE_SIZE // 2, player_screen_y + TILE_SIZE // 2),
-                radius
-            )
-        
-        # Draw "LEVEL UP!" text
-        font_size = int(48 + 24 * (1.0 - abs(2 * progress - 1.0)))  # Pulse between 48 and 72
-        font = pygame.font.Font(None, font_size)
-        
-        # Create the text with a gold color
-        text_surface = font.render("LEVEL UP!", True, (255, 215, 0))
-        
-        # Position text above player
-        text_x = player_screen_x + TILE_SIZE // 2 - text_surface.get_width() // 2
-        text_y = player_screen_y - 100 - int(50 * (1.0 - abs(2 * progress - 1.0)))  # Move up and down slightly
-        
-        # Draw text with a subtle shadow effect
-        shadow_surface = font.render("LEVEL UP!", True, (0, 0, 0))
-        glow_surface.blit(shadow_surface, (text_x + 2, text_y + 2))
-        glow_surface.blit(text_surface, (text_x, text_y))
-        
-        # Draw stars/particles around the player
-        num_particles = 20
-        for i in range(num_particles):
-            # Calculate particle position - circular pattern around player
-            angle = (i / num_particles) * 2 * math.pi
-            # Radius increases with time
-            particle_radius = 50 + progress * 100
-            particle_x = player_screen_x + TILE_SIZE // 2 + int(math.cos(angle + progress * 10) * particle_radius)
-            particle_y = player_screen_y + TILE_SIZE // 2 + int(math.sin(angle + progress * 10) * particle_radius)
-            
-            # Particle size pulses
-            particle_size = int(5 + 5 * math.sin(progress * 20 + i))
-            
-            # Alternate between gold and white particles
-            if i % 2 == 0:
-                particle_color = (255, 215, 0, pulse_opacity)  # Gold
-            else:
-                particle_color = (255, 255, 255, pulse_opacity)  # White
-                
-            # Draw particle
-            pygame.draw.circle(glow_surface, particle_color, (particle_x, particle_y), particle_size)
-        
-        # Draw new level number
-        level_font = pygame.font.Font(None, 36)
-        level_text = f"Level {self.player.level}"
-        level_surface = level_font.render(level_text, True, (255, 255, 255))
-        
-        # Position level text below the "LEVEL UP!" text
-        level_x = player_screen_x + TILE_SIZE // 2 - level_surface.get_width() // 2
-        level_y = text_y + text_surface.get_height() + 10
-        
-        # Draw level text with shadow
-        shadow_level = level_font.render(level_text, True, (0, 0, 0))
-        glow_surface.blit(shadow_level, (level_x + 2, level_y + 2))
-        glow_surface.blit(level_surface, (level_x, level_y))
-        
-        # Draw the final glow surface onto the screen
-        self.screen.blit(glow_surface, (0, 0))
-
-class Equipment:
+class EquipmentManager:
     """Class to manage equipped items."""
     def __init__(self):
         self.slots = {
@@ -2716,7 +4996,7 @@ def initialize_game():
         
         # Create game map
         print("Creating game map...")
-        game_map = Map()  # Use dimensions from GameSettings
+        game_map = Map(50, 50)  # 50x50 grid
         if not game_map:
             raise RuntimeError("Failed to create game map")
         print("Game map created")
@@ -2778,46 +5058,32 @@ class Game:
     
     def __init__(self):
         """Initialize the main game instance"""
-        global game_state, global_game_state
+        global game_state
         
-        try:
-            print("Starting main function...")
-            
-            # Initialize Pygame
-            pygame.init()
-            print("Pygame initialized")
-            
-            # Set up display
-            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-            pygame.display.set_caption("RPG Game")
-            print("Display mode set")
-            
-            # Create clock for timing
-            self.clock = pygame.time.Clock()
-            print("Clock created")
-            
-            # Create game state (it will create all other components)
-            self.game_state = GameState(self.screen)
-            print("Game state created")
-            
-            # Set the global game_state for external access
-            global_game_state = self.game_state
-            game_state = self.game_state
-            print(f"DEBUG: Global game_state set to: {global_game_state}")
-            
-            # Show the system menu on game start
-            print("Opening system menu on game start")
-            self.game_state.system_menu_ui.toggle()
-            
-            # Set initial game state to paused so gameplay doesn't start until the player selects an option
-            self.game_state.paused = True
-            
-        except Exception as e:
-            print(f"Error during game initialization: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
-    
+        print("Starting main function...")
+        
+        # Initialize Pygame
+        pygame.init()
+        print("Pygame initialized")
+        
+        # Set up display
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption("RPG Game")
+        print("Display mode set")
+        
+        # Create clock for timing
+        self.clock = pygame.time.Clock()
+        print("Clock created")
+        
+        # Create game state (it will create all other components)
+        self.game_state = GameState(self.screen)
+        print("Game state created")
+        
+        # Set the global game_state for external access - no longer needed but kept for compatibility
+        global game_state  # Need to declare again due to Python scoping rules
+        game_state = self.game_state
+        print(f"DEBUG: Global game_state set to: {game_state}")
+        
     def run(self):
         """Run the main game loop"""
         # Main game loop
@@ -2825,35 +5091,12 @@ class Game:
         while running:
             dt = self.clock.tick(60) / 1000.0  # Convert milliseconds to seconds
             events = pygame.event.get()
-            
-            # Always check for quit events
             for event in events:
                 if event.type == pygame.QUIT:
                     self.game_state._quit_game()
                     running = False
-            
-            # Handle system menu events even when game is paused
-            if self.game_state.system_menu_ui.visible:
-                for event in events:
-                    if self.game_state.system_menu_ui.handle_event(event):
-                        events = []  # Clear events if handled by system menu
-                        break
-                
-                # Also handle character select UI events if it's visible
-                if hasattr(self.game_state, 'character_select_ui') and self.game_state.character_select_ui.visible:
-                    for event in events:
-                        if self.game_state.character_select_ui.handle_event(event):
-                            events = []  # Clear events if handled by character select
-                            break
-                
-                # Also handle name input dialog events if it's visible
-                if hasattr(self.game_state, 'name_input_dialog') and self.game_state.name_input_dialog.visible:
-                    for event in events:
-                        if self.game_state.name_input_dialog.handle_event(event):
-                            events = []  # Clear events if handled by name input dialog
-                            break
 
-            # Update game state - pass remaining events
+            # Update game state
             self.game_state.update(dt, events)
             
             if not self.game_state.running:
@@ -2884,13 +5127,8 @@ def main():
         print(f"Warning: Audio system initialization failed: {e}")
     
     # Create and run the game
-    try:
-        game = Game()
-        game.run()
-    except Exception as e:
-        print(f"Error in main game loop: {e}")
-        import traceback
-        traceback.print_exc()
+    game = Game()
+    game.run()
 
 if __name__ == "__main__":
     main() 

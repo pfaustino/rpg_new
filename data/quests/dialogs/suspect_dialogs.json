@@ -1,0 +1,581 @@
+{
+  "seren_interrogation": {
+    "npc_name": "Seren",
+    "npc_title": "Royal Scholar",
+    "location": "Royal Library",
+    "dialogs": [
+      {
+        "id": "initial",
+        "text": [
+          "Seren looks up from her ancient tomes, her silver eyes bright with curiosity.",
+          "'Ah, you must be the investigator I've heard about. Come to question me about the theft, I presume?'",
+          "'Yes, I was at the Vault last night. I was researching the Shadow Prism for a historical treatise on the Order of the Veil. It's fascinating, really—the Prism dates back to the First Shadow War.'"
+        ],
+        "choices": [
+          {
+            "text": "What exactly is the Shadow Prism?",
+            "next": "prism_explanation"
+          },
+          {
+            "text": "Did you see anything suspicious at the Vault?",
+            "next": "suspicious_activity"
+          },
+          {
+            "text": "Do you know anything about the Order of the Veil?",
+            "next": "order_knowledge"
+          },
+          {
+            "text": "Why were you researching the Order in the first place?",
+            "next": "research_reason"
+          }
+        ]
+      },
+      {
+        "id": "prism_explanation",
+        "text": [
+          "Seren's eyes light up with scholarly enthusiasm.",
+          "'The Shadow Prism is an ancient artifact created during the height of shadow magic practice. It can absorb and channel shadowbinding energy, amplifying it tenfold.'",
+          "'In the wrong hands, it could be used to enhance shadow creatures, create portals between shadow realms, or even corrupt living beings with shadow essence.'",
+          "'I've been studying similar artifacts for years. That's why I had permission to examine it last night.'"
+        ],
+        "clue": "seren_knows_prism",
+        "choices": [
+          {
+            "text": "Did you see anything suspicious at the Vault?",
+            "next": "suspicious_activity"
+          },
+          {
+            "text": "Do you know anything about the Order of the Veil?",
+            "next": "order_knowledge"
+          },
+          {
+            "text": "Why were you researching the Order in the first place?",
+            "next": "research_reason"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "suspicious_activity",
+        "text": [
+          "Seren frowns, thinking carefully.",
+          "'The guard—Bram, I believe—was unusually attentive. He kept asking questions about the Prism's capabilities. I thought he was just being thorough.'",
+          "'And that merchant woman, Lysa, arrived just as I was leaving. She claimed to be delivering cataloging supplies, but I've never seen her at the Vault before.'",
+          "'I left around midnight. The Prism was still there, sealed in its containment field.'"
+        ],
+        "clue": "seren_suspects_others",
+        "choices": [
+          {
+            "text": "What exactly is the Shadow Prism?",
+            "next": "prism_explanation"
+          },
+          {
+            "text": "Do you know anything about the Order of the Veil?",
+            "next": "order_knowledge"
+          },
+          {
+            "text": "Why were you researching the Order in the first place?",
+            "next": "research_reason"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "order_knowledge",
+        "text": [
+          "Seren lowers her voice, glancing around the library.",
+          "'The Order of the Veil is far older and more dangerous than most people realize. They believe shadow magic is the primordial force of the universe, and seek to return the world to darkness.'",
+          "'Their leader—the Veilmaster—is rumored to be a shadowbinder of immense power. Some texts suggest they can move between shadows like doorways.'",
+          "'If they have the Prism... well, their abilities would be greatly enhanced. Shadow creatures could manifest in places previously impossible.'"
+        ],
+        "clue": "seren_knows_order",
+        "choices": [
+          {
+            "text": "What exactly is the Shadow Prism?",
+            "next": "prism_explanation"
+          },
+          {
+            "text": "Did you see anything suspicious at the Vault?",
+            "next": "suspicious_activity"
+          },
+          {
+            "text": "Why were you researching the Order in the first place?",
+            "next": "research_reason"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "research_reason",
+        "text": [
+          "Seren hesitates, then pulls up her sleeve to reveal a strange mark on her wrist—a crescent moon intersected by a vertical line.",
+          "'My parents were killed by the Order when I was a child. They were scholars too, researching shadow magic.'",
+          "'I've dedicated my life to understanding the Order so they can be stopped. Knowledge is the best weapon against darkness.'",
+          "She quickly covers the mark again. 'Few know about my personal connection to this. I'd appreciate your discretion.'"
+        ],
+        "clue": "seren_personal_vendetta",
+        "choices": [
+          {
+            "text": "What exactly is the Shadow Prism?",
+            "next": "prism_explanation"
+          },
+          {
+            "text": "Did you see anything suspicious at the Vault?",
+            "next": "suspicious_activity"
+          },
+          {
+            "text": "Do you know anything about the Order of the Veil?",
+            "next": "order_knowledge"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "conclusion",
+        "text": [
+          "Seren nods respectfully.",
+          "'I hope I've been helpful. The Prism must be recovered before it's used.'",
+          "'If you need any more information about shadow artifacts or the Order, you know where to find me.'",
+          "She returns to her books, but you notice her hands trembling slightly."
+        ],
+        "clue": "seren_investigation_complete",
+        "choices": []
+      }
+    ]
+  },
+  "bram_interrogation": {
+    "npc_name": "Bram",
+    "npc_title": "City Guard",
+    "location": "City Barracks",
+    "dialogs": [
+      {
+        "id": "initial",
+        "text": [
+          "Bram stands at attention, his posture rigid. His armor is impeccably polished.",
+          "'Captain Thorne told me you'd be coming. Yes, I was on duty at the Vault last night.'",
+          "'I performed my rounds as usual. Checked on the scholar, ensured the artifacts were secure, and maintained my post until I was relieved at dawn.'",
+          "'That's when we discovered the theft. But I swear on my honor, the Prism was there when I last checked.'"
+        ],
+        "choices": [
+          {
+            "text": "Did you see anyone suspicious during your shift?",
+            "next": "suspicious_sightings"
+          },
+          {
+            "text": "What do you know about the Shadow Prism?",
+            "next": "prism_knowledge"
+          },
+          {
+            "text": "Have you heard of the Order of the Veil?",
+            "next": "order_awareness"
+          },
+          {
+            "text": "Why did you join the city guard?",
+            "next": "guard_motivation"
+          }
+        ]
+      },
+      {
+        "id": "suspicious_sightings",
+        "text": [
+          "Bram's jaw tightens.",
+          "'That scholar, Seren, was acting strangely. Kept muttering to herself and making sketches of the Prism. Said it was for 'research,' but who knows?'",
+          "'And after she left, that merchant Lysa arrived with supplies. Seemed in an awful hurry for someone just making a delivery.'",
+          "'I checked the Prism after both of them left. It was still there, I swear it.'"
+        ],
+        "clue": "bram_suspects_others",
+        "choices": [
+          {
+            "text": "What do you know about the Shadow Prism?",
+            "next": "prism_knowledge"
+          },
+          {
+            "text": "Have you heard of the Order of the Veil?",
+            "next": "order_awareness"
+          },
+          {
+            "text": "Why did you join the city guard?",
+            "next": "guard_motivation"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "prism_knowledge",
+        "text": [
+          "Bram shrugs, looking somewhat uncomfortable.",
+          "'Not much. It's some old magical artifact that glows when active. We're told not to touch any of the items, just guard them.'",
+          "'I did ask the scholar about it out of curiosity. Apparently it can amplify shadow magic or something like that. Dangerous in the wrong hands.'",
+          "'Look, I'm just a guard. The magical details aren't part of my job.'"
+        ],
+        "clue": "bram_limited_knowledge",
+        "choices": [
+          {
+            "text": "Did you see anyone suspicious during your shift?",
+            "next": "suspicious_sightings"
+          },
+          {
+            "text": "Have you heard of the Order of the Veil?",
+            "next": "order_awareness"
+          },
+          {
+            "text": "Why did you join the city guard?",
+            "next": "guard_motivation"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "order_awareness",
+        "text": [
+          "Bram's eyes darken.",
+          "'Shadow cultists. Dangerous fanatics who worship darkness. We've had run-ins with them before.'",
+          "'Last year, they attacked one of our patrols near the eastern woods. Three good guards died that night.'",
+          "He unconsciously touches a scar on his neck. 'I was the only survivor. Shadow beasts... they're not natural.'"
+        ],
+        "clue": "bram_hates_order",
+        "choices": [
+          {
+            "text": "Did you see anyone suspicious during your shift?",
+            "next": "suspicious_sightings"
+          },
+          {
+            "text": "What do you know about the Shadow Prism?",
+            "next": "prism_knowledge"
+          },
+          {
+            "text": "Why did you join the city guard?",
+            "next": "guard_motivation"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "guard_motivation",
+        "text": [
+          "Bram seems surprised by the question. His rigid posture relaxes slightly.",
+          "'My father was a guard, and his father before him. Family tradition, I suppose.'",
+          "'But if you want the truth... my younger brother was taken by shadow creatures when we were children. I swore I'd protect others from suffering the same fate.'",
+          "He straightens up again. 'That's why this theft is personal. The Prism in the Order's hands means more people will suffer.'"
+        ],
+        "clue": "bram_personal_motivation",
+        "choices": [
+          {
+            "text": "Did you see anyone suspicious during your shift?",
+            "next": "suspicious_sightings"
+          },
+          {
+            "text": "What do you know about the Shadow Prism?",
+            "next": "prism_knowledge"
+          },
+          {
+            "text": "Have you heard of the Order of the Veil?",
+            "next": "order_awareness"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "conclusion",
+        "text": [
+          "Bram stands at attention again.",
+          "'I hope I've answered your questions satisfactorily. I have nothing to hide.'",
+          "'If I'm suspected of negligence or worse... I understand. But know that I would die before betraying this city.'",
+          "He salutes crisply, but you notice worry in his eyes."
+        ],
+        "clue": "bram_investigation_complete",
+        "choices": []
+      }
+    ]
+  },
+  "lysa_interrogation": {
+    "npc_name": "Lysa",
+    "npc_title": "Merchant",
+    "location": "Merchant Quarter",
+    "dialogs": [
+      {
+        "id": "initial",
+        "text": [
+          "Lysa is arranging exotic items in her shop when you enter. She eyes you with a savvy merchant's gaze.",
+          "'So they've sent you sniffing around, have they? Yes, I was at the Vault last night. Delivering speciality cataloging supplies—parchment treated with preservation spells, special inks that can describe magical auras.'",
+          "'I run a legitimate business. Just because I deal in rare items doesn't make me a thief.'",
+          "She crosses her arms defensively. 'Ask your questions then. I have nothing to hide.'"
+        ],
+        "choices": [
+          {
+            "text": "Tell me about your delivery to the Vault.",
+            "next": "vault_delivery"
+          },
+          {
+            "text": "What do you know about the Shadow Prism?",
+            "next": "prism_knowledge"
+          },
+          {
+            "text": "Have you ever done business with the Order of the Veil?",
+            "next": "order_business"
+          },
+          {
+            "text": "How did you become a merchant of rare goods?",
+            "next": "merchant_background"
+          }
+        ]
+      },
+      {
+        "id": "vault_delivery",
+        "text": [
+          "Lysa gestures to a stack of receipt scrolls on her counter.",
+          "'I was contracted by the Royal Archivist's office three months ago to provide specialized supplies. Last night was my regular delivery—you can check the documents.'",
+          "'When I arrived, that uptight guard—Bram?—was there. And the scholar had just left. She looked... agitated.'",
+          "'I left my supplies with the night staff and was home before midnight. The Prism was still there, behind its barrier, glowing like a trapped star.'"
+        ],
+        "clue": "lysa_has_alibi",
+        "choices": [
+          {
+            "text": "What do you know about the Shadow Prism?",
+            "next": "prism_knowledge"
+          },
+          {
+            "text": "Have you ever done business with the Order of the Veil?",
+            "next": "order_business"
+          },
+          {
+            "text": "How did you become a merchant of rare goods?",
+            "next": "merchant_background"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "prism_knowledge",
+        "text": [
+          "Lysa's expression becomes more serious.",
+          "'I know it's dangerous. Shadow artifacts fetch high prices in certain circles, but I don't deal in such things.'",
+          "'The Prism is old—very old. It absorbs and amplifies shadow energy. In the old wars, they used similar artifacts to control shadow beasts.'",
+          "She lowers her voice. 'There have been... inquiries. From hooded figures willing to pay astronomical amounts for information about the Prism's security. I refused, of course.'"
+        ],
+        "clue": "lysa_approached_by_order",
+        "choices": [
+          {
+            "text": "Tell me about your delivery to the Vault.",
+            "next": "vault_delivery"
+          },
+          {
+            "text": "Have you ever done business with the Order of the Veil?",
+            "next": "order_business"
+          },
+          {
+            "text": "How did you become a merchant of rare goods?",
+            "next": "merchant_background"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "order_business",
+        "text": [
+          "Lysa glances around nervously before answering.",
+          "'Not knowingly. I deal with many clients through intermediaries.'",
+          "'But... about a month ago, a hooded figure came asking about shadow artifacts. Offered gold, then made threats when I refused to help.'",
+          "She pulls back her collar to reveal a thin scar across her collarbone. 'This was their 'warning.' I reported it to Captain Thorne immediately.'"
+        ],
+        "clue": "lysa_threatened_by_order",
+        "choices": [
+          {
+            "text": "Tell me about your delivery to the Vault.",
+            "next": "vault_delivery"
+          },
+          {
+            "text": "What do you know about the Shadow Prism?",
+            "next": "prism_knowledge"
+          },
+          {
+            "text": "How did you become a merchant of rare goods?",
+            "next": "merchant_background"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "merchant_background",
+        "text": [
+          "Lysa's expression softens slightly, becoming wistful.",
+          "'I was born in the shadow territories to the east. My village was... consumed. Shadow creatures.'",
+          "'I escaped with nothing but my wits. Built this business from the ground up, specializing in rare goods because they command higher prices.'",
+          "'I've worked hard for my reputation. I wouldn't risk it all for theft, no matter how valuable the Prism might be.'"
+        ],
+        "clue": "lysa_from_shadow_lands",
+        "choices": [
+          {
+            "text": "Tell me about your delivery to the Vault.",
+            "next": "vault_delivery"
+          },
+          {
+            "text": "What do you know about the Shadow Prism?",
+            "next": "prism_knowledge"
+          },
+          {
+            "text": "Have you ever done business with the Order of the Veil?",
+            "next": "order_business"
+          },
+          {
+            "text": "I have no more questions for now.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "conclusion",
+        "text": [
+          "Lysa returns to arranging her wares.",
+          "'I hope you find your thief, truly. Shadow magic in the wrong hands threatens us all.'",
+          "'If you need rare supplies for your investigation—or information from my network—my doors are open. For a reasonable price, of course.'",
+          "She flashes a merchant's smile, but her eyes remain cautious."
+        ],
+        "clue": "lysa_investigation_complete",
+        "choices": []
+      }
+    ]
+  },
+  "thorne_report": {
+    "npc_name": "Captain Thorne",
+    "npc_title": "Guard Captain",
+    "location": "Guard Headquarters",
+    "dialogs": [
+      {
+        "id": "initial",
+        "text": [
+          "Captain Thorne looks up from his desk, apprehension evident in his weathered face.",
+          "'You've spoken with all three suspects? Good. Time is of the essence.'",
+          "'The Order doesn't steal artifacts for collection—they use them. If they've taken the Prism, they have a plan for it.'",
+          "'Tell me then, who do you believe we should trust? Who is most likely innocent in this affair?'"
+        ],
+        "choices": [
+          {
+            "text": "I believe we should trust Seren, the scholar.",
+            "next": "trust_seren"
+          },
+          {
+            "text": "I believe we should trust Bram, the guard.",
+            "next": "trust_bram"
+          },
+          {
+            "text": "I believe we should trust Lysa, the merchant.",
+            "next": "trust_lysa"
+          },
+          {
+            "text": "I don't trust any of them.",
+            "next": "trust_none"
+          }
+        ]
+      },
+      {
+        "id": "trust_seren",
+        "text": [
+          "Captain Thorne considers your assessment carefully.",
+          "'Seren has access to extensive knowledge about shadow artifacts. That could make her valuable to the Order... or to us.'",
+          "'Her vendetta against the Order seems genuine. Few would go to such lengths to maintain a cover story.'",
+          "'Very well. I'll assign men to watch Bram and Lysa more closely. And I'll ensure Seren has the resources she needs to help us understand what the Order might be planning.'"
+        ],
+        "flag": "trusted_suspect=seren",
+        "choices": [
+          {
+            "text": "I'm confident in my assessment.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "trust_bram",
+        "text": [
+          "Captain Thorne nods slowly.",
+          "'Bram has been one of my most loyal guards. His family has served Ravenwood for generations.'",
+          "'His hatred for the Order seems genuine, given what happened to his patrol and his brother. Few men carry such scars without true conviction.'",
+          "'I'll have Seren and Lysa watched. Perhaps one of them can lead us to their Order contacts. Meanwhile, I'll assign Bram to assist your further investigations.'"
+        ],
+        "flag": "trusted_suspect=bram",
+        "choices": [
+          {
+            "text": "I'm confident in my assessment.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "trust_lysa",
+        "text": [
+          "Captain Thorne raises an eyebrow, seemingly surprised.",
+          "'The merchant? Interesting. She does have extensive contacts throughout the region. And if she was truly threatened by the Order, she would have little reason to work with them.'",
+          "'Her background in the shadow territories could give her unique insights into their methods.'",
+          "'Very well. I'll have Bram and Seren watched. And I'll make arrangements for Lysa to assist with identifying possible Order movements through her merchant networks.'"
+        ],
+        "flag": "trusted_suspect=lysa",
+        "choices": [
+          {
+            "text": "I'm confident in my assessment.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "trust_none",
+        "text": [
+          "Captain Thorne's expression darkens.",
+          "'A reasonable precaution, if somewhat harsh. The Order is known for its deep cover agents.'",
+          "'I'll have all three placed under discreet surveillance. Perhaps one of them will lead us to the Prism, or at least to their Order contacts.'",
+          "'This complicates matters, but better safe than sorry when dealing with the Order of the Veil.'"
+        ],
+        "flag": "trusted_suspect=none",
+        "choices": [
+          {
+            "text": "I'm confident in my assessment.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "conclusion",
+        "text": [
+          "Captain Thorne stands and offers you a small pouch of gold coins and a sealed document.",
+          "'Your payment, as promised. And a writ of authority that will grant you access to certain restricted areas of the city.'",
+          "'The Order's theft of the Prism marks a new phase in their activities. We'll need your skills again soon, I fear.'",
+          "'Rest for now. I'll send word when we have new developments.'"
+        ],
+        "clue": "quest_complete",
+        "choices": []
+      }
+    ]
+  }
+} 

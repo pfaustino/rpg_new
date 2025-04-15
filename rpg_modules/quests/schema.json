@@ -1,0 +1,272 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Eldoria Quest Schema",
+  "description": "Schema for quests in Eldoria: Shadows of the Veil",
+  "type": "object",
+  "required": ["quests"],
+  "properties": {
+    "quests": {
+      "type": "array",
+      "description": "List of all quests in the game",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "description", "quest_type", "level_requirement", "objectives", "rewards", "difficulty"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the quest"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the quest"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the quest"
+          },
+          "quest_type": {
+            "type": "string",
+            "enum": ["MAIN", "SIDE", "DAILY", "WORLD", "HIDDEN"],
+            "description": "Type of quest"
+          },
+          "level_requirement": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Minimum player level required for this quest"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": ["TRIVIAL", "EASY", "MEDIUM", "HARD", "EPIC"],
+            "description": "Difficulty level of the quest"
+          },
+          "objectives": {
+            "type": "array",
+            "description": "List of objectives required to complete this quest",
+            "items": {
+              "type": "object",
+              "required": ["type", "description", "required_progress"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["kill", "collect", "explore", "deliver", "dialog"],
+                  "description": "Type of objective"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description of the objective"
+                },
+                "required_progress": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Amount required to complete this objective"
+                },
+                "target_type": {
+                  "type": "string",
+                  "description": "Type of target for kill objectives"
+                },
+                "item_type": {
+                  "type": "string",
+                  "description": "Type of item for collect objectives"
+                },
+                "location_id": {
+                  "type": "string",
+                  "description": "Location ID for explore objectives"
+                },
+                "area_name": {
+                  "type": "string",
+                  "description": "Name of area for explore objectives"
+                },
+                "item_id": {
+                  "type": "string",
+                  "description": "Item ID for deliver objectives"
+                },
+                "target_npc_id": {
+                  "type": "string",
+                  "description": "NPC ID for deliver objectives"
+                },
+                "dialog_id": {
+                  "type": "string",
+                  "description": "Dialog ID for dialog objectives"
+                }
+              }
+            }
+          },
+          "rewards": {
+            "type": "array",
+            "description": "List of rewards for completing this quest",
+            "items": {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["gold", "experience", "item", "multi"],
+                  "description": "Type of reward"
+                },
+                "amount": {
+                  "type": "integer",
+                  "description": "Amount for gold or experience rewards"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description of the reward"
+                },
+                "item_id": {
+                  "type": "string",
+                  "description": "Item ID for item rewards"
+                },
+                "item_name": {
+                  "type": "string",
+                  "description": "Item name for item rewards"
+                },
+                "rewards": {
+                  "type": "array",
+                  "description": "List of rewards for multi-rewards",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "prerequisites": {
+            "type": "array",
+            "description": "List of quest IDs that must be completed before this quest",
+            "items": {
+              "type": "string"
+            }
+          },
+          "giver_id": {
+            "type": "string",
+            "description": "ID of the NPC who gives this quest"
+          },
+          "turn_in_id": {
+            "type": "string",
+            "description": "ID of the NPC to turn in this quest"
+          },
+          "time_limit": {
+            "type": "integer",
+            "description": "Time limit in seconds (if applicable)"
+          },
+          "chain_id": {
+            "type": "string",
+            "description": "ID of the quest chain this quest belongs to"
+          },
+          "chain_position": {
+            "type": "integer",
+            "description": "Position in the quest chain"
+          },
+          "next_quest_id": {
+            "type": "string",
+            "description": "ID of the next quest in the chain"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the location"
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name of the location"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of the location"
+              },
+              "coords": {
+                "type": "array",
+                "description": "Coordinates [x, y] of the location",
+                "items": {
+                  "type": "integer"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "radius": {
+                "type": "integer",
+                "description": "Radius of the location area"
+              }
+            }
+          },
+          "dialog": {
+            "type": "object",
+            "description": "Dialog associated with this quest",
+            "properties": {
+              "start": {
+                "type": "array",
+                "description": "Dialog when starting the quest",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "in_progress": {
+                "type": "array",
+                "description": "Dialog when the quest is in progress",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "completion": {
+                "type": "array",
+                "description": "Dialog when completing the quest",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "choices": {
+                "type": "array",
+                "description": "Player choices in dialog",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "description": "Text of the choice"
+                    },
+                    "outcome": {
+                      "type": "string",
+                      "description": "Outcome of selecting this choice"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "story_flags": {
+            "type": "object",
+            "description": "Flags that affect the story or game world",
+            "additionalProperties": {
+              "type": ["string", "boolean", "integer"]
+            }
+          }
+        }
+      }
+    },
+    "quest_chains": {
+      "type": "object",
+      "description": "Quest chains defined by their ID",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the quest chain"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the quest chain"
+          },
+          "quests": {
+            "type": "array",
+            "description": "IDs of quests in this chain in order",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+} 

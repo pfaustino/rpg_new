@@ -1,0 +1,89 @@
+{
+  "items": [
+    {
+      "id": "moonlight_flower",
+      "name": "Moonlight Flower",
+      "description": "A rare flower that blooms only under the full moon in the Ancient Grove. Its petals glow with ethereal blue light and contain powerful purifying energy.",
+      "type": "quest",
+      "icon": "moonlight_flower.png",
+      "stackable": true,
+      "max_stack": 10,
+      "value": 50,
+      "rarity": "rare",
+      "properties": {
+        "glows": true,
+        "quest_id": "sq_ember_of_serenity"
+      }
+    },
+    {
+      "id": "cloak_of_night_whispers",
+      "name": "Cloak of Night Whispers",
+      "description": "A mystical cloak woven with enchantments by Elder Malik. Grants the wearer enhanced stealth abilities.",
+      "type": "equipment",
+      "subtype": "back",
+      "icon": "cloak_night_whispers.png",
+      "stackable": false,
+      "value": 500,
+      "rarity": "epic",
+      "equipment_stats": {
+        "defense": 5,
+        "stealth": 15
+      },
+      "properties": {
+        "noise_reduction": 20,
+        "darkness_affinity": true
+      }
+    },
+    {
+      "id": "crystal_shard",
+      "name": "Crystal Shard",
+      "description": "A luminous crystal fragment from the Crystal Caverns. Resonates with harmonic energy that can strengthen magical seals.",
+      "type": "quest",
+      "icon": "crystal_shard.png",
+      "stackable": true,
+      "max_stack": 20,
+      "value": 75,
+      "rarity": "uncommon",
+      "properties": {
+        "glows": true,
+        "quest_id": "sq_crystal_caverns"
+      }
+    },
+    {
+      "id": "crystal_focus",
+      "name": "Crystal Focus",
+      "description": "A perfectly clear crystal attuned to the energies of the Ancient Grove. Enhances the user's magical abilities and focus.",
+      "type": "equipment",
+      "subtype": "trinket",
+      "icon": "crystal_focus.png",
+      "stackable": false,
+      "value": 750,
+      "rarity": "epic",
+      "equipment_stats": {
+        "magic_power": 10,
+        "focus": 15,
+        "mana_regen": 5
+      },
+      "properties": {
+        "spell_cost_reduction": 10,
+        "crystal_resonance": true
+      }
+    },
+    {
+      "id": "crystal_bell",
+      "name": "Crystal Bell",
+      "description": "A small bell crafted from pure crystal. When rung, it produces a clear tone that repels corrupted guardians.",
+      "type": "quest",
+      "icon": "crystal_bell.png",
+      "stackable": false,
+      "value": 100,
+      "rarity": "uncommon",
+      "properties": {
+        "guardian_repel": true,
+        "quest_id": "sq_ember_of_serenity",
+        "usable": true,
+        "cooldown": 60
+      }
+    }
+  ]
+} 

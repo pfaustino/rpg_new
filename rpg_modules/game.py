@@ -1,4 +1,7 @@
 from rpg_modules.entities.monster import Monster, MonsterType
+import random
+import math
+import logging
 
 def _spawn_initial_monsters(self):
     """Spawn initial monsters on the map."""

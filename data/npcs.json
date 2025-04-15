@@ -1,0 +1,101 @@
+{
+  "sprite_sheets": {
+    "elder_male": {
+      "file": "elder_male.png"
+    },
+    "villager_male": {
+      "file": "villager_male.png"
+    },
+    "villager_female": {
+      "file": "villager_female.png"
+    },
+    "guard": {
+      "file": "guard.png"
+    }
+  },
+  "npcs": [
+    {
+      "npc_id": "elder_malik",
+      "name": "Elder Malik",
+      "title": "Village Elder",
+      "x": 10,
+      "y": 10,
+      "direction": "south",
+      "dialog_id": "elder_malik_intro",
+      "sprite_id": "elder_male",
+      "movement_pattern": "stationary",
+      "interaction_radius": 3,
+      "quest_giver": true,
+      "has_new_dialog": true
+    },
+    {
+      "npc_id": "captain_thorne",
+      "name": "Captain Thorne",
+      "title": "Guard Captain",
+      "x": 15,
+      "y": 15,
+      "direction": "south",
+      "dialog_id": "thorne_report",
+      "sprite_id": "guard",
+      "movement_pattern": "stationary",
+      "interaction_radius": 3,
+      "quest_giver": true
+    },
+    {
+      "npc_id": "seren",
+      "name": "Seren",
+      "title": "Royal Scholar",
+      "x": 25,
+      "y": 12,
+      "direction": "west",
+      "dialog_id": "seren_interrogation",
+      "sprite_id": "villager_female",
+      "movement_pattern": "patrol",
+      "patrol_points": [
+        [
+          25,
+          12
+        ],
+        [
+          25,
+          16
+        ],
+        [
+          28,
+          16
+        ],
+        [
+          28,
+          12
+        ]
+      ],
+      "interaction_radius": 2
+    },
+    {
+      "npc_id": "bram",
+      "name": "Bram",
+      "title": "City Guard",
+      "x": 32,
+      "y": 18,
+      "direction": "south",
+      "dialog_id": "bram_interrogation",
+      "sprite_id": "guard",
+      "movement_pattern": "stationary",
+      "interaction_radius": 2
+    },
+    {
+      "npc_id": "lysa",
+      "name": "Lysa",
+      "title": "Merchant",
+      "x": 40,
+      "y": 25,
+      "direction": "east",
+      "dialog_id": "lysa_interrogation",
+      "sprite_id": "villager_female",
+      "movement_pattern": "wander",
+      "wander_radius": 3,
+      "interaction_radius": 2,
+      "merchant": true
+    }
+  ]
+}

@@ -1,0 +1,1061 @@
+{
+  "thorne_introduction": {
+    "npc_name": "Captain Thorne",
+    "npc_title": "Guard Captain",
+    "location": "Guard Headquarters",
+    "dialogs": [
+      {
+        "id": "initial",
+        "text": [
+          "Ah, you must be the adventurer I've heard about. Your arrival is timely.",
+          "Eldervale has been experiencing strange occurrences lately. Energy manifestations in the town square.",
+          "I need someone with your skills to investigate. Would you be willing to help us?"
+        ],
+        "choices": [
+          {
+            "text": "I'll help you investigate",
+            "next": "accept",
+            "sets_flag": {"quest_accepted_mysterious_arrival": true}
+          },
+          {
+            "text": "What's in it for me?",
+            "next": "reward_question"
+          }
+        ]
+      },
+      {
+        "id": "reward_question",
+        "text": [
+          "Of course, you'll be compensated for your efforts. The town council has authorized payment,",
+          "and I'm sure we can find some useful equipment for you as well."
+        ],
+        "choices": [
+          {
+            "text": "That sounds fair. I'll help.",
+            "next": "accept",
+            "sets_flag": {"quest_accepted_mysterious_arrival": true}
+          },
+          {
+            "text": "I'll think about it and come back.",
+            "ends_dialog": true
+          }
+        ]
+      },
+      {
+        "id": "accept",
+        "text": [
+          "Excellent! First, head to the town square and investigate the energy manifestation.",
+          "Gather a sample if you can, and bring it back to me for analysis.",
+          "Be careful - we don't know if it's dangerous."
+        ],
+        "ends_dialog": true
+      }
+    ]
+  },
+  "thorne_introduction_complete": {
+    "npc_name": "Captain Thorne",
+    "npc_title": "Guard Captain",
+    "location": "Guard Headquarters",
+    "dialogs": [
+      {
+        "id": "initial",
+        "text": [
+          "Captain Thorne examines the energy sample you've collected, holding it up to the light.",
+          "'Fascinating... and concerning. These energy patterns match descriptions in my grandfather's journals.'",
+          "'If I'm right, this is residual energy from an artifact known as the Shadow Prism. Legend says it was stored in the temple east of town.'"
+        ],
+        "choices": [
+          {
+            "text": "What is this Shadow Prism?",
+            "next": "prism_explanation"
+          },
+          {
+            "text": "Why would it be affecting the town now?",
+            "next": "why_now"
+          },
+          {
+            "text": "What's our next move?",
+            "next": "next_step"
+          }
+        ]
+      },
+      {
+        "id": "prism_explanation",
+        "text": [
+          "Captain Thorne retrieves an old book from his shelf, opening to a page with an illustration of a crystalline object.",
+          "'The Shadow Prism was created by an ancient civilization that once inhabited these lands. They harnessed a form of energy they called 'shadow essence'—not evil per se, but powerful and unpredictable.'",
+          "'The Prism could amplify this energy, allowing its wielder to warp reality in small ways: creating illusions, influencing dreams, even healing wounds.'",
+          "'But prolonged use was said to have... unfortunate effects on the wielder's mind.'"
+        ],
+        "choices": [
+          {
+            "text": "Why would it be affecting the town now?",
+            "next": "why_now"
+          },
+          {
+            "text": "What's our next move?",
+            "next": "next_step"
+          }
+        ]
+      },
+      {
+        "id": "why_now",
+        "text": [
+          "Captain Thorne's expression darkens.",
+          "'That's the question, isn't it? The temple has been abandoned for centuries. Something—or someone—must have disturbed it recently.'",
+          "'There have been rumors of treasure hunters in the area. Or perhaps it's connected to the recent reports of robed figures seen in the forests at night.'",
+          "'Whatever the cause, the effects are growing stronger. We need to act quickly.'"
+        ],
+        "choices": [
+          {
+            "text": "What is this Shadow Prism?",
+            "next": "prism_explanation"
+          },
+          {
+            "text": "What's our next move?",
+            "next": "next_step"
+          }
+        ]
+      },
+      {
+        "id": "next_step",
+        "text": [
+          "Captain Thorne rolls out a map on his desk, pointing to a location east of town.",
+          "'We need to investigate the temple ruins. If the Prism has been disturbed, we must secure it before its influence spreads further.'",
+          "'I've marked the temple's location on your map. Be prepared for resistance—some of the temple's original guardians may still protect it, corrupted by centuries of exposure to the artifact.'",
+          "'I'd go myself, but I can't leave the town undefended with these strange occurrences. Will you undertake this mission?'"
+        ],
+        "choices": [
+          {
+            "text": "I'll investigate the temple.",
+            "next": "accept_mission"
+          },
+          {
+            "text": "Is there any specific equipment I should bring?",
+            "next": "equipment_advice"
+          }
+        ]
+      },
+      {
+        "id": "equipment_advice",
+        "text": [
+          "Captain Thorne reaches into a drawer and hands you a small vial filled with glowing blue liquid.",
+          "'Take this clarity potion. The temple is said to affect the mind, causing hallucinations or confusion. This should help you resist those effects.'",
+          "'Beyond that, bring whatever weapons you're comfortable with. The temple guardians were once human, but after centuries under the Prism's influence... well, they won't be reasoned with.'",
+          "'Oh, and bring a light source. The temple's inner chambers are said to be unnaturally dark, resistant even to normal torches.'"
+        ],
+        "choices": [
+          {
+            "text": "I'll investigate the temple.",
+            "next": "accept_mission"
+          }
+        ]
+      },
+      {
+        "id": "accept_mission",
+        "text": [
+          "Captain Thorne nods, a mix of relief and concern on his face.",
+          "'Thank you. The town owes you a debt already.'",
+          "'Take this payment for your initial investigation. There will be more when you return from the temple—assuming you find something useful.'",
+          "'Be careful in there. The Prism's influence is subtle at first but grows stronger the closer you get to it. Trust nothing you see or hear until you're back in Eldervale.'"
+        ],
+        "flag": "quest_completed=mq_01_mysterious_arrival",
+        "choices": []
+      }
+    ]
+  },
+  "thorne_investigation": {
+    "npc_name": "Captain Thorne",
+    "npc_title": "Guard Captain",
+    "location": "Guard Headquarters",
+    "dialogs": [
+      {
+        "id": "initial",
+        "text": [
+          "Captain Thorne spreads an ancient map across his desk. The parchment is yellowed with age, its edges frayed.",
+          "'This is my grandfather's map of the temple. It's located here,' he points to a location in the Shrouded Hills east of town.",
+          "'According to his research, the temple was built by the Shadowweaver civilization to house their most powerful artifacts. The Shadow Prism was their greatest creation.'"
+        ],
+        "choices": [
+          {
+            "text": "Tell me more about the temple.",
+            "next": "temple_info"
+          },
+          {
+            "text": "What dangers should I expect?",
+            "next": "dangers"
+          },
+          {
+            "text": "What exactly am I looking for?",
+            "next": "objective"
+          },
+          {
+            "text": "I'm ready to leave now.",
+            "next": "ready_to_go"
+          }
+        ]
+      },
+      {
+        "id": "temple_info",
+        "text": [
+          "Captain Thorne traces the outline of the temple on the map.",
+          "'The temple was built in three tiers, descending into the earth. Each level contained increasingly dangerous artifacts.'",
+          "'The upper level served as living quarters for the priests and guardians. The middle level housed lesser artifacts and research chambers. The lowest level was reserved for the most powerful items, including the Shadow Prism.'",
+          "'My grandfather's notes suggest many of the chambers were trapped or sealed with magical wards. Be cautious of any symbols carved into doorways or pedestals.'"
+        ],
+        "choices": [
+          {
+            "text": "What dangers should I expect?",
+            "next": "dangers"
+          },
+          {
+            "text": "What exactly am I looking for?",
+            "next": "objective"
+          },
+          {
+            "text": "I'm ready to leave now.",
+            "next": "ready_to_go"
+          }
+        ]
+      },
+      {
+        "id": "dangers",
+        "text": [
+          "Captain Thorne's expression becomes grave.",
+          "'First, there are the guardians. They were once human, sworn to protect the temple and its contents. But centuries of exposure to the shadow energies has... changed them.'",
+          "'They no longer resemble humans—more like shells animated by shadow energy. They're extremely resilient and single-minded in their duty to protect the artifacts.'",
+          "'Beyond that, the temple itself is treacherous. Collapsed passageways, ancient traps, and areas where reality seems... unstable. Trust your instincts—if something feels wrong, it probably is.'"
+        ],
+        "choices": [
+          {
+            "text": "Tell me more about the temple.",
+            "next": "temple_info"
+          },
+          {
+            "text": "What exactly am I looking for?",
+            "next": "objective"
+          },
+          {
+            "text": "I'm ready to leave now.",
+            "next": "ready_to_go"
+          }
+        ]
+      },
+      {
+        "id": "objective",
+        "text": [
+          "Captain Thorne produces a weathered journal, flipping to a page with a detailed drawing of a crystalline object.",
+          "'The Shadow Prism itself would be too dangerous to bring back whole, even if you could find it. We need a fragment—a small piece that's broken off.'",
+          "'The fragments would retain the prism's properties but at a much weaker scale. It should be enough for us to study and understand what we're dealing with.'",
+          "'My grandfather's notes mention that fragments occasionally break off during energy surges. Look in the central chamber on the lowest level. That's where the Prism would have been housed.'"
+        ],
+        "choices": [
+          {
+            "text": "Tell me more about the temple.",
+            "next": "temple_info"
+          },
+          {
+            "text": "What dangers should I expect?",
+            "next": "dangers"
+          },
+          {
+            "text": "I'm ready to leave now.",
+            "next": "ready_to_go"
+          }
+        ]
+      },
+      {
+        "id": "ready_to_go",
+        "text": [
+          "Captain Thorne rolls up the map and hands it to you.",
+          "'The journey will take about half a day on foot. If you leave now, you should reach the temple by midday.'",
+          "'Take this,' he hands you a small glass pendant. 'It's a ward stone. My grandfather created it to help resist the disorienting effects of the temple's energies.'",
+          "'Return to me once you've secured a fragment. And... be careful. Don't take any unnecessary risks. The town needs you to come back alive.'"
+        ],
+        "flag": "quest_started=mq_02_first_investigation",
+        "choices": [
+          {
+            "text": "I'll return with a fragment soon.",
+            "next": "conclusion"
+          }
+        ]
+      },
+      {
+        "id": "conclusion",
+        "text": [
+          "Captain Thorne nods solemnly.",
+          "'Safe journey. And remember—the shadows in that place can play tricks on your mind. Trust what you can touch, not what you can see.'"
+        ],
+        "choices": []
+      }
+    ]
+  },
+  "thorne_investigation_complete": {
+    "id": "thorne_investigation_complete",
+    "speaker": "Captain Thorne",
+    "location": "Guard Headquarters",
+    "text": "You've returned with the Shadow Prism fragment. Let me examine it...",
+    "choices": [
+      {
+        "text": "What can you tell me about it?",
+        "next_id": "thorne_investigation_complete.examine_fragment"
+      }
+    ],
+    "branches": {
+      "examine_fragment": {
+        "text": "This is definitely a fragment of the Shadow Prism. The energy signature matches what we've been detecting in town. However, this small piece alone couldn't cause the disturbances we're experiencing. The complete Prism must be active somewhere.",
+        "choices": [
+          {
+            "text": "Do you have any leads?",
+            "next_id": "thorne_investigation_complete.suspects"
+          }
+        ]
+      },
+      "suspects": {
+        "text": "I've been reviewing the town records. Three individuals were seen near the temple in the past month: Seren our royal scholar, Bram from the city guard, and Lysa the traveling merchant. We need to question each of them.",
+        "choices": [
+          {
+            "text": "Tell me more about these suspects.",
+            "next_id": "thorne_investigation_complete.suspect_details"
+          }
+        ]
+      },
+      "suspect_details": {
+        "text": "Seren works at the Royal Library researching ancient artifacts. Bram is one of my guards who patrols the eastern roads. And Lysa is a merchant who travels between towns selling exotic goods. Each had opportunity and possibly motive.",
+        "choices": [
+          {
+            "text": "I'll question all three.",
+            "next_id": "thorne_investigation_complete.accept_mission"
+          }
+        ]
+      },
+      "accept_mission": {
+        "text": "Good. Seren can be found at the Royal Library in the Noble District. Bram should be at the barracks when not on patrol. And Lysa typically stays at the Crossroads Inn when in town. Report back when you've spoken with all three.",
+        "choices": [
+          {
+            "text": "I'll find them and discover the truth.",
+            "next_id": "exit",
+            "set_flag": "quest_accepted_interrogation"
+          }
+        ]
+      }
+    }
+  },
+  "seren_interrogation": {
+    "id": "seren_interrogation",
+    "speaker": "Seren",
+    "location": "Royal Library",
+    "text": "Yes? Can I help you? I'm quite busy with my research at the moment.",
+    "choices": [
+      {
+        "text": "I'm investigating the Shadow Prism. Captain Thorne said you visited the temple recently.",
+        "next_id": "seren_interrogation.reaction"
+      }
+    ],
+    "branches": {
+      "reaction": {
+        "text": "The Shadow Prism? [She puts down her book with sudden interest] Yes, I did visit the temple. It's part of my scholarly research on ancient artifacts. I've been studying the temple's history for years.",
+        "choices": [
+          {
+            "text": "Why that temple specifically?",
+            "next_id": "seren_interrogation.temple_interest"
+          },
+          {
+            "text": "Did you take anything from the temple?",
+            "next_id": "seren_interrogation.accusation"
+          }
+        ]
+      },
+      "temple_interest": {
+        "text": "The temple was a repository for artifacts from the Age of Shadows. My research focuses on that era's magical technology. The Shadow Prism was said to harness energy from the realm of shadows, but it was too dangerous to use.",
+        "choices": [
+          {
+            "text": "Did you take anything from the temple?",
+            "next_id": "seren_interrogation.accusation"
+          },
+          {
+            "text": "What would happen if someone reassembled the Prism?",
+            "next_id": "seren_interrogation.consequences"
+          }
+        ]
+      },
+      "consequences": {
+        "text": "Reassemble it? [Her eyes widen] That would be catastrophic. The full Prism could tear open the veil between our world and the shadow realm. It's why our ancestors broke it apart and sealed the pieces in different locations.",
+        "choices": [
+          {
+            "text": "So you knew it was broken into pieces?",
+            "next_id": "seren_interrogation.knowledge"
+          }
+        ]
+      },
+      "knowledge": {
+        "text": "Yes, it's documented in ancient texts. The temple you visited held only one fragment. There should be others scattered across the kingdom, hidden in various locations. I've been trying to document them all - academically, of course.",
+        "choices": [
+          {
+            "text": "Did you take the fragment from the temple?",
+            "next_id": "seren_interrogation.accusation"
+          }
+        ]
+      },
+      "accusation": {
+        "text": "Take it? Absolutely not! [She appears genuinely shocked] I would never remove an artifact from its resting place. That would be both academically unethical and potentially dangerous. I only observed and took notes.",
+        "choices": [
+          {
+            "text": "Do you know who might have taken it?",
+            "next_id": "seren_interrogation.suspicions"
+          }
+        ]
+      },
+      "suspicions": {
+        "text": "I did see someone else at the temple during my visit. A merchant woman was there, sketching the artifacts. She seemed particularly interested in the Shadow Prism. I believe her name was Lysa.",
+        "choices": [
+          {
+            "text": "Thank you for your help.",
+            "next_id": "seren_interrogation.conclusion",
+            "set_flag": "questioned_seren"
+          }
+        ]
+      },
+      "conclusion": {
+        "text": "Of course. I hope you find whoever took it. And... please be careful. The Shadow Prism is not to be trifled with. If you need any scholarly advice about it, you know where to find me.",
+        "choices": [
+          {
+            "text": "I'll keep that in mind.",
+            "next_id": "exit"
+          }
+        ]
+      }
+    }
+  },
+  "bram_interrogation": {
+    "id": "bram_interrogation",
+    "speaker": "Bram",
+    "location": "Barracks",
+    "text": "[Polishing his sword] What can I do for you? If you're looking for Captain Thorne, he's probably at headquarters.",
+    "choices": [
+      {
+        "text": "I'm investigating the Shadow Prism on Captain Thorne's orders. I heard you were near the temple recently.",
+        "next_id": "bram_interrogation.reaction"
+      }
+    ],
+    "branches": {
+      "reaction": {
+        "text": "[His hand pauses briefly] I patrol the eastern roads. That includes the area near the temple. It's part of my regular route. [He resumes polishing, not making eye contact]",
+        "choices": [
+          {
+            "text": "Did you ever go inside the temple?",
+            "next_id": "bram_interrogation.temple_visit"
+          }
+        ]
+      },
+      "temple_visit": {
+        "text": "[Hesitates] I... yes, I did. Once. I heard noises coming from inside and investigated. It's my duty to check out suspicious activity in my patrol area.",
+        "choices": [
+          {
+            "text": "What did you find inside?",
+            "next_id": "bram_interrogation.findings"
+          }
+        ]
+      },
+      "findings": {
+        "text": "Nothing much. Just some old ruins, statues, pedestals with weird markings. [He looks uncomfortable] Those guardian creatures attacked me, so I left quickly. Didn't seem worth dying over.",
+        "choices": [
+          {
+            "text": "Did you see the Shadow Prism fragment?",
+            "next_id": "bram_interrogation.prism_question"
+          },
+          {
+            "text": "Did you see anyone else there?",
+            "next_id": "bram_interrogation.others"
+          }
+        ]
+      },
+      "prism_question": {
+        "text": "[Shifts his weight] There was... something glowing on one of the pedestals. I didn't touch it. I'm not a fool who grabs magical artifacts without knowing what they do.",
+        "choices": [
+          {
+            "text": "Did you see anyone else at the temple?",
+            "next_id": "bram_interrogation.others"
+          }
+        ]
+      },
+      "others": {
+        "text": "Yes, actually. There was a merchant woman leaving as I arrived. Seemed in a hurry. I've seen her in town before - sells exotic goods at premium prices. Lysa, I think her name is.",
+        "choices": [
+          {
+            "text": "Are you sure you didn't take anything from the temple?",
+            "next_id": "bram_interrogation.accusation"
+          }
+        ]
+      },
+      "accusation": {
+        "text": "[Stands up angrily] Are you accusing me of something? I'm a city guard! I uphold the law, I don't steal mysterious artifacts! [He calms slightly] Look, I've told you everything I know. If you don't believe me, take it up with Captain Thorne.",
+        "choices": [
+          {
+            "text": "I'm just gathering information. Thank you for your time.",
+            "next_id": "bram_interrogation.conclusion",
+            "set_flag": "questioned_bram"
+          }
+        ]
+      },
+      "conclusion": {
+        "text": "[Nods curtly] Fine. If you're done, I have duties to attend to. Good luck with your investigation. [He turns away, but you notice his hand shaking slightly as he picks up his sword]",
+        "choices": [
+          {
+            "text": "I'll let you get back to work.",
+            "next_id": "exit"
+          }
+        ]
+      }
+    }
+  },
+  "lysa_interrogation": {
+    "id": "lysa_interrogation",
+    "speaker": "Lysa",
+    "location": "Crossroads Inn",
+    "text": "[Arranging exotic goods on a table] Welcome, traveler! Looking for something special? I have wares from all corners of the realm. Perhaps a trinket to bring you luck?",
+    "choices": [
+      {
+        "text": "I'm not here to shop. I'm investigating the theft of the Shadow Prism fragment.",
+        "next_id": "lysa_interrogation.reaction"
+      }
+    ],
+    "branches": {
+      "reaction": {
+        "text": "[Her smile falters momentarily] Shadow Prism? Sounds ominous. [She continues arranging her wares] I deal in legitimate goods, friend. Nothing stolen, nothing cursed.",
+        "choices": [
+          {
+            "text": "Multiple witnesses saw you at the temple where it was kept.",
+            "next_id": "lysa_interrogation.confrontation"
+          }
+        ]
+      },
+      "confrontation": {
+        "text": "[Sighs] Fine. Yes, I visited the temple. I visit many ancient sites in my travels. They often contain inspiration for my crafts and sometimes hidden treasures forgotten by time. It's not illegal to explore.",
+        "choices": [
+          {
+            "text": "Did you take the Shadow Prism fragment?",
+            "next_id": "lysa_interrogation.accusation"
+          },
+          {
+            "text": "Did you see anyone else there?",
+            "next_id": "lysa_interrogation.others"
+          }
+        ]
+      },
+      "accusation": {
+        "text": "Absolutely not! [She looks offended] I may skirt the edges of legality occasionally, but I don't steal dangerous artifacts. That's just bad business. Besides, I've heard the stories about the Shadow Prism. I'm not eager to meddle with forces that could destroy the world.",
+        "choices": [
+          {
+            "text": "Did you see anyone else at the temple?",
+            "next_id": "lysa_interrogation.others"
+          }
+        ]
+      },
+      "others": {
+        "text": "Yes, that scholarly woman, Seren, was there taking notes. And when I left, one of the town guards was arriving - tall fellow, always looks nervous. Oh, and... [she lowers her voice] there was someone else.",
+        "choices": [
+          {
+            "text": "Who else did you see?",
+            "next_id": "lysa_interrogation.mysterious_figure"
+          }
+        ]
+      },
+      "mysterious_figure": {
+        "text": "I'm not sure. A hooded figure watching the temple from the treeline. When they noticed me looking, they disappeared into the shadows. Literally disappeared - like magic. [She shivers] That's why I left quickly. Something didn't feel right.",
+        "choices": [
+          {
+            "text": "Could you identify this person at all?",
+            "next_id": "lysa_interrogation.description"
+          }
+        ]
+      },
+      "description": {
+        "text": "No, the hood concealed their face. But... [she thinks] they wore a ring with a purple stone that seemed to glow. I notice valuable gems in my line of work. That stone was unlike anything I've seen before.",
+        "choices": [
+          {
+            "text": "Thank you for your help.",
+            "next_id": "lysa_interrogation.conclusion",
+            "set_flag": "questioned_lysa"
+          }
+        ]
+      },
+      "conclusion": {
+        "text": "Of course. [She resumes her merchant smile] Now, are you sure I can't interest you in some merchandise? Special price for someone helping keep our town safe. No? Another time, perhaps. Good luck with your investigation.",
+        "choices": [
+          {
+            "text": "I'll be on my way.",
+            "next_id": "exit"
+          }
+        ]
+      }
+    }
+  },
+  "thorne_suspects_report": {
+    "id": "thorne_suspects_report",
+    "speaker": "Captain Thorne",
+    "location": "Guard Headquarters",
+    "text": "You've returned. Did you speak with all three suspects? What did you learn?",
+    "choices": [
+      {
+        "text": "I've questioned everyone as you asked.",
+        "next_id": "thorne_suspects_report.findings",
+        "require_flag": ["questioned_seren", "questioned_bram", "questioned_lysa"]
+      },
+      {
+        "text": "I still need to question some of the suspects.",
+        "next_id": "thorne_suspects_report.incomplete",
+        "require_flag_not_all": ["questioned_seren", "questioned_bram", "questioned_lysa"]
+      }
+    ],
+    "branches": {
+      "incomplete": {
+        "text": "This investigation is too important to leave incomplete. I need you to speak with all three suspects before we can proceed. Time is of the essence.",
+        "choices": [
+          {
+            "text": "I'll finish questioning the suspects.",
+            "next_id": "exit"
+          }
+        ]
+      },
+      "findings": {
+        "text": "Excellent. Tell me what you've discovered. Did any of them stand out as particularly suspicious?",
+        "choices": [
+          {
+            "text": "Seren seems the most suspicious.",
+            "next_id": "thorne_suspects_report.accuse_seren",
+            "set_flag": "flag_accuse_seren"
+          },
+          {
+            "text": "Bram seems the most suspicious.",
+            "next_id": "thorne_suspects_report.accuse_bram",
+            "set_flag": "flag_accuse_bram"
+          },
+          {
+            "text": "Lysa seems the most suspicious.",
+            "next_id": "thorne_suspects_report.accuse_lysa",
+            "set_flag": "flag_accuse_lysa"
+          },
+          {
+            "text": "I'm not sure who took it. Lysa mentioned seeing a mysterious figure.",
+            "next_id": "thorne_suspects_report.mysterious_figure",
+            "set_flag": "flag_uncertain"
+          }
+        ]
+      },
+      "accuse_seren": {
+        "text": "Seren? [He looks thoughtful] I've known her for years, but I suppose her academic interest in the Shadow Prism could have developed into something more... obsessive. What made you suspect her?",
+        "choices": [
+          {
+            "text": "She knows too much about the Prism and where all the fragments are located.",
+            "next_id": "thorne_suspects_report.seren_knowledge"
+          }
+        ]
+      },
+      "seren_knowledge": {
+        "text": "That's concerning. Her knowledge could indeed make her dangerous if she decided to pursue the fragments. [He makes notes] I'll have her activities monitored. What about the mysterious figure Lysa mentioned?",
+        "choices": [
+          {
+            "text": "We should investigate that lead as well.",
+            "next_id": "thorne_suspects_report.next_steps"
+          }
+        ]
+      },
+      "accuse_bram": {
+        "text": "Bram? [He frowns] One of my own guards... I noticed he's been acting strangely lately. More nervous, requesting patrols near the eastern roads. What evidence points to him?",
+        "choices": [
+          {
+            "text": "He was clearly lying and nervous during questioning. His hands were shaking.",
+            "next_id": "thorne_suspects_report.bram_nervous"
+          }
+        ]
+      },
+      "bram_nervous": {
+        "text": "This is troubling. I'll have him confined to headquarters until we get to the bottom of this. [He sighs heavily] I hate suspecting one of my own men, but no one is above scrutiny. What about this mysterious figure Lysa mentioned?",
+        "choices": [
+          {
+            "text": "We should investigate that lead as well.",
+            "next_id": "thorne_suspects_report.next_steps"
+          }
+        ]
+      },
+      "accuse_lysa": {
+        "text": "Lysa? [He nods slowly] That would make sense. Traveling merchants have access to many locations and connections to sell valuable items. Her story about a mysterious figure could be a diversion. What made you suspect her?",
+        "choices": [
+          {
+            "text": "She admits to 'skirting legality' and was seen at the temple by multiple witnesses.",
+            "next_id": "thorne_suspects_report.lysa_suspicious"
+          }
+        ]
+      },
+      "lysa_suspicious": {
+        "text": "I'll have the town exits watched to ensure she doesn't leave before we can question her further. [He writes in his notebook] But what if this mysterious figure she mentioned is real? We can't ignore that possibility.",
+        "choices": [
+          {
+            "text": "We should investigate that lead as well.",
+            "next_id": "thorne_suspects_report.next_steps"
+          }
+        ]
+      },
+      "mysterious_figure": {
+        "text": "[He leans forward with interest] A hooded figure with a glowing purple ring... That doesn't match any of our known suspects. This could be the true culprit - or perhaps an accomplice. This is a significant lead.",
+        "choices": [
+          {
+            "text": "What should we do next?",
+            "next_id": "thorne_suspects_report.next_steps"
+          }
+        ]
+      },
+      "next_steps": {
+        "text": "We need to track down whoever has the Shadow Prism fragment. I've received reports of unusual shadow activity near the old watchtower to the north. That might be our next lead. But first, take this truth serum - it may prove useful in your investigation.",
+        "choices": [
+          {
+            "text": "I'll head to the watchtower right away.",
+            "next_id": "thorne_suspects_report.conclusion"
+          }
+        ]
+      },
+      "conclusion": {
+        "text": "Be careful. Whoever took the Prism fragment clearly knows its power and how to use it. The disturbances in town have grown stronger, which means they may be gathering more fragments. We must stop them before the Prism is fully reassembled.",
+        "choices": [
+          {
+            "text": "I won't let you down.",
+            "next_id": "exit",
+            "set_flag": "quest_completed_interrogation"
+          }
+        ]
+      }
+    }
+  },
+  "bram_confrontation": {
+    "npc_name": "Bram",
+    "npc_title": "City Guard",
+    "dialogs": [
+      {
+        "id": "initial",
+        "text": [
+          "You've found me. I suppose there's no hiding what I've done.",
+          "But you don't understand - I was trying to contain the artifact's power, not release it."
+        ],
+        "choices": [
+          {
+            "text": "Why should I believe you?",
+            "next": "explanation"
+          },
+          {
+            "text": "You've endangered everyone!",
+            "next": "defensive"
+          }
+        ]
+      },
+      {
+        "id": "explanation",
+        "text": [
+          "The Order has protected these artifacts for generations. I am the last guardian.",
+          "If the artifact's power is released, the corruption will spread across the land."
+        ],
+        "choices": [
+          {
+            "text": "So what were you trying to do?",
+            "next": "plan"
+          }
+        ]
+      },
+      {
+        "id": "plan",
+        "text": [
+          "I needed the fragments to complete the sealing ritual.",
+          "But now it may be too late. The power is unstable."
+        ],
+        "choices": [
+          {
+            "text": "I'll help you seal it (Mercy)",
+            "next": "mercy_choice",
+            "sets_flag": {"bram_fate": "mercy"}
+          },
+          {
+            "text": "You'll face justice for your actions (Justice)",
+            "next": "justice_choice",
+            "sets_flag": {"bram_fate": "justice"}
+          }
+        ]
+      },
+      {
+        "id": "mercy_choice",
+        "text": [
+          "Thank you. Together we may be able to complete the ritual.",
+          "The corruption can still be contained."
+        ],
+        "next": "conclusion"
+      },
+      {
+        "id": "justice_choice",
+        "text": [
+          "No! You don't understand what you're doing!",
+          "Without the ritual, the artifact will continue to spread corruption!"
+        ],
+        "next": "conclusion"
+      },
+      {
+        "id": "defensive",
+        "text": [
+          "I've been trying to prevent a catastrophe!",
+          "The Order discovered that the artifact was destabilizing. I was sent to recover it before disaster struck."
+        ],
+        "choices": [
+          {
+            "text": "Why should I trust the Order?",
+            "next": "order_explanation"
+          }
+        ]
+      },
+      {
+        "id": "order_explanation",
+        "text": [
+          "The Order's aims are complicated, but on this we are aligned.",
+          "If the artifact fully activates, it will corrupt everything for miles around."
+        ],
+        "next": "plan"
+      },
+      {
+        "id": "conclusion",
+        "text": [
+          "Whatever happens now, the path is set. May the shadows guide us all."
+        ],
+        "quest_flag": "bram_confrontation_complete",
+        "ends_dialog": true
+      }
+    ]
+  },
+  "thorne_final_orders": {
+    "npc_name": "Captain Thorne",
+    "npc_title": "Guard Captain",
+    "dialogs": [
+      {
+        "id": "initial",
+        "text": [
+          "We've located Bram. He's at the ancient shrine east of the forest.",
+          "Our scouts report he's gathered followers - seems they've been corrupted by the artifact's power.",
+          "You need to get there immediately and stop whatever ritual he's performing."
+        ],
+        "choices": [
+          {
+            "text": "I'm ready. I'll head there now.",
+            "next": "ready",
+            "sets_flag": {"quest_accepted_confrontation": true}
+          },
+          {
+            "text": "What should I do when I find him?",
+            "next": "instructions"
+          }
+        ]
+      },
+      {
+        "id": "instructions",
+        "text": [
+          "Ideally, bring him back alive to face justice. But your primary goal is to secure the artifact.",
+          "If Bram resists or the situation becomes too dangerous, do what you must.",
+          "The safety of Eldervale comes first."
+        ],
+        "choices": [
+          {
+            "text": "I understand. I'll head out now.",
+            "next": "ready",
+            "sets_flag": {"quest_accepted_confrontation": true}
+          }
+        ]
+      },
+      {
+        "id": "ready",
+        "text": [
+          "Good luck. The shrine is ancient and powerful - be on your guard.",
+          "Bram was one of our best. Don't underestimate him."
+        ],
+        "ends_dialog": true
+      }
+    ]
+  },
+  "suspects_interrogation": {
+    "seren_interrogation": {
+      "npc_name": "Seren",
+      "npc_title": "Royal Scholar",
+      "dialogs": [
+        {
+          "id": "initial",
+          "text": [
+            "Yes, I was at the temple that night. I was researching the ancient texts there.",
+            "The artifact? I know of it, of course. My research suggests it's a focus for shadow magic.",
+            "But I would never tamper with such a dangerous relic. Knowledge is my aim, not power."
+          ],
+          "choices": [
+            {
+              "text": "Did you see anyone else there?",
+              "next": "others"
+            },
+            {
+              "text": "What do you know about the Order?",
+              "next": "order"
+            }
+          ]
+        },
+        {
+          "id": "others",
+          "text": [
+            "Bram was patrolling, as usual. He seemed... distracted that night.",
+            "And Lysa was there too, though she claimed to be just passing through. Suspicious timing, if you ask me."
+          ],
+          "next": "conclusion"
+        },
+        {
+          "id": "order",
+          "text": [
+            "The Order of the Veil? An ancient organization obsessed with shadow magic.",
+            "They believe themselves guardians, but their methods are extreme. They've been known to destroy artifacts they deem too dangerous."
+          ],
+          "next": "conclusion"
+        },
+        {
+          "id": "conclusion",
+          "text": [
+            "If you want my opinion, look into Bram's family history. There are rumors his ancestors were connected to the Order.",
+            "I'm happy to assist your investigation further. Knowledge should be shared, not hoarded."
+          ],
+          "sets_flag": {"questioned_seren": true},
+          "ends_dialog": true
+        }
+      ]
+    }
+  },
+  "dialogs": [
+    {
+      "id": "elder_malik_quest_start",
+      "npc_id": "elder_malik",
+      "title": "Strange Energies",
+      "initial_greeting": "Ah, adventurer! Your arrival is timely. We've been experiencing... unusual occurrences in our village.",
+      "exchanges": [
+        {
+          "player_options": [
+            {
+              "text": "What kind of occurrences?",
+              "next_exchange": 1
+            },
+            {
+              "text": "I'm not interested in village problems.",
+              "next_exchange": 5
+            }
+          ],
+          "npc_response": ""
+        },
+        {
+          "npc_response": "Strange lights in the northern sky, animals behaving oddly, and several villagers have reported unusual dreams - all pointing to the old fortress on the hill.",
+          "player_options": [
+            {
+              "text": "The fortress? What's its history?",
+              "next_exchange": 2
+            },
+            {
+              "text": "Sounds dangerous. What's in it for me?",
+              "next_exchange": 3
+            }
+          ]
+        },
+        {
+          "npc_response": "The Veilmaster's Fortress was home to a powerful mage who studied the boundaries between dimensions. It was abandoned centuries ago after a catastrophic magical incident. Or so the stories say...",
+          "player_options": [
+            {
+              "text": "And you want me to investigate?",
+              "next_exchange": 4
+            }
+          ]
+        },
+        {
+          "npc_response": "The village council has pooled resources for anyone brave enough to investigate. Gold, of course, and I personally have a scroll of mapping that would be yours. Plus, the experience would surely be valuable for someone of your... talents.",
+          "player_options": [
+            {
+              "text": "I'll investigate the fortress.",
+              "next_exchange": 4,
+              "action": "accept_quest"
+            }
+          ]
+        },
+        {
+          "npc_response": "Excellent! The fortress entrance lies to the north, beyond the old cemetery. Be careful, adventurer. Whatever is stirring in that place has power. Return to me when you've discovered what's happening.",
+          "player_options": [
+            {
+              "text": "I'll head there right away.",
+              "next_exchange": -1
+            },
+            {
+              "text": "I need to prepare first.",
+              "next_exchange": -1
+            }
+          ]
+        },
+        {
+          "npc_response": "I understand. These matters can be dangerous. If you change your mind, I'll be here. The fortress isn't going anywhere... though what's inside might not stay contained forever.",
+          "player_options": [
+            {
+              "text": "Maybe I'll reconsider.",
+              "next_exchange": 1
+            },
+            {
+              "text": "Goodbye.",
+              "next_exchange": -1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "elder_malik_quest_complete",
+      "npc_id": "elder_malik",
+      "title": "The Fortress Awaits",
+      "initial_greeting": "You've returned! Have you discovered what's happening at the fortress?",
+      "exchanges": [
+        {
+          "player_options": [
+            {
+              "text": "I've found the entrance to the fortress.",
+              "next_exchange": 1,
+              "requires_objective_complete": "Travel to the Veilmaster's Fortress entrance"
+            },
+            {
+              "text": "I'm still investigating.",
+              "next_exchange": 2
+            }
+          ],
+          "npc_response": ""
+        },
+        {
+          "npc_response": "Excellent work! The energy readings have only grown stronger since you left. I fear something ancient is awakening within. You must enter the fortress and discover its secrets. Here, take these rewards for completing the first part of your mission.",
+          "player_options": [
+            {
+              "text": "I'll enter the fortress and investigate further.",
+              "next_exchange": 3,
+              "action": "complete_quest"
+            }
+          ]
+        },
+        {
+          "npc_response": "Please hurry. The disturbances grow stronger with each passing day. The fortress entrance lies to the north, beyond the old cemetery.",
+          "player_options": [
+            {
+              "text": "I'll find it soon.",
+              "next_exchange": -1
+            }
+          ]
+        },
+        {
+          "npc_response": "May fortune favor you, brave adventurer. Whatever awaits inside that fortress, I fear it has been dormant far too long. Be cautious, and return when you've learned more.",
+          "player_options": [
+            {
+              "text": "Farewell for now.",
+              "next_exchange": -1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+} 
+} 

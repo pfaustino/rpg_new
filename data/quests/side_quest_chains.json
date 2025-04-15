@@ -1,0 +1,31 @@
+{
+  "chains": [
+    {
+      "name": "Whispers of the Ancient Grove",
+      "id": "ancient_grove",
+      "description": "Uncover the secrets of the Ancient Grove and the Crystal Caverns while helping Elder Malik protect the village.",
+      "quests": [
+        "sq_ember_of_serenity",
+        "sq_crystal_caverns"
+      ],
+      "completion_rewards": {
+        "xp": 500,
+        "gold": 200,
+        "reputation": {
+          "village_elders": 100
+        },
+        "items": [
+          {
+            "item_id": "ancient_grove_talisman",
+            "amount": 1,
+            "description": "A talisman imbued with the protective energies of the Ancient Grove"
+          }
+        ]
+      },
+      "flags": {
+        "unlocks_region": "deep_grove",
+        "unlocks_feature": "nature_binding"
+      }
+    }
+  ]
+} 

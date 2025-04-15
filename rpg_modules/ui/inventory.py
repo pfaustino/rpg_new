@@ -3,7 +3,7 @@ Grid-based inventory UI component for RPG games.
 """
 
 import pygame
-from typing import Optional, Tuple, List, Callable
+from typing import Optional, Tuple, List, Callable, Any
 from ..core.constants import (
     UI_COLORS, UI_DIMENSIONS, QUALITY_COLORS,
     FONT_SIZES, SCREEN_WIDTH, SCREEN_HEIGHT, GRAY
@@ -60,7 +60,7 @@ class InventoryUI:
     def __init__(
         self,
         screen: pygame.Surface,
-        inventory: Optional[List[Optional[Item]]] = None,
+        inventory: Optional[Any] = None,
         rows: int = 8,
         cols: int = 5,
         equip_callback: Optional[Callable[[int], bool]] = None
@@ -70,14 +70,14 @@ class InventoryUI:
         
         Args:
             screen: The pygame surface to draw on
-            inventory: The inventory to display (defaults to empty list)
+            inventory: The player's inventory
             rows: Number of rows in the grid
             cols: Number of columns in the grid
             equip_callback: Function to call when an item is clicked for equipping
         """
         self.screen = screen
         self.inventory = inventory if inventory is not None else []
-        print(f"InventoryUI initialized with inventory: {id(self.inventory)}, length: {len(self.inventory) if self.inventory else 0}")
+        print(f"InventoryUI initialized with inventory: {id(self.inventory)}")
         self.visible = False
         self.grid_rows = rows
         self.grid_cols = cols

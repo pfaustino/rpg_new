@@ -1,21 +1,50 @@
 import pygame
 from typing import Callable, Dict, List, Optional
-from ..core.constants import (
-    UI_COLORS, UI_DIMENSIONS, QUALITY_COLORS,
-    FONT_SIZES, SCREEN_WIDTH, SCREEN_HEIGHT
-)
-from ..savegame import get_save_files
+import os
+
+# Define fallback UI colors in case constants aren't available
+FALLBACK_COLORS = {
+    'menu_bg': (30, 30, 40),
+    'border': (80, 80, 100),
+    'button': (60, 60, 80),
+    'button_positive': (60, 100, 60),
+    'button_negative': (100, 60, 60),
+    'button_disabled': (50, 50, 50),
+    'text': (220, 220, 220),
+    'text_secondary': (180, 180, 180),
+    'hover': (70, 70, 90),
+    'selected': (90, 110, 130),
+    'cell_background': (40, 40, 50)
+}
+
+try:
+    from ..core.constants import (
+        UI_COLORS, UI_DIMENSIONS, QUALITY_COLORS,
+        FONT_SIZES, SCREEN_WIDTH, SCREEN_HEIGHT
+    )
+except ImportError:
+    # Use fallback values if constants can't be imported
+    UI_COLORS = FALLBACK_COLORS
+    SCREEN_WIDTH = 1024
+    SCREEN_HEIGHT = 768
+
+try:
+    from ..savegame import get_save_files
+except ImportError:
+    # Define a fallback if savegame module can't be imported
+    def get_save_files():
+        return []
 
 class CharacterSelectUI:
     def __init__(self, screen: pygame.Surface, on_select: Callable[[str], None], on_cancel: Callable[[], None]):
         self.screen = screen
-        self.visible = False
+        self.visible = True  # Make visible by default for testing
         self.width = 300  # Width of character select menu
         self.height = 400  # Height of character select menu
         
         # Default position - will be updated when SystemMenuUI positions it
-        self.x = 400  # Position to the right of system menu
-        self.y = 50   # Same vertical position as system menu
+        self.x = (SCREEN_WIDTH - self.width) // 2  # Center horizontally
+        self.y = (SCREEN_HEIGHT - self.height) // 2  # Center vertically
         
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.small_font = pygame.font.Font(None, 24)
@@ -32,12 +61,36 @@ class CharacterSelectUI:
         self.scroll_offset = 0
         self.max_visible_characters = 4
         
+        # For testing purposes, add a placeholder character
+        self.character_selected = False
+        self.selected_type = "warrior"
+        self.selected_name = "Test Character"
+        
+        # Add a test character to characters list for debugging
+        self.characters = [
+            {
+                'name': 'Test Character',
+                'level': 1,
+                'health': 100,
+                'max_health': 100,
+                'filename': 'test_character'
+            }
+        ]
+        
         self.refresh_character_list()
+        
+    def update(self, dt: float):
+        """Update UI state with the given delta time."""
+        # No time-based updates needed for this UI currently
+        pass
 
     def draw(self, screen: pygame.Surface):
         """Draw the character selection menu."""
         if not self.visible:
             return
+            
+        # Debug background to make sure we're rendering
+        pygame.draw.rect(screen, (0, 0, 0), pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
         
         # Draw menu background with border
         pygame.draw.rect(screen, UI_COLORS['menu_bg'], self.rect)
@@ -106,10 +159,19 @@ class CharacterSelectUI:
         # Draw buttons
         button_y = self.y + self.height - 60
         
-        # Load button
-        load_button = pygame.Rect(self.x + 20, button_y, 120, 40)
+        # Create new character button (middle)
+        new_button = pygame.Rect(self.x + (self.width - 120) // 2, button_y, 120, 40)
+        pygame.draw.rect(screen, UI_COLORS['button_positive'], new_button)
+        pygame.draw.rect(screen, UI_COLORS['border'], new_button, 2)
+        
+        new_text = self.font.render("New", True, UI_COLORS['text'])
+        new_rect = new_text.get_rect(center=new_button.center)
+        screen.blit(new_text, new_rect)
+        
+        # Load button (left)
+        load_button = pygame.Rect(self.x + 20, button_y, 80, 40)
         if self.characters and self.selected_index >= 0:
-            pygame.draw.rect(screen, UI_COLORS['button_positive'], load_button)
+            pygame.draw.rect(screen, UI_COLORS['button'], load_button)
         else:
             pygame.draw.rect(screen, UI_COLORS['button_disabled'], load_button)
         pygame.draw.rect(screen, UI_COLORS['border'], load_button, 2)
@@ -118,12 +180,12 @@ class CharacterSelectUI:
         load_rect = load_text.get_rect(center=load_button.center)
         screen.blit(load_text, load_rect)
         
-        # Cancel button
-        cancel_button = pygame.Rect(self.x + self.width - 140, button_y, 120, 40)
+        # Cancel button (right)
+        cancel_button = pygame.Rect(self.x + self.width - 100, button_y, 80, 40)
         pygame.draw.rect(screen, UI_COLORS['button_negative'], cancel_button)
         pygame.draw.rect(screen, UI_COLORS['border'], cancel_button, 2)
         
-        cancel_text = self.font.render("Cancel", True, UI_COLORS['text'])
+        cancel_text = self.font.render("Exit", True, UI_COLORS['text'])
         cancel_rect = cancel_text.get_rect(center=cancel_button.center)
         screen.blit(cancel_text, cancel_rect)
 

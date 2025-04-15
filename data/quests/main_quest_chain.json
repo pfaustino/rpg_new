@@ -1,0 +1,31 @@
+{
+  "name": "Shadow of the Artifact",
+  "id": "main_quest_chain",
+  "description": "Uncover the secrets of the ancient artifact and stop the spreading corruption.",
+  "quests": [
+    "mq_01_mysterious_arrival",
+    "mq_02_first_investigation", 
+    "mq_03_suspects_trail",
+    "mq_04_truth_revealed",
+    "mq_05_confrontation",
+    "mq_06_final_choice"
+  ],
+  "completion_rewards": {
+    "xp": 1000,
+    "gold": 1000,
+    "reputation": {
+      "city_guard": 100
+    },
+    "items": [
+      {
+        "item_id": "badge_of_eldervale",
+        "amount": 1,
+        "description": "A badge marking you as a hero of Eldervale"
+      }
+    ]
+  },
+  "flags": {
+    "unlocks_region": "mistwood_forest",
+    "unlocks_feature": "shadow_binding"
+  }
+} 
