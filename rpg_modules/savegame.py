@@ -5,10 +5,83 @@ Save game functionality for RPG game.
 import os
 import json
 import glob
+import time
 from .items.weapon import Weapon
 from .items.armor import Armor
 from .items.hands import Hands
 from .items.consumable import Consumable
+
+# File to store the last played character info
+LAST_PLAYED_FILE = "save/last_played.json"
+
+def get_last_played_save():
+    """
+    Get the save file for the most recently played character.
+    
+    Returns:
+        Path to the most recent save file, or None if no saves exist.
+    """
+    try:
+        if os.path.exists(LAST_PLAYED_FILE):
+            with open(LAST_PLAYED_FILE, 'r') as f:
+                last_played = json.load(f)
+                save_file = last_played.get('save_file')
+                
+                # Verify the save file actually exists
+                if save_file and os.path.exists(save_file):
+                    print(f"Found last played save: {save_file}")
+                    return save_file
+                else:
+                    print("Last played save file not found, using latest save.")
+    except Exception as e:
+        print(f"Error reading last played file: {e}")
+    
+    # Fallback to most recent modified save file
+    save_files = get_save_files_by_time()
+    return save_files[0]['filename'] if save_files else None
+
+def get_save_files_by_time():
+    """
+    Get save files sorted by modification time (most recent first).
+    
+    Returns:
+        List of save files with metadata, sorted by last modified time.
+    """
+    save_files = get_save_files()
+    
+    # Add modification time
+    for save_file in save_files:
+        try:
+            save_file['modified'] = os.path.getmtime(save_file['filename'])
+        except:
+            save_file['modified'] = 0
+    
+    # Sort by modification time (newest first)
+    save_files.sort(key=lambda x: x['modified'], reverse=True)
+    return save_files
+
+def update_last_played(save_file):
+    """
+    Update the record of the last played character.
+    
+    Args:
+        save_file: Path to the save file that was just used
+    """
+    # Create save directory if it doesn't exist
+    os.makedirs('save', exist_ok=True)
+    
+    # Record last played info
+    last_played = {
+        'save_file': save_file,
+        'timestamp': time.time()
+    }
+    
+    try:
+        with open(LAST_PLAYED_FILE, 'w') as f:
+            json.dump(last_played, f)
+        print(f"Updated last played record: {save_file}")
+    except Exception as e:
+        print(f"Error updating last played file: {e}")
 
 def get_save_files():
     """
@@ -125,6 +198,10 @@ def save_game(game_state):
     with open(save_filename, 'w') as f:
         json.dump(save_data, f, indent=2)
     print(f"Game saved to {save_filename}")
+    
+    # Update the last played record
+    update_last_played(save_filename)
+    
     try:
         # Only close the system menu if it's currently visible
         if game_state.system_menu_ui.visible:
@@ -270,13 +347,32 @@ def _process_save_file(game_state, save_filename):
 
 def resume_game(game_state):
     """
-    Resume the game by hiding the system menu.
+    Resume the game by hiding the system menu and loading the last played character.
     
     Args:
         game_state: The current GameState object
     """
-    game_state.system_menu_ui.toggle()
-    print("Game resumed")
+    print("Resuming game with last played character...")
+    
+    # First, try to find the last played save file
+    save_file = get_last_played_save()
+    
+    if save_file:
+        # Process the save file to load the character
+        success = _process_save_file(game_state, save_file)
+        if success:
+            print(f"Successfully resumed last played character")
+        else:
+            print("Failed to load last played character, just hiding menu")
+            # Just hide the menu
+            game_state.system_menu_ui.toggle()
+    else:
+        print("No saved games found to resume")
+        # Just hide the menu
+        game_state.system_menu_ui.toggle()
+    
+    # Unpause the game
+    game_state.paused = False
 
 def create_item_from_data(item_data):
     """

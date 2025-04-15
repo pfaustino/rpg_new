@@ -1,17 +1,17 @@
 {
   "player": {
     "name": "Pritrix",
-    "x": 248.4590599999975,
-    "y": 1333.5429199999976,
-    "health": 136,
-    "max_health": 190,
+    "x": 553.887619999998,
+    "y": 1537.4777199999983,
+    "health": 174,
+    "max_health": 200,
     "mana": 0,
-    "max_mana": 95,
-    "stamina": 145,
-    "max_stamina": 145,
+    "max_mana": 100,
+    "stamina": 150,
+    "max_stamina": 150,
     "attack_type": 3,
-    "xp": 580,
-    "level": 10,
+    "xp": 340,
+    "level": 11,
     "inventory": [
       {
         "type": "Weapon",

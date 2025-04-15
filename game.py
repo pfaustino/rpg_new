@@ -2756,6 +2756,13 @@ class Game:
             game_state = self.game_state
             print(f"DEBUG: Global game_state set to: {global_game_state}")
             
+            # Show the system menu on game start
+            print("Opening system menu on game start")
+            self.game_state.system_menu_ui.toggle()
+            
+            # Set initial game state to paused so gameplay doesn't start until the player selects an option
+            self.game_state.paused = True
+            
         except Exception as e:
             print(f"Error during game initialization: {e}")
             import traceback
@@ -2769,12 +2776,35 @@ class Game:
         while running:
             dt = self.clock.tick(60) / 1000.0  # Convert milliseconds to seconds
             events = pygame.event.get()
+            
+            # Always check for quit events
             for event in events:
                 if event.type == pygame.QUIT:
                     self.game_state._quit_game()
                     running = False
+            
+            # Handle system menu events even when game is paused
+            if self.game_state.system_menu_ui.visible:
+                for event in events:
+                    if self.game_state.system_menu_ui.handle_event(event):
+                        events = []  # Clear events if handled by system menu
+                        break
+                
+                # Also handle character select UI events if it's visible
+                if hasattr(self.game_state, 'character_select_ui') and self.game_state.character_select_ui.visible:
+                    for event in events:
+                        if self.game_state.character_select_ui.handle_event(event):
+                            events = []  # Clear events if handled by character select
+                            break
+                
+                # Also handle name input dialog events if it's visible
+                if hasattr(self.game_state, 'name_input_dialog') and self.game_state.name_input_dialog.visible:
+                    for event in events:
+                        if self.game_state.name_input_dialog.handle_event(event):
+                            events = []  # Clear events if handled by name input dialog
+                            break
 
-            # Update game state
+            # Update game state - pass remaining events
             self.game_state.update(dt, events)
             
             if not self.game_state.running:
