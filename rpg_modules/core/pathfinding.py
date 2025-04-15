@@ -175,14 +175,9 @@ def find_path(game_map, start_pos: Tuple[int, int], target_pos: Tuple[int, int],
         max_distance: Maximum path length to search (in tiles)
         wall_clearance: How far to stay from walls (in tiles)
     """
-    # Add debug print statements
-    print(f"DEBUG: Pathfinding from pixel ({start_pos[0]}, {start_pos[1]}) to ({target_pos[0]}, {target_pos[1]})")
-    
     # Convert pixel coordinates to tile coordinates
     start_tile_x, start_tile_y = int(start_pos[0] // TILE_SIZE), int(start_pos[1] // TILE_SIZE)
     target_tile_x, target_tile_y = int(target_pos[0] // TILE_SIZE), int(target_pos[1] // TILE_SIZE)
-    
-    print(f"DEBUG: Pathfinding from tile ({start_tile_x}, {start_tile_y}) to ({target_tile_x}, {target_tile_y})")
     
     # Check if we're stuck
     if is_stuck(game_map, start_tile_x, start_tile_y):
@@ -193,10 +188,8 @@ def find_path(game_map, start_pos: Tuple[int, int], target_pos: Tuple[int, int],
     
     # Check if target is unreachable (e.g., wall)
     target_walkable = game_map.is_walkable(target_tile_x, target_tile_y)
-    print(f"DEBUG: Target tile walkable: {target_walkable}")
     
     if not target_walkable:
-        print(f"DEBUG: Target tile is not walkable, searching for nearest walkable tile")
         # Find nearest walkable tile near the target
         nearest_walkable_found = False
         for dx in range(-1, 2):
@@ -205,19 +198,16 @@ def find_path(game_map, start_pos: Tuple[int, int], target_pos: Tuple[int, int],
                     continue
                 check_x, check_y = target_tile_x + dx, target_tile_y + dy
                 if game_map.is_walkable(check_x, check_y):
-                    print(f"DEBUG: Found walkable tile at ({check_x}, {check_y})")
                     target_tile_x, target_tile_y = check_x, check_y
                     nearest_walkable_found = True
                     break
             if nearest_walkable_found:
                 break
         if not nearest_walkable_found:
-            print(f"DEBUG: No walkable tiles found near target, pathfinding failed")
             return None
     
     # Check if we're already at the target
     if start_tile_x == target_tile_x and start_tile_y == target_tile_y:
-        print(f"DEBUG: Already at target tile, returning simple path")
         return [(start_pos[0], start_pos[1])]
     
     # Initialize open and closed sets
@@ -251,7 +241,6 @@ def find_path(game_map, start_pos: Tuple[int, int], target_pos: Tuple[int, int],
     # Main A* loop
     steps = 0
     max_steps = 500
-    print(f"DEBUG: Starting A* pathfinding with max {max_steps} steps")
     
     while open_set and steps < max_steps:  # Limit steps to prevent infinite loops
         steps += 1
@@ -280,10 +269,7 @@ def find_path(game_map, start_pos: Tuple[int, int], target_pos: Tuple[int, int],
             
             # Limit path length if needed
             if len(path) > max_distance:
-                print(f"DEBUG: Path found with {len(path)} nodes, limiting to {max_distance}")
                 path = path[:max_distance]
-            else:
-                print(f"DEBUG: Path found with {len(path)} nodes")
                 
             return path
         
@@ -345,7 +331,6 @@ def find_path(game_map, start_pos: Tuple[int, int], target_pos: Tuple[int, int],
                 heapq.heappush(open_set, neighbor)
     
     # No path found
-    print(f"DEBUG: No path found after {steps} steps")
     return None
 
 def heuristic(a: Node, b: Node) -> float:

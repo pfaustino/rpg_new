@@ -674,6 +674,4 @@ class Player:
             self.current_path = path
             self.current_path_index = 0
             self.path_target = target_pos
-            print(f"Path set with {len(path)} points")
-        else:
-            print("No path found") 
+        # Debug print statements removed 
