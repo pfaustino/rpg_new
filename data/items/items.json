@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "id": "moonlight_flower",
+      "name": "Moonlight Flower",
+      "description": "A rare flower that glows under moonlight. Used in ancient rituals.",
+      "type": "quest_item",
+      "value": 50
+    },
+    {
+      "id": "crystal_shard",
+      "name": "Crystal Shard",
+      "description": "A fragment of a larger crystal formation. Pulsing with magical energy.",
+      "type": "quest_item",
+      "value": 75
+    },
+    {
+      "id": "cloak_of_night_whispers",
+      "name": "Cloak of Night Whispers",
+      "description": "A mystical cloak that grants stealth abilities under moonlight.",
+      "type": "armor",
+      "value": 500,
+      "stats": {
+        "defense": 5,
+        "magic_resistance": 10
+      }
+    },
+    {
+      "id": "crystal_amulet",
+      "name": "Crystal Amulet of Protection",
+      "description": "An amulet crafted from pure crystal. Provides magical protection.",
+      "type": "accessory",
+      "value": 750,
+      "stats": {
+        "magic_resistance": 15,
+        "max_mana": 25
+      }
+    }
+  ]
+}

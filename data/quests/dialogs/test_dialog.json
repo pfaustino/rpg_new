@@ -1,0 +1,68 @@
+{
+  "test_dialog": {
+    "character": "Elder Malik",
+    "text": "Welcome to the dialog test. This is a simple dialog system to test interactions.",
+    "choices": [
+      {
+        "text": "Tell me more about the dialog system.",
+        "next": "about_dialog"
+      },
+      {
+        "text": "How do I create dialogs?",
+        "next": "create_dialog"
+      },
+      {
+        "text": "Exit the conversation.",
+        "next": "exit"
+      }
+    ]
+  },
+  "about_dialog": {
+    "character": "Elder Malik",
+    "text": "The dialog system allows NPCs to talk with the player. It supports text display, choices, and branching conversations based on those choices.",
+    "choices": [
+      {
+        "text": "That's interesting. What else?",
+        "next": "dialog_features"
+      },
+      {
+        "text": "Go back to the main topics.",
+        "next": "test_dialog"
+      }
+    ]
+  },
+  "dialog_features": {
+    "character": "Elder Malik",
+    "text": "Dialogs can also trigger quests, set story flags, and be used to advance the plot of the game. They're a crucial part of the RPG experience.",
+    "choices": [
+      {
+        "text": "I understand now.",
+        "next": "test_dialog"
+      }
+    ]
+  },
+  "create_dialog": {
+    "character": "Elder Malik",
+    "text": "Dialogs are defined in JSON files. Each dialog has an ID, character name, text, and possible choices. Each choice can point to another dialog node.",
+    "choices": [
+      {
+        "text": "Where are these files stored?",
+        "next": "dialog_storage"
+      },
+      {
+        "text": "Go back to the main topics.",
+        "next": "test_dialog"
+      }
+    ]
+  },
+  "dialog_storage": {
+    "character": "Elder Malik",
+    "text": "Dialog files are stored in the data/quests/dialogs/ directory. They are organized by NPC or quest chain for easy management.",
+    "choices": [
+      {
+        "text": "That makes sense. Thanks!",
+        "next": "test_dialog"
+      }
+    ]
+  }
+}

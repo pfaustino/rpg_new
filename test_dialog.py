@@ -50,6 +50,7 @@ class SimpleDialog:
         self.npc_title = ""
         self.dialog_text = []
         self.choices = []
+        self.dialog_file_path = None
         
         # Calculate positions
         self.x = (SCREEN_WIDTH - self.PANEL_WIDTH) // 2
@@ -65,6 +66,9 @@ class SimpleDialog:
             with open(dialog_path, 'r') as file:
                 data = json.load(file)
                 
+            # Store the dialog file path for future reference
+            self.dialog_file_path = dialog_path
+                
             # Check if the dialog exists
             if dialog_id in data:
                 dialog_data = data[dialog_id]
@@ -76,7 +80,7 @@ class SimpleDialog:
                     # Simple dialog format
                     self.dialog_text = [dialog_data["text"]] if isinstance(dialog_data["text"], str) else dialog_data["text"]
                     self.choices = dialog_data.get("choices", [])
-                    self.current_node_id = "initial"
+                    self.current_node_id = dialog_id
                     self.visible = True
                     return True
                 else:
@@ -107,31 +111,36 @@ class SimpleDialog:
         if not self.current_dialog:
             return False
             
-        # Simple dialog format
-        if "text" in self.current_dialog and "choices" in self.current_dialog:
-            self.dialog_text = [self.current_dialog["text"]] if isinstance(self.current_dialog["text"], str) else self.current_dialog["text"]
-            self.choices = self.current_dialog.get("choices", [])
-            self.current_node_id = node_id
-            self.visible = True
-            return True
-            
-        # Dialog with nodes format
-        if "dialogs" in self.current_dialog:
-            for node in self.current_dialog["dialogs"]:
-                if node.get("id") == node_id:
-                    self.dialog_text = [node["text"]] if isinstance(node["text"], str) else node["text"]
-                    self.choices = node.get("choices", [])
-                    self.current_node_id = node_id
-                    self.visible = True
-                    return True
-                    
         # Check if this is a special node
         if node_id == "exit":
             self.visible = False
             return True
             
-        print(f"Dialog node {node_id} not found")
-        return False
+        try:
+            # Check if we need to load a different dialog node from the file
+            dialog_path = self.dialog_file_path
+            with open(dialog_path, 'r') as file:
+                all_dialogs = json.load(file)
+                
+            # Check if the requested node exists in the file
+            if node_id in all_dialogs:
+                node_data = all_dialogs[node_id]
+                self.npc_name = node_data.get("character", "NPC")
+                self.dialog_text = [node_data["text"]] if isinstance(node_data["text"], str) else node_data["text"]
+                self.choices = node_data.get("choices", [])
+                self.current_node_id = node_id
+                self.visible = True
+                print(f"Loaded dialog node: {node_id}")
+                print(f"Dialog text: {self.dialog_text}")
+                print(f"Choices: {len(self.choices)}")
+                return True
+                
+            print(f"Dialog node {node_id} not found in dialog file")
+            return False
+                
+        except Exception as e:
+            print(f"Error loading dialog node: {e}")
+            return False
         
     def handle_event(self, event):
         """Handle UI events."""
@@ -141,6 +150,7 @@ class SimpleDialog:
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # Left click
                 mouse_pos = pygame.mouse.get_pos()
+                print(f"Mouse clicked at: {mouse_pos}")
                 
                 # If no choices are available, any click advances/closes the dialog
                 if not self.choices:
@@ -150,14 +160,18 @@ class SimpleDialog:
                 # Check for choice clicks
                 for i, choice in enumerate(self.choices):
                     choice_rect = self._get_choice_rect(i)
+                    print(f"Choice {i}: {choice['text']} - Rect: {choice_rect}")
                     if choice_rect.collidepoint(mouse_pos):
+                        print(f"Selected choice {i}: {choice['text']}")
                         self.selected_choice = i
                         next_node = choice.get("next", None)
                         
                         # If there's a next node, show it, otherwise close dialog
                         if next_node:
+                            print(f"Moving to next node: {next_node}")
                             self.show_dialog_node(next_node)
                         else:
+                            print("No next node, closing dialog")
                             self.visible = False
                         
                         return True
@@ -174,6 +188,10 @@ class SimpleDialog:
                     if choice_rect.collidepoint(mouse_pos):
                         self.hovered_choice = i
                         break
+                        
+                # Debug info if hover state changed
+                if prev_hovered != self.hovered_choice and self.hovered_choice != -1:
+                    print(f"Hovering over choice {self.hovered_choice}")
         
         return False
         
@@ -237,25 +255,33 @@ class SimpleDialog:
             elif i == self.hovered_choice:
                 bg_color = GRAY
                 
-            # Draw choice background
+            # Draw choice background with more obvious styling
             pygame.draw.rect(self.screen, bg_color, choice_rect)
-            pygame.draw.rect(self.screen, WHITE, choice_rect, 1)
+            pygame.draw.rect(self.screen, WHITE, choice_rect, 2)  # Thicker border
             
-            # Draw choice text
+            # Draw choice text - centered in button
             text = choice.get("text", "")
             text_surface = self.choice_font.render(text, True, WHITE)
             text_rect = text_surface.get_rect(center=choice_rect.center)
             self.screen.blit(text_surface, text_rect)
             
+            # Add indicator for clickable areas
+            pygame.draw.circle(self.screen, LIGHT_GRAY, 
+                              (choice_rect.left + 10, choice_rect.centery), 
+                              5)
+            
     def _get_choice_rect(self, index):
         """Get the rectangle for a choice button."""
+        choice_width = self.PANEL_WIDTH - self.PADDING * 2
+        
+        # Provide more spacing between choices
         choice_area_height = len(self.choices) * (self.CHOICE_HEIGHT + self.CHOICE_SPACING)
         start_y = self.y + self.PANEL_HEIGHT - self.PADDING - choice_area_height
         
         return pygame.Rect(
             self.x + self.PADDING,
             start_y + index * (self.CHOICE_HEIGHT + self.CHOICE_SPACING),
-            self.PANEL_WIDTH - self.PADDING * 2,
+            choice_width,
             self.CHOICE_HEIGHT
         )
 
@@ -352,12 +378,17 @@ def main():
     
     # Create or ensure test dialog exists
     dialog_path = create_test_dialog()
+    print(f"Dialog test file created at: {dialog_path}")
     
     # Create dialog UI
     dialog = SimpleDialog(screen)
     
     # Load the test dialog
-    dialog.load_dialog(dialog_path, "test_dialog")
+    success = dialog.load_dialog(dialog_path, "test_dialog")
+    if success:
+        print("Successfully loaded test dialog")
+    else:
+        print("Failed to load test dialog!")
     
     # Main game loop
     running = True
@@ -369,6 +400,16 @@ def main():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
+                elif event.key == pygame.K_SPACE and not dialog.visible:
+                    print("Restarting dialog...")
+                    dialog.load_dialog(dialog_path, "test_dialog")
+                elif event.key == pygame.K_d:
+                    # Debug key to print dialog state
+                    print(f"Dialog visible: {dialog.visible}")
+                    print(f"Current node: {dialog.current_node_id}")
+                    print(f"Choices: {len(dialog.choices)}")
+                    for i, choice in enumerate(dialog.choices):
+                        print(f"  {i}: {choice.get('text', '')} -> {choice.get('next', 'None')}")
             
             # Pass events to dialog
             dialog.handle_event(event)
@@ -385,16 +426,25 @@ def main():
         title_text = title_font.render("Dialog Test", True, WHITE)
         screen.blit(title_text, (20, 30))
         
-        # Draw instructions if dialog not visible
+        # Draw instructions
+        instruction_font = pygame.font.Font(None, 28)
         if not dialog.visible:
-            font = pygame.font.Font(None, 36)
-            text = font.render("Press SPACE to restart dialog, ESC to exit", True, WHITE)
-            screen.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, SCREEN_HEIGHT // 2))
+            instructions = [
+                "Press SPACE to start dialog",
+                "Press ESC to exit application",
+                "Click on dialog choices when active"
+            ]
+        else:
+            instructions = [
+                "Click on a choice to select it",
+                "Press D to print debug info",
+                "Press ESC to exit application"
+            ]
             
-            # Check for SPACE key to restart dialog
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_SPACE]:
-                dialog.load_dialog(dialog_path, "test_dialog")
+        for i, text in enumerate(instructions):
+            text_surface = instruction_font.render(text, True, LIGHT_GRAY)
+            screen.blit(text_surface, (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 
+                                     150 + i * 30))
         
         # Draw dialog
         dialog.draw()
