@@ -67,7 +67,6 @@ class ItemGeneratorUI:
         else:
             # When showing the generator UI, add some test items to the inventory
             try:
-                print("\nAdding test items to inventory when generator UI is shown...")
                 import game
                 if hasattr(game, 'game_state') and game.game_state:
                     player = game.game_state.player
@@ -75,29 +74,18 @@ class ItemGeneratorUI:
                     # Force reset inventory
                     capacity = 40  # 8 rows x 5 cols
                     player.inventory.items = [None] * capacity
-                    print(f"Reset inventory to {capacity} empty slots")
                     
                     # Add 5 test items directly to the first slots
                     for i in range(5):
                         item = self.item_generator.generate_item()
                         if item:
                             player.inventory.items[i] = item
-                            print(f"Added test item directly to inventory slot {i}: {item.display_name}")
                     
                     # Refresh inventory UI
                     if hasattr(game.game_state, 'refresh_inventory_ui'):
                         game.game_state.refresh_inventory_ui()
-                        print("Refreshed inventory UI")
-                    else:
-                        print("Could not refresh inventory UI - method not found")
-                    
-                    # Debug info
-                    filled_slots = sum(1 for item in player.inventory.items if item is not None)
-                    print(f"Inventory now has {filled_slots}/{len(player.inventory.items)} items")
-            except Exception as e:
-                print(f"Error adding test items when showing generator UI: {e}")
-                import traceback
-                traceback.print_exc()
+            except Exception:
+                pass
 
     def update(self):
         """Update UI state."""
@@ -106,20 +94,15 @@ class ItemGeneratorUI:
     def handle_event(self, event: pygame.event.Event, player) -> bool:
         """Handle UI events."""
         if not self.visible:
-            print("ItemGeneratorUI is not visible. Ignoring event.")
             return False
             
-        print(f"Handling event: {event}")
-        
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
-            print(f"Mouse position: {mouse_pos}")
             
             # Handle type dropdown
             if self.type_dropdown.collidepoint(mouse_pos):
                 self.type_expanded = not self.type_expanded
                 self.quality_expanded = False
-                print(f"Toggled type dropdown: {self.type_expanded}")
                 return True
             elif self.type_expanded:
                 for i, option in enumerate(self.type_options):
@@ -132,14 +115,12 @@ class ItemGeneratorUI:
                     if option_rect.collidepoint(mouse_pos):
                         self.selected_type = option
                         self.type_expanded = False
-                        print(f"Selected type: {self.selected_type}")
                         return True
             
             # Handle quality dropdown
             if self.quality_dropdown.collidepoint(mouse_pos):
                 self.quality_expanded = not self.quality_expanded
                 self.type_expanded = False
-                print(f"Toggled quality dropdown: {self.quality_expanded}")
                 return True
             elif self.quality_expanded:
                 for i, option in enumerate(self.quality_options):
@@ -152,12 +133,10 @@ class ItemGeneratorUI:
                     if option_rect.collidepoint(mouse_pos):
                         self.selected_quality = option
                         self.quality_expanded = False
-                        print(f"Selected quality: {self.selected_quality}")
                         return True
             
             # Handle generate button
             if self.generate_button.collidepoint(mouse_pos):
-                print("Generate button clicked.")
                 try:
                     # Determine type if random
                     item_type = self.selected_type
@@ -170,48 +149,21 @@ class ItemGeneratorUI:
                         quality = random.choice(QUALITIES)
                     
                     # Generate the item
-                    print(f"\nGenerating new {quality} {item_type}...")
                     self.preview_item = self.item_generator.generate_item(item_type.lower(), quality)
                     
                     if self.preview_item:
-                        print(f"Successfully generated: {self.preview_item.display_name}")
-                        # Debug info about the item
-                        if hasattr(self.preview_item, 'weapon_type'):
-                            print(f"Weapon Type: {self.preview_item.weapon_type}, Attack: {self.preview_item.attack_power}")
-                        elif hasattr(self.preview_item, 'armor_type'):
-                            print(f"Armor Type: {self.preview_item.armor_type}, Defense: {self.preview_item.defense}")
-                        elif hasattr(self.preview_item, 'consumable_type'):
-                            print(f"Consumable Type: {self.preview_item.consumable_type}, Effect: {self.preview_item.effect_value}")
-                            
                         # Add to player's inventory if successful
-                        print("Attempting to add item to inventory...")
-                        
-                        # Debug check if player is None
                         if player is None:
-                            print("DEBUG: Error - Player object is None")
                             return True
                             
-                        # Debug inventory state before adding item
                         try:
                             filled_slots = sum(1 for item in player.inventory.items if item is not None)
                             total_slots = len(player.inventory.items)
-                            print(f"DEBUG: Current inventory state: {filled_slots}/{total_slots} slots filled")
                             
-                            # Check if inventory is full
-                            if filled_slots >= total_slots:
-                                print("DEBUG: Inventory appears to be full!")
-                            
-                            # Try to add item and catch any exceptions
                             try:
                                 success = player.inventory.add_item(self.preview_item)
-                                print(f"DEBUG: Result of add_item: {success}")
                                 
                                 if success:
-                                    print(f"Item successfully added to inventory")
-                                    # Check inventory state after adding
-                                    filled_slots_after = sum(1 for item in player.inventory.items if item is not None)
-                                    print(f"DEBUG: Inventory after add: {filled_slots_after}/{total_slots} slots filled")
-                                    
                                     # Attempt to refresh the inventory UI through GameState
                                     try:
                                         # First try to get it from the global game module
@@ -219,35 +171,20 @@ class ItemGeneratorUI:
                                         if hasattr(game, 'game_state') and game.game_state:
                                             if hasattr(game.game_state, 'refresh_inventory_ui'):
                                                 game.game_state.refresh_inventory_ui()
-                                                print("Successfully refreshed inventory UI through game_state")
                                             else:
-                                                print("game_state exists but has no refresh_inventory_ui method")
                                                 # Fallback: Try to directly update the inventory UI
                                                 if hasattr(game.game_state, 'inventory_ui'):
                                                     game.game_state.inventory_ui.inventory = player.inventory.items
-                                                    print("Directly updated inventory UI reference")
-                                        else:
-                                            print("game_state not available for refreshing UI")
-                                    except Exception as refresh_err:
-                                        print(f"Could not refresh inventory UI: {refresh_err}")
-                                else:
-                                    print(f"DEBUG: Failed to add item - inventory may be full or add_item returned False")
-                            except Exception as add_error:
-                                print(f"DEBUG: Exception occurred during add_item: {str(add_error)}")
-                                import traceback
-                                traceback.print_exc()
-                        except Exception as inventory_error:
-                            print(f"DEBUG: Exception accessing player inventory: {str(inventory_error)}")
-                            import traceback
-                            traceback.print_exc()
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
                             
                         return True
-                    else:
-                        print("Failed to generate item - item generator returned None")
-                except Exception as e:
-                    print(f"Error generating item: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
+                except Exception:
+                    pass
         return False
 
     def draw(self, screen: pygame.Surface, player):
@@ -305,11 +242,9 @@ class ItemGeneratorUI:
             # Draw preview background
             pygame.draw.rect(screen, UI_COLORS['cell_background'], self.preview_rect)
             
-            # Draw quality-colored border with debug output
+            # Draw quality-colored border
             quality = getattr(self.preview_item, 'quality', 'Common')
-            print(f"DEBUG: Item quality: {quality}, Type: {type(quality)}")
             border_color = QUALITY_COLORS.get(quality, QUALITY_COLORS['Common'])
-            print(f"DEBUG: Border color: {border_color}, Available colors: {list(QUALITY_COLORS.keys())}")
             pygame.draw.rect(screen, border_color, self.preview_rect, 3)
             
             try:
@@ -353,14 +288,10 @@ class ItemGeneratorUI:
                 name_text = self.font.render(self.preview_item.display_name, True, UI_COLORS['text'])
                 screen.blit(name_text, (info_x, info_y))
                 
-                # Debug print of item attributes
-                print(f"DEBUG: Item attributes: {dir(self.preview_item)}")
-                
                 # Draw item stats with better error handling
                 try:
                     # Try to get stats display from the item
                     stats = self.preview_item.get_stats_display()
-                    print(f"DEBUG: Item stats: {stats}")
                     
                     # Add missing stats if not included
                     if hasattr(self.preview_item, 'attack_power') and not any('Attack' in s for s in stats):
@@ -375,8 +306,7 @@ class ItemGeneratorUI:
                     for i, stat in enumerate(stats, 1):
                         stat_text = self.small_font.render(stat, True, UI_COLORS['text'])
                         screen.blit(stat_text, (info_x, info_y + i * 25))
-                except Exception as e:
-                    print(f"DEBUG: Error getting stats: {str(e)}")
+                except Exception:
                     # Fallback to showing basic attributes
                     attributes = []
                     if hasattr(self.preview_item, 'quality'):

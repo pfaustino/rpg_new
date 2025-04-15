@@ -814,7 +814,7 @@ class GameState:
             self.equipment_ui.draw(self.screen)
             
         if self.generator_ui.visible:
-            self.generator_ui.draw(self.screen)
+            self.generator_ui.draw(self.screen, self.player)
             
         if self.quest_ui.visible:
             self.quest_ui.draw(self.screen)
