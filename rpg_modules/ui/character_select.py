@@ -39,12 +39,6 @@ class CharacterSelectUI:
         if not self.visible:
             return
         
-        # Draw semi-transparent background overlay for the whole screen
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.set_alpha(128)
-        overlay.fill((0, 0, 0))
-        screen.blit(overlay, (0, 0))
-            
         # Draw menu background with border
         pygame.draw.rect(screen, UI_COLORS['menu_bg'], self.rect)
         pygame.draw.rect(screen, UI_COLORS['border'], self.rect, 2)
@@ -287,3 +281,175 @@ class CharacterSelectUI:
             ))
         else:
             self.scroll_offset = 0 
+
+class NameInputDialog:
+    """Dialog for entering a new hero name when starting a new game."""
+    
+    def __init__(self, screen: pygame.Surface, on_confirm: Callable[[str], None], on_cancel: Callable[[], None]):
+        self.screen = screen
+        self.visible = False
+        self.width = 400
+        self.height = 200
+        
+        # Center on screen
+        self.x = (SCREEN_WIDTH - self.width) // 2
+        self.y = (SCREEN_HEIGHT - self.height) // 2
+        
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.font = pygame.font.Font(None, 32)
+        self.title_font = pygame.font.Font(None, 40)
+        
+        self.confirm_callback = on_confirm
+        self.cancel_callback = on_cancel
+        
+        # Text input
+        self.name_input = "Hero"  # Default value
+        self.active = False
+        self.cursor_visible = True
+        self.cursor_timer = 0
+        
+        # Input field rect
+        self.input_rect = pygame.Rect(
+            self.x + 50, 
+            self.y + 80, 
+            self.width - 100, 
+            40
+        )
+        
+        # Button rects
+        self.confirm_button = pygame.Rect(
+            self.x + 50,
+            self.y + self.height - 60,
+            120,
+            40
+        )
+        
+        self.cancel_button = pygame.Rect(
+            self.x + self.width - 170,
+            self.y + self.height - 60,
+            120,
+            40
+        )
+    
+    def show(self):
+        """Show the name input dialog."""
+        self.visible = True
+        self.active = True
+        
+    def hide(self):
+        """Hide the name input dialog."""
+        self.visible = False
+        self.active = False
+    
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        """Handle events for the dialog."""
+        if not self.visible:
+            return False
+            
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = event.pos
+            
+            # Check if clicked on input field
+            if self.input_rect.collidepoint(mouse_pos):
+                self.active = True
+                return True
+                
+            # Check confirm button
+            elif self.confirm_button.collidepoint(mouse_pos):
+                if self.name_input.strip():  # Ensure name is not empty
+                    self.confirm_callback(self.name_input)
+                return True
+                
+            # Check cancel button
+            elif self.cancel_button.collidepoint(mouse_pos):
+                self.cancel_callback()
+                return True
+                
+            else:
+                self.active = False
+        
+        elif event.type == pygame.KEYDOWN:
+            if self.active:
+                if event.key == pygame.K_RETURN:
+                    if self.name_input.strip():  # Ensure name is not empty
+                        self.confirm_callback(self.name_input)
+                    return True
+                    
+                elif event.key == pygame.K_ESCAPE:
+                    self.cancel_callback()
+                    return True
+                    
+                elif event.key == pygame.K_BACKSPACE:
+                    self.name_input = self.name_input[:-1]
+                    return True
+                    
+                else:
+                    # Only add valid characters - letters, numbers, and some symbols
+                    if event.unicode.isalnum() or event.unicode in " -_'":
+                        # Limit name length to reasonable size
+                        if len(self.name_input) < 20:
+                            self.name_input += event.unicode
+                    return True
+                    
+        return True
+    
+    def update(self, dt):
+        """Update the dialog state."""
+        if not self.visible:
+            return
+            
+        # Blink cursor every 500ms
+        self.cursor_timer += dt * 1000
+        if self.cursor_timer > 500:
+            self.cursor_visible = not self.cursor_visible
+            self.cursor_timer = 0
+    
+    def draw(self, screen: pygame.Surface):
+        """Draw the dialog."""
+        if not self.visible:
+            return
+            
+        # Overlay
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))  # Dark overlay with alpha
+        screen.blit(overlay, (0, 0))
+        
+        # Dialog background
+        pygame.draw.rect(screen, UI_COLORS['menu_bg'], self.rect)
+        pygame.draw.rect(screen, UI_COLORS['border'], self.rect, 2)
+        
+        # Title
+        title = self.title_font.render("Enter Hero Name", True, UI_COLORS['text'])
+        title_rect = title.get_rect(centerx=self.x + self.width // 2, y=self.y + 20)
+        screen.blit(title, title_rect)
+        
+        # Input field
+        pygame.draw.rect(screen, UI_COLORS['cell_background'], self.input_rect)
+        pygame.draw.rect(screen, UI_COLORS['border'], self.input_rect, 2)
+        
+        # Input text
+        text_surface = self.font.render(self.name_input, True, UI_COLORS['text'])
+        
+        # Add cursor if active
+        display_text = self.name_input
+        if self.active and self.cursor_visible:
+            display_text += "|"
+            
+        text_surface = self.font.render(display_text, True, UI_COLORS['text'])
+        screen.blit(text_surface, (self.input_rect.x + 10, self.input_rect.y + 10))
+        
+        # Confirm button
+        pygame.draw.rect(screen, UI_COLORS['button_positive'], self.confirm_button)
+        pygame.draw.rect(screen, UI_COLORS['border'], self.confirm_button, 2)
+        
+        confirm_text = self.font.render("Confirm", True, UI_COLORS['text'])
+        confirm_rect = confirm_text.get_rect(center=self.confirm_button.center)
+        screen.blit(confirm_text, confirm_rect)
+        
+        # Cancel button
+        pygame.draw.rect(screen, UI_COLORS['button_negative'], self.cancel_button)
+        pygame.draw.rect(screen, UI_COLORS['border'], self.cancel_button, 2)
+        
+        cancel_text = self.font.render("Cancel", True, UI_COLORS['text'])
+        cancel_rect = cancel_text.get_rect(center=self.cancel_button.center)
+        screen.blit(cancel_text, cancel_rect) 

@@ -484,8 +484,27 @@ class GameState:
     def _new_game(self):
         """Start a new game."""
         print("Starting new game")
-        self.restart_game()
+        # Show name input dialog first
+        from rpg_modules.ui.character_select import NameInputDialog
+        if not hasattr(self, 'name_input_dialog'):
+            self.name_input_dialog = NameInputDialog(
+                self.screen,
+                on_confirm=self._start_new_game_with_name,
+                on_cancel=self._cancel_new_game
+            )
+        self.name_input_dialog.show()
+    
+    def _start_new_game_with_name(self, hero_name):
+        """Start a new game with the given hero name."""
+        print(f"Starting new game with hero name: {hero_name}")
+        self.name_input_dialog.hide()
+        self.restart_game(hero_name)
         self.system_menu_ui.toggle()
+    
+    def _cancel_new_game(self):
+        """Cancel new game creation."""
+        print("New game canceled")
+        self.name_input_dialog.hide()
 
     def _quit_game(self):
         """Signal the game to quit."""
@@ -493,22 +512,30 @@ class GameState:
         self.running = False
         print("Game quitting...")
         
-    def restart_game(self):
+    def restart_game(self, hero_name="Hero"):
         """Restart the game with a fresh state."""
-        # Reset player
+        # Reset player position to center of screen
         player_x = SCREEN_WIDTH // 2
         player_y = SCREEN_HEIGHT // 2
+        
+        # Create a new player at this position
         self.player = Player(player_x, player_y)
         
-        # Reset camera
-        self.camera = Camera()
+        # Set the player's name from the input dialog
+        self.player.name = hero_name
+        
+        # Reset camera with player reference
+        self.camera = Camera(self.player)
         
         # Reset monsters
         self.monsters = []
         self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
         
-        # Reset map
-        self.map = GameMap(MAP_WIDTH, MAP_HEIGHT)
+        # Reset map with explicit dimensions
+        self.map = Map(50, 50)
+        
+        # Set the game map reference for the player for pathfinding
+        self.player.set_game_map(self.map)
         
         # Spawn initial monsters
         self._spawn_initial_monsters()
@@ -524,11 +551,23 @@ class GameState:
         self.equipment_ui.equipment = self.player.equipment.slots
         self.equipment_ui.set_player(self.player)
         
+        print(f"Game restarted. New player '{hero_name}' created at position ({player_x}, {player_y})")
         print(f"Reset inventory UI to new player inventory with {len(self.player.inventory.items)} slots")
         
     def update(self, dt, events):
         """Update game state."""
         # Process events passed from main loop (not calling pygame.event.get() again)
+        
+        # Check for name input dialog visibility
+        if hasattr(self, 'name_input_dialog') and self.name_input_dialog.visible:
+            # When name input dialog is open, only handle its events
+            for event in events:
+                if self.name_input_dialog.handle_event(event):
+                    return  # Event was handled by name input dialog
+            
+            # Update name input dialog
+            self.name_input_dialog.update(dt)
+            return
         
         # Check for system menu visibility first
         if self.system_menu_ui.visible:
@@ -758,49 +797,50 @@ class GameState:
         # Clear the screen
         self.screen.fill((0, 0, 0))
         
-        # Draw the map and entities
+        # Draw in layers: map, entities, UI, system menu
+        
+        # Map and entities
         self._draw_map()
         self._draw_entities()
         
-        # Draw attack effect if one is active
-        if self.current_attack_effect:
-            self._draw_attack_effect(self.screen)
-        
-        # Draw the UI on top
+        # Draw player stats
         self._draw_player_stats()
-        self._draw_action_toolbar(self.screen)
         
-        # Draw monster tooltip if hovering over a monster
-        if self.hovered_monster and not (self.inventory_ui.visible or self.equipment_ui.visible or 
-                                        self.generator_ui.visible or self.quest_ui.visible):
-            self._draw_monster_tooltip(self.screen, self.hovered_monster)
-        
-        # DIAGNOSTIC: Draw inventory status directly on screen
-        """filled_slots = sum(1 for item in self.player.inventory.items if item is not None)
-        font = pygame.font.Font(None, 24)
-        inventory_status = f"Inventory: {filled_slots}/{len(self.player.inventory.items)} items"
-        status_text = font.render(inventory_status, True, (255, 255, 0))
-        self.screen.blit(status_text, (10, SCREEN_HEIGHT - 30))"""
-        
-        # Draw any active UI components
+        # Draw UI components
         if self.inventory_ui.visible:
-            # Refresh inventory UI before drawing to ensure it shows the current state
-            self.refresh_inventory_ui()
             self.inventory_ui.draw(self.screen)
+        
         if self.equipment_ui.visible:
             self.equipment_ui.draw(self.screen)
+            
         if self.generator_ui.visible:
-            self.generator_ui.draw(self.screen, self.player)
+            self.generator_ui.draw(self.screen)
+            
         if self.quest_ui.visible:
             self.quest_ui.draw(self.screen)
         
-        # Draw the system menu on top of everything if visible
+        # Draw action toolbar
+        self._draw_action_toolbar(self.screen)
+        
+        # Draw attack effect if active
+        if self.current_attack_effect:
+            self._draw_attack_effect(self.screen)
+        
+        # Draw monster tooltip if hovering
+        if self.hovered_monster:
+            self._draw_monster_tooltip(self.screen, self.hovered_monster)
+            
+        # Draw system menu last (on top of everything)
         if self.system_menu_ui.visible:
             self.system_menu_ui.draw(self.screen)
             
-        # Draw character selection UI if visible
-        if hasattr(self, 'character_select_ui') and self.character_select_ui.visible:
-            self.character_select_ui.draw(self.screen)
+            # Draw character select UI if visible
+            if hasattr(self, 'character_select_ui') and self.character_select_ui.visible:
+                self.character_select_ui.draw(self.screen)
+                
+        # Draw name input dialog if visible (on top of everything)
+        if hasattr(self, 'name_input_dialog') and self.name_input_dialog.visible:
+            self.name_input_dialog.draw(self.screen)
         
         # Update the display
         pygame.display.flip()
