@@ -197,7 +197,7 @@ class MonsterType(Enum):
 class Monster:
     """Class representing a monster in the game."""
     
-    def __init__(self, x: float, y: float, monster_type: MonsterType, game_map=None):
+    def __init__(self, x: float, y: float, monster_type: MonsterType, game_map=None, player_level=1):
         """Initialize a monster at the given position."""
         self.x = x
         self.y = y
@@ -217,7 +217,24 @@ class Monster:
         self.move_timer = 0
         self.chasing = False
         self.chase_range = 6
-        self.level = 1  # Initialize monster level
+        
+        # Scale monster level based on player level
+        # For high-level players, ensure monsters are at least level 10
+        if player_level >= 11:
+            min_level = 10
+            max_level = player_level + 2
+            self.level = random.randint(min_level, max_level)
+        else:
+            # For lower level players, scale monsters more gradually
+            min_level = max(1, player_level - 2)
+            max_level = player_level + 2
+            self.level = random.randint(min_level, max_level)
+            
+        # Scale monster stats based on level
+        level_multiplier = 1.0 + (self.level - 1) * 0.2  # 20% increase per level
+        self.max_health = int(self.max_health * level_multiplier)
+        self.health = self.max_health
+        self.attack_damage = int(self.attack_damage * level_multiplier)
         
         # Animation state
         self.animation_timer = 0
@@ -226,7 +243,7 @@ class Monster:
         self.facing = 'down'
         
         self.animation = MonsterAnimation(self.monster_type)
-        logger.log(f"Created {self.monster_type.name} monster at ({x}, {y})")
+        logger.log(f"Created {self.monster_type.name} monster at ({x}, {y}) - Level {self.level}")
 
     def update(self, dt, player_pos):
         """Update monster state and position."""

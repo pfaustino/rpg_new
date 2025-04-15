@@ -1,16 +1,16 @@
 {
   "player": {
     "name": "Pritrix",
-    "x": 553.887619999998,
-    "y": 1537.4777199999983,
-    "health": 174,
+    "x": 988.6575200000034,
+    "y": 662.5956599999922,
+    "health": 131,
     "max_health": 200,
-    "mana": 0,
+    "mana": 50,
     "max_mana": 100,
     "stamina": 150,
     "max_stamina": 150,
     "attack_type": 3,
-    "xp": 340,
+    "xp": 370,
     "level": 11,
     "inventory": [
       {
@@ -83,13 +83,7 @@
         "armor_type": "Hands",
         "defense": 15
       },
-      {
-        "type": "Consumable",
-        "quality": "Polished",
-        "prefix": null,
-        "consumable_type": "mana",
-        "effect_value": 24
-      },
+      null,
       {
         "type": "Consumable",
         "quality": "Polished",
@@ -134,13 +128,7 @@
         "effect_value": 75
       },
       null,
-      {
-        "type": "Consumable",
-        "quality": "Masterwork",
-        "prefix": null,
-        "consumable_type": "mana",
-        "effect_value": 46
-      },
+      null,
       null,
       {
         "type": "Consumable",

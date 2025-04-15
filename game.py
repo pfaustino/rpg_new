@@ -1123,6 +1123,9 @@ class GameState:
         random.shuffle(land_monster_types)
         random.shuffle(water_monster_types)
         
+        # Get player level (default to 1 if not set)
+        player_level = getattr(self.player, 'level', 1)
+        
         print("\nStarting initial monster spawn...")
         # Try to spawn monsters until we reach MAX_MONSTERS
         while spawn_count < MAX_MONSTERS and (land_monster_types or water_monster_types):
@@ -1171,7 +1174,26 @@ class GameState:
                     continue
                 
                 # Spawn monster
-                monster = Monster(pixel_x, pixel_y, monster_type, self.map)
+                monster = Monster(pixel_x, pixel_y, monster_type, self.map, self.player.level)
+                
+                # Scale monster level based on player level
+                if player_level >= 11:
+                    # For high-level players, ensure monsters are at least level 10
+                    min_level = 10
+                    max_level = player_level + 2
+                else:
+                    # For lower level players, scale monsters more gradually
+                    min_level = max(1, player_level - 2)
+                    max_level = player_level + 2
+                
+                monster.level = random.randint(min_level, max_level)
+                    
+                # Scale monster stats based on level
+                level_multiplier = 1.0 + (monster.level - 1) * 0.2  # 20% increase per level
+                monster.max_health = int(monster_type.base_health * level_multiplier)
+                monster.health = monster.max_health
+                monster.attack_damage = int(monster_type.base_damage * level_multiplier)
+                
                 self.monsters.append(monster)
                 self.monster_counts[monster_type] += 1
                 spawn_count += 1
@@ -1295,17 +1317,25 @@ class GameState:
                 return False
             
             # Valid position found, spawn the monster
-            monster = Monster(pixel_x, pixel_y, monster_type, self.map)
+            monster = Monster(pixel_x, pixel_y, monster_type, self.map, self.player.level)
             
-            # Set monster level to be +/- 1 of player level
-            level_diff = random.randint(-1, 1)
-            monster.level = max(1, player_level + level_diff)
+            # Scale monster level based on player level
+            if player_level >= 11:
+                # For high-level players, ensure monsters are at least level 10
+                min_level = 10
+                max_level = player_level + 2
+            else:
+                # For lower level players, scale monsters more gradually
+                min_level = max(1, player_level - 2)
+                max_level = player_level + 2
+            
+            monster.level = random.randint(min_level, max_level)
             
             # Adjust monster stats based on level
             level_multiplier = 1.0 + (monster.level - 1) * 0.2  # 20% increase per level
-            monster.max_health = int(monster.max_health * level_multiplier)
+            monster.max_health = int(monster_type.base_health * level_multiplier)
             monster.health = monster.max_health
-            monster.attack_damage = int(monster.attack_damage * level_multiplier)
+            monster.attack_damage = int(monster_type.base_damage * level_multiplier)
             
             self.monsters.append(monster)
             self.monster_counts[monster_type] += 1
@@ -1339,7 +1369,8 @@ class GameState:
                         monster.x + random.randint(-20, 20),
                         monster.y + random.randint(-20, 20),
                         MonsterType.SLIME,
-                        self.map
+                        self.map,
+                        self.player.level
                     )
                     new_slime.size = max(16, monster.size - 8)
                     new_slime.health = new_slime.size * 2
@@ -1349,6 +1380,24 @@ class GameState:
                     player_level = getattr(self.player, 'level', 1)
                     level_diff = random.randint(-1, 1)
                     new_slime.level = max(1, player_level + level_diff)
+                    
+                    # Scale monster level based on player level
+                    if player_level >= 11:
+                        # For high-level players, ensure monsters are at least level 10
+                        min_level = 10
+                        max_level = player_level + 2
+                    else:
+                        # For lower level players, scale monsters more gradually
+                        min_level = max(1, player_level - 2)
+                        max_level = player_level + 2
+                    
+                    new_slime.level = random.randint(min_level, max_level)
+                    
+                    # Scale slime stats based on level
+                    level_multiplier = 1.0 + (new_slime.level - 1) * 0.2  # 20% increase per level
+                    new_slime.max_health = int(new_slime.size * 2 * level_multiplier)
+                    new_slime.health = new_slime.max_health
+                    new_slime.attack_damage = int(5 * level_multiplier)  # Base damage for small slimes
                     
                     self.monsters.append(new_slime)
                     self.monster_counts[MonsterType.SLIME] += 1

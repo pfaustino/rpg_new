@@ -333,6 +333,24 @@ def _process_save_file(game_state, save_filename):
         
         print("Refreshed inventory and equipment UI after loading.")
         
+        # Clear existing monsters and respawn them with proper levels
+        print("Clearing existing monsters and respawning based on player level...")
+        game_state.monsters = []
+        game_state.monster_counts = {monster_type: 0 for monster_type in MonsterType}
+        
+        # Reset death locations
+        if hasattr(game_state, 'recent_death_locations'):
+            game_state.recent_death_locations = []
+        
+        # Spawn new monsters appropriate for the player's level
+        if hasattr(game_state, '_spawn_initial_monsters'):
+            print(f"Respawning monsters for player level {game_state.player.level}...")
+            game_state._spawn_initial_monsters()
+            print(f"Total monsters respawned: {len(game_state.monsters)}")
+            for monster_type in MonsterType:
+                if game_state.monster_counts[monster_type] > 0:
+                    print(f"- {monster_type.name}: {game_state.monster_counts[monster_type]}")
+        
         print(f"Successfully loaded game for {game_state.player.name}")
         # Only close the system menu if it's currently visible
         if game_state.system_menu_ui.visible:
