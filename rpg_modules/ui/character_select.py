@@ -10,12 +10,12 @@ class CharacterSelectUI:
     def __init__(self, screen: pygame.Surface, on_select: Callable[[str], None], on_cancel: Callable[[], None]):
         self.screen = screen
         self.visible = False
-        self.width = 350  # Match system menu width
-        self.height = 450
+        self.width = 300  # Width of character select menu
+        self.height = 400  # Height of character select menu
         
         # Default position - will be updated when SystemMenuUI positions it
-        self.x = SCREEN_WIDTH // 2 - self.width // 2
-        self.y = SCREEN_HEIGHT // 2 - self.height // 2
+        self.x = 400  # Position to the right of system menu
+        self.y = 50   # Same vertical position as system menu
         
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.small_font = pygame.font.Font(None, 24)
@@ -73,7 +73,7 @@ class CharacterSelectUI:
             if len(self.characters) > self.max_visible_characters:
                 # Scrollbar background
                 scrollbar_bg = pygame.Rect(self.x + self.width - 20, self.y + 70, 10, 280)
-                pygame.draw.rect(screen, (30, 30, 30), scrollbar_bg)
+                pygame.draw.rect(screen, UI_COLORS['cell_background'], scrollbar_bg)
                 
                 # Scrollbar handle
                 handle_height = max(30, 280 * self.max_visible_characters / len(self.characters))
@@ -265,5 +265,25 @@ class CharacterSelectUI:
         self.rect.topleft = (x, y)
 
     def refresh_character_list(self):
-        """Refresh the character list."""
-        self.characters = get_save_files() 
+        """Refresh the list of available character save files."""
+        self.characters = get_save_files()
+        
+        # Reset selection if no characters available
+        if not self.characters:
+            self.selected_index = -1
+        elif self.selected_index < 0 and self.characters:
+            # Default to first character if none selected
+            self.selected_index = 0
+        
+        # Ensure selection is within bounds if characters were removed
+        if self.characters and self.selected_index >= len(self.characters):
+            self.selected_index = len(self.characters) - 1
+        
+        # Reset scroll to show selection
+        if self.selected_index >= 0:
+            self.scroll_offset = max(0, min(
+                self.selected_index, 
+                len(self.characters) - self.max_visible_characters
+            ))
+        else:
+            self.scroll_offset = 0 

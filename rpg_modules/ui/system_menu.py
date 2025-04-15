@@ -145,6 +145,32 @@ class SystemMenuUI:
             self.hovered_option = None
             self.selected_option = None
             
+            # Position any connected UI elements
+            try:
+                # Get game_state reference from main module
+                import sys
+                if 'game' in sys.modules:
+                    main_module = sys.modules['game']
+                    if hasattr(main_module, 'game_state') and main_module.game_state:
+                        # Position character select UI to the right of system menu
+                        if hasattr(main_module.game_state, 'character_select_ui'):
+                            char_select = main_module.game_state.character_select_ui
+                            # Position to the right of the system menu with a small gap
+                            char_select.set_position(self.x + self.width + 20, self.y)
+                            print("Character select UI positioned to the right of system menu")
+            except Exception as e:
+                print(f"Error positioning character select UI: {e}")
+                
+            # Try global_game_state if available
+            try:
+                from __main__ import global_game_state
+                if global_game_state and hasattr(global_game_state, 'character_select_ui'):
+                    # Position character select UI to the right of system menu
+                    char_select = global_game_state.character_select_ui
+                    char_select.set_position(self.x + self.width + 20, self.y)
+            except (ImportError, AttributeError):
+                pass
+            
     def hide(self):
         """Hide the system menu."""
         self.visible = False

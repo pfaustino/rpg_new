@@ -40,7 +40,15 @@ UI_COLORS = {
     'background': (50, 50, 50),
     'cell_background': (30, 30, 30),
     'text': WHITE,
+    'text_secondary': (180, 180, 180),
     'border': WHITE,
+    'button': (70, 70, 100),
+    'button_positive': (70, 170, 70),  # Green for positive actions
+    'button_negative': (170, 70, 70),  # Red for negative actions
+    'button_disabled': (100, 100, 100),  # Gray for disabled buttons
+    'hover': (80, 80, 150),    # Hover color
+    'selected': (100, 100, 200),  # Selected color
+    'menu_bg': (40, 40, 60)    # Menu background
 }
 
 # Quality colors

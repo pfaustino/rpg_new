@@ -62,6 +62,9 @@ LEVEL_UP_SOUND = "level_up.wav"
 # Global reference to the current game state
 game_state = None
 
+# Global variables
+global_game_state = None
+
 def load_assets():
     """Load all game assets"""
     print("Loading assets...")
@@ -408,6 +411,14 @@ class GameState:
         self.system_menu_ui = SystemMenuUI(screen)
         self._setup_system_menu_callbacks()
         
+        # Create character selection UI
+        from rpg_modules.ui.character_select import CharacterSelectUI
+        self.character_select_ui = CharacterSelectUI(
+            screen,
+            on_select=self._load_character,
+            on_cancel=self._cancel_character_select
+        )
+        
         print("UI elements created")
         
         # Load assets
@@ -437,8 +448,8 @@ class GameState:
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
         
-        # Load saved game if it exists
-        self.load_game()
+        # We don't automatically load a saved game at startup anymore
+        # Instead, the player must use the Load Game option from the system menu
         
         print("\n=== Game State Initialized ===")
         
@@ -525,6 +536,11 @@ class GameState:
             for event in events:
                 if self.system_menu_ui.handle_event(event):
                     return  # Event was handled by system menu
+                
+                # Also handle character select UI events if it's visible
+                if hasattr(self, 'character_select_ui') and self.character_select_ui.visible:
+                    if self.character_select_ui.handle_event(event):
+                        return  # Event was handled by character select UI
             
             # Update system menu
             self.system_menu_ui.update()
@@ -781,6 +797,10 @@ class GameState:
         # Draw the system menu on top of everything if visible
         if self.system_menu_ui.visible:
             self.system_menu_ui.draw(self.screen)
+            
+        # Draw character selection UI if visible
+        if hasattr(self, 'character_select_ui') and self.character_select_ui.visible:
+            self.character_select_ui.draw(self.screen)
         
         # Update the display
         pygame.display.flip()
@@ -2249,6 +2269,21 @@ class GameState:
             import traceback
             traceback.print_exc()
 
+    def _load_character(self, save_filename):
+        """Load the selected character save file."""
+        print(f"Loading game from file: {save_filename}")
+        from rpg_modules.savegame import _process_save_file
+        _process_save_file(self, save_filename)
+        self.character_select_ui.hide()
+    
+    def _cancel_character_select(self):
+        """Cancel character selection."""
+        print("Character selection cancelled.")
+        self.character_select_ui.hide()
+        # Make sure system menu stays visible
+        if not self.system_menu_ui.visible:
+            self.system_menu_ui.toggle()
+
 class Equipment:
     """Class to manage equipped items."""
     def __init__(self):
@@ -2433,32 +2468,39 @@ class Game:
     
     def __init__(self):
         """Initialize the main game instance"""
-        global game_state
+        global game_state, global_game_state
         
-        print("Starting main function...")
-        
-        # Initialize Pygame
-        pygame.init()
-        print("Pygame initialized")
-        
-        # Set up display
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("RPG Game")
-        print("Display mode set")
-        
-        # Create clock for timing
-        self.clock = pygame.time.Clock()
-        print("Clock created")
-        
-        # Create game state (it will create all other components)
-        self.game_state = GameState(self.screen)
-        print("Game state created")
-        
-        # Set the global game_state for external access - no longer needed but kept for compatibility
-        global game_state  # Need to declare again due to Python scoping rules
-        game_state = self.game_state
-        print(f"DEBUG: Global game_state set to: {game_state}")
-        
+        try:
+            print("Starting main function...")
+            
+            # Initialize Pygame
+            pygame.init()
+            print("Pygame initialized")
+            
+            # Set up display
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+            pygame.display.set_caption("RPG Game")
+            print("Display mode set")
+            
+            # Create clock for timing
+            self.clock = pygame.time.Clock()
+            print("Clock created")
+            
+            # Create game state (it will create all other components)
+            self.game_state = GameState(self.screen)
+            print("Game state created")
+            
+            # Set the global game_state for external access
+            global_game_state = self.game_state
+            game_state = self.game_state
+            print(f"DEBUG: Global game_state set to: {global_game_state}")
+            
+        except Exception as e:
+            print(f"Error during game initialization: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+    
     def run(self):
         """Run the main game loop"""
         # Main game loop
@@ -2502,8 +2544,13 @@ def main():
         print(f"Warning: Audio system initialization failed: {e}")
     
     # Create and run the game
-    game = Game()
-    game.run()
+    try:
+        game = Game()
+        game.run()
+    except Exception as e:
+        print(f"Error in main game loop: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main() 

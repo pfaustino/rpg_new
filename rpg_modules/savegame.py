@@ -4,10 +4,85 @@ Save game functionality for RPG game.
 
 import os
 import json
+import glob
 from .items.weapon import Weapon
 from .items.armor import Armor
 from .items.hands import Hands
 from .items.consumable import Consumable
+
+def get_save_files():
+    """
+    Get a list of available save files with character information.
+    
+    Returns:
+        List of dictionaries containing character information from save files.
+    """
+    save_files = []
+    
+    # Create save directory if it doesn't exist
+    os.makedirs('save', exist_ok=True)
+    
+    # Get all JSON files in the save directory
+    save_pattern = os.path.join('save', '*_savegame.json')
+    for save_path in glob.glob(save_pattern):
+        try:
+            with open(save_path, 'r') as f:
+                save_data = json.load(f)
+                
+                # Extract player data
+                player_data = save_data.get('player', {})
+                character_info = {
+                    'filename': save_path,
+                    'name': player_data.get('name', 'Unknown'),
+                    'level': player_data.get('level', 1),
+                    'health': player_data.get('health', 0),
+                    'max_health': player_data.get('max_health', 0),
+                    'xp': player_data.get('xp', 0),
+                }
+                save_files.append(character_info)
+        except Exception as e:
+            print(f"Error reading save file {save_path}: {e}")
+    
+    # Sort by level (descending) then by name
+    save_files.sort(key=lambda x: (-x['level'], x['name']))
+    return save_files
+
+def load_character_select():
+    """
+    Display character selection menu and return the chosen save file.
+    
+    Returns:
+        Selected save file path or None if cancelled.
+    """
+    save_files = get_save_files()
+    
+    if not save_files:
+        print("No save files found.")
+        return None
+    
+    # Display available character saves
+    print("\nAvailable Characters:")
+    for i, character in enumerate(save_files):
+        print(f"{i+1}. {character['name']} (Level {character['level']}) - HP: {character['health']}/{character['max_health']}")
+    
+    print("\n0. Cancel")
+    
+    # Get user selection
+    while True:
+        try:
+            choice = input("\nSelect a character (0-{}): ".format(len(save_files)))
+            if choice == '0':
+                return None
+            
+            choice_idx = int(choice) - 1
+            if 0 <= choice_idx < len(save_files):
+                return save_files[choice_idx]['filename']
+            else:
+                print("Invalid selection. Please choose a valid option.")
+        except ValueError:
+            print("Please enter a number.")
+    
+    return None
 
 def save_game(game_state):
     """
@@ -65,21 +140,30 @@ def load_game(game_state):
     Args:
         game_state: The current GameState object
     """
-    # Try player-specific save file first
-    save_filename = f"save/{game_state.player.name.replace(' ', '_')}_savegame.json"
+    print("Loading game...")
     
-    print(f"Attempting to load game from: {save_filename}")
-    if os.path.exists(save_filename):
-        return _process_save_file(game_state, save_filename)
-    else:
-        # Fallback to generic save file for backward compatibility
-        save_filename = "save/savegame.json"
-        print(f"Player-specific save not found. Trying generic save file: {save_filename}")
-        if os.path.exists(save_filename):
-            return _process_save_file(game_state, save_filename)
-        else:
-            print("No save files found.")
+    try:
+        # If game has a UI character select, let it handle character selection
+        if hasattr(game_state, 'character_select_ui') and game_state.character_select_ui:
+            # Character selection will be handled via the UI
+            # The UI's callback will process the save file when user selects a character
+            game_state.character_select_ui.refresh_character_list()
+            game_state.character_select_ui.show()
+            return True
+        
+        # Otherwise, use console-based character selection
+        save_filename = load_character_select()
+        if not save_filename:
+            print("Character selection cancelled.")
             return False
+        
+        print(f"Loading game from file: {save_filename}")
+        return _process_save_file(game_state, save_filename)
+    except Exception as e:
+        print(f"Error in load_game: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
             
 def _process_save_file(game_state, save_filename):
     """Process a save file and load the data into the game state."""
@@ -94,8 +178,8 @@ def _process_save_file(game_state, save_filename):
         # Set player name from save data
         game_state.player.name = player_data.get('name', game_state.player.name)
         
-        game_state.player.rect.x = player_data.get('x', game_state.player.rect.x)
-        game_state.player.rect.y = player_data.get('y', game_state.player.rect.y)
+        game_state.player.x = player_data.get('x', game_state.player.x)
+        game_state.player.y = player_data.get('y', game_state.player.y)
         game_state.player.level = player_data.get('level', game_state.player.level)
         if hasattr(game_state.player, 'xp'):
             game_state.player.xp = player_data.get('xp', getattr(game_state.player, 'xp', 0))
