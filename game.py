@@ -237,30 +237,117 @@ def _create_simple_sound(sound_type):
         samples = 128 + amplitude * envelope * np.sin(2 * np.pi * freq * t) + noise
             
     elif sound_type == 'level_up':
-        # Level up - 3 ascending notes
-        duration = 0.5  # seconds
-        note_duration = duration / 3
-        frequencies = [440, 550, 660]  # A4, C#5, E5 (A major triad)
+        # Glorious level up sound - grand ascending fanfare
+        duration = 2.0  # Full 2 seconds
         
-        all_samples = []
+        # Time array for the full sound
+        t = np.linspace(0, duration, int(duration * sample_rate), endpoint=False)
         
-        for note_idx, freq in enumerate(frequencies):
-            # Time array for this note
-            t = np.linspace(0, note_duration, int(note_duration * sample_rate), endpoint=False)
+        # Create multiple sections for a more complex sound
+        samples = np.zeros(len(t)) + 128  # Start with silence at center point
+        
+        # First part: ascending major chord sequence (C, E, G, C)
+        frequencies = [262, 330, 392, 523]  # C4, E4, G4, C5
+        note_duration = 0.25  # each note is 0.25 seconds
+        
+        for i, freq in enumerate(frequencies):
+            # Calculate start and end indices for this note
+            start_idx = int(i * note_duration * sample_rate)
+            end_idx = int((i + 1) * note_duration * sample_rate)
             
-            # Each note fades in and out
-            if note_idx < 2:
-                envelope = np.sin(np.pi * t / note_duration)
+            if end_idx > len(t):
+                break
+                
+            # Create a time array for just this segment
+            t_segment = t[start_idx:end_idx] - t[start_idx]
+            
+            # Create an envelope that fades in and out
+            envelope = np.sin(np.pi * t_segment / note_duration)
+            
+            # Generate the note and add it to our samples
+            note = amplitude * 0.8 * envelope * np.sin(2 * np.pi * freq * t_segment)
+            samples[start_idx:end_idx] += note
+            
+        # Second part: triumphant fanfare (t = 1.0 to 2.0)
+        fanfare_start = int(1.0 * sample_rate)
+        
+        # Base frequencies for fanfare chords
+        chord1 = [523, 659, 784]  # C5, E5, G5
+        chord2 = [587, 740, 880]  # D5, F#5, A5
+        chord3 = [659, 784, 988]  # E5, G5, B5
+        chord4 = [523, 659, 784, 1047]  # C5, E5, G5, C6 (Final chord with octave)
+        
+        # Add chord progression
+        chords = [chord1, chord2, chord3, chord4]
+        chord_duration = 0.25  # each chord is 0.25 seconds
+        
+        for i, chord in enumerate(chords):
+            # Calculate start and end indices for this chord
+            start_idx = fanfare_start + int(i * chord_duration * sample_rate)
+            end_idx = fanfare_start + int((i + 1) * chord_duration * sample_rate)
+            
+            if end_idx > len(t):
+                break
+                
+            # Create a time array for just this segment
+            t_segment = t[start_idx:end_idx] - t[start_idx]
+            
+            # Different envelope for each chord - last chord sustains longer
+            if i < 3:
+                envelope = np.sin(np.pi * t_segment / chord_duration)
             else:
-                # Last note has longer release
-                envelope = np.sin(np.pi * t / note_duration * 0.5)
+                # Final chord has longer release
+                envelope = np.sin(np.pi * t_segment / chord_duration * 0.5)
+                envelope = np.clip(envelope, 0, 1)  # Keep only the attack/sustain part
             
-            # Generate note samples
-            note_samples = 128 + amplitude * envelope * np.sin(2 * np.pi * freq * t)
-            all_samples.append(note_samples)
+            # Layer all frequencies in the chord
+            chord_samples = np.zeros(end_idx - start_idx)
+            for freq in chord:
+                note = amplitude * 0.3 * envelope * np.sin(2 * np.pi * freq * t_segment)
+                chord_samples += note
+                
+                # Add a subtle fifth above for richness on the final chord
+                if i == 3:
+                    overtone = amplitude * 0.1 * envelope * np.sin(2 * np.pi * freq * 1.5 * t_segment)
+                    chord_samples += overtone
+            
+            # Add some subtle shimmer to the final chord
+            if i == 3:
+                shimmer_freq = 1400  # High frequency shimmer
+                shimmer = amplitude * 0.05 * envelope * np.sin(2 * np.pi * shimmer_freq * t_segment)
+                shimmer *= (0.5 + 0.5 * np.sin(2 * np.pi * 8 * t_segment))  # Modulate the shimmer
+                chord_samples += shimmer
+            
+            # Add the chord to our main samples
+            samples[start_idx:end_idx] += chord_samples
         
-        # Combine all notes
-        samples = np.concatenate(all_samples)
+        # Add some subtle bells/sparkles throughout (especially in second half)
+        for i in range(8):
+            # Random timings for sparkle effects
+            start_time = 1.0 + (i / 8) * 0.8  # Spread throughout the second half
+            start_idx = int(start_time * sample_rate)
+            sparkle_duration = 0.1
+            end_idx = min(len(t), start_idx + int(sparkle_duration * sample_rate))
+            
+            if end_idx > len(t):
+                break
+                
+            # Create a time array for just this segment
+            t_segment = t[start_idx:end_idx] - t[start_idx]
+            
+            # Brief bell-like sound
+            bell_freq = 1200 + i * 100  # Increasing frequencies
+            envelope = np.exp(-t_segment * 40)  # Quick decay
+            
+            bell = amplitude * 0.15 * envelope * np.sin(2 * np.pi * bell_freq * t_segment)
+            samples[start_idx:end_idx] += bell
+        
+        # Apply overall envelope to entire sound
+        overall_envelope = 1.0 - 0.5 * np.exp(-(t/duration) * 3)  # Starts at 0.5, quickly rises to 1.0
+        overall_envelope *= (1.0 - np.exp(-(2.0-t) * 10))  # Quick fade out at the end
+        
+        # Apply the overall envelope
+        samples = 128 + (samples - 128) * overall_envelope
     else:
         # Default beep
         duration = 0.2  # seconds
@@ -351,6 +438,8 @@ class GameState:
             if hasattr(self, 'sounds') and 'level_up' in self.sounds:
                 self.sounds['level_up'].play()
                 print("Playing level up sound!")
+            # Start level up visual effect
+            self._start_level_up_effect()
         self.player.on_level_up = new_on_level_up
         
         print(f"Player created with inventory capacity: {len(self.player.inventory.items)}")
@@ -442,6 +531,11 @@ class GameState:
         self.running = True
         self.paused = False
         self.current_attack_effect = None  # Track current attack animation
+        
+        # Level up effect tracking
+        self.level_up_effect = None
+        self.level_up_effect_duration = 2000  # 2 seconds in milliseconds
+        self.level_up_effect_start_time = 0
         
         # Game save path
         self.save_path = "save"
@@ -557,6 +651,10 @@ class GameState:
     def update(self, dt, events):
         """Update game state."""
         # Process events passed from main loop (not calling pygame.event.get() again)
+        
+        # Skip updating if paused
+        if self.paused:
+            return events
         
         # Check for name input dialog visibility
         if hasattr(self, 'name_input_dialog') and self.name_input_dialog.visible:
@@ -792,6 +890,9 @@ class GameState:
         # Update camera
         self.camera.update(self.player)
         
+        # Update level up effect
+        self._update_level_up_effect()
+        
     def draw(self):
         """Draw the game state."""
         # Clear the screen
@@ -841,6 +942,10 @@ class GameState:
         # Draw name input dialog if visible (on top of everything)
         if hasattr(self, 'name_input_dialog') and self.name_input_dialog.visible:
             self.name_input_dialog.draw(self.screen)
+        
+        # Draw level up effect if active
+        if self.level_up_effect:
+            self._draw_level_up_effect()
         
         # Update the display
         pygame.display.flip()
@@ -2323,6 +2428,122 @@ class GameState:
         # Make sure system menu stays visible
         if not self.system_menu_ui.visible:
             self.system_menu_ui.toggle()
+            
+    def _start_level_up_effect(self):
+        """Start the level up visual effect."""
+        self.level_up_effect = True
+        self.level_up_effect_start_time = pygame.time.get_ticks()
+        print("Level up effect started!")
+
+    def _update_level_up_effect(self):
+        """Update the level up effect state."""
+        if not self.level_up_effect:
+            return
+            
+        # Check if effect duration has expired
+        current_time = pygame.time.get_ticks()
+        if current_time - self.level_up_effect_start_time > self.level_up_effect_duration:
+            self.level_up_effect = None
+            return
+            
+    def _draw_level_up_effect(self):
+        """Draw the level up special effect."""
+        if not self.level_up_effect:
+            return
+            
+        # Calculate effect progress (0.0 to 1.0)
+        current_time = pygame.time.get_ticks()
+        progress = min(1.0, (current_time - self.level_up_effect_start_time) / self.level_up_effect_duration)
+        
+        # Create a surface for the glow effect with alpha
+        glow_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        
+        # Calculate pulsing opacity - starts at 0, peaks at 0.5, back to 0 at 1.0
+        pulse_opacity = int(200 * (1.0 - abs(2 * progress - 1.0)))
+        
+        # Draw golden glow around player
+        player_screen_x = int(self.player.x + self.camera.x * self.camera.get_zoom())
+        player_screen_y = int(self.player.y + self.camera.y * self.camera.get_zoom())
+        
+        # Calculate pulsing radius
+        min_radius = 30
+        max_radius = 150
+        pulse_radius = min_radius + (max_radius - min_radius) * (1.0 - abs(2 * progress - 1.0))
+        
+        # Draw multiple concentric circles with decreasing opacity
+        for radius_offset in range(0, 70, 10):
+            radius = pulse_radius - radius_offset
+            if radius <= 0:
+                continue
+                
+            # Decrease opacity for outer circles
+            circle_opacity = max(0, pulse_opacity - radius_offset * 3)
+            
+            # Gold color with variable opacity
+            circle_color = (255, 215, 0, circle_opacity)
+            
+            # Draw circle on glow surface
+            pygame.draw.circle(
+                glow_surface, 
+                circle_color,
+                (player_screen_x + TILE_SIZE // 2, player_screen_y + TILE_SIZE // 2),
+                radius
+            )
+        
+        # Draw "LEVEL UP!" text
+        font_size = int(48 + 24 * (1.0 - abs(2 * progress - 1.0)))  # Pulse between 48 and 72
+        font = pygame.font.Font(None, font_size)
+        
+        # Create the text with a gold color
+        text_surface = font.render("LEVEL UP!", True, (255, 215, 0))
+        
+        # Position text above player
+        text_x = player_screen_x + TILE_SIZE // 2 - text_surface.get_width() // 2
+        text_y = player_screen_y - 100 - int(50 * (1.0 - abs(2 * progress - 1.0)))  # Move up and down slightly
+        
+        # Draw text with a subtle shadow effect
+        shadow_surface = font.render("LEVEL UP!", True, (0, 0, 0))
+        glow_surface.blit(shadow_surface, (text_x + 2, text_y + 2))
+        glow_surface.blit(text_surface, (text_x, text_y))
+        
+        # Draw stars/particles around the player
+        num_particles = 20
+        for i in range(num_particles):
+            # Calculate particle position - circular pattern around player
+            angle = (i / num_particles) * 2 * math.pi
+            # Radius increases with time
+            particle_radius = 50 + progress * 100
+            particle_x = player_screen_x + TILE_SIZE // 2 + int(math.cos(angle + progress * 10) * particle_radius)
+            particle_y = player_screen_y + TILE_SIZE // 2 + int(math.sin(angle + progress * 10) * particle_radius)
+            
+            # Particle size pulses
+            particle_size = int(5 + 5 * math.sin(progress * 20 + i))
+            
+            # Alternate between gold and white particles
+            if i % 2 == 0:
+                particle_color = (255, 215, 0, pulse_opacity)  # Gold
+            else:
+                particle_color = (255, 255, 255, pulse_opacity)  # White
+                
+            # Draw particle
+            pygame.draw.circle(glow_surface, particle_color, (particle_x, particle_y), particle_size)
+        
+        # Draw new level number
+        level_font = pygame.font.Font(None, 36)
+        level_text = f"Level {self.player.level}"
+        level_surface = level_font.render(level_text, True, (255, 255, 255))
+        
+        # Position level text below the "LEVEL UP!" text
+        level_x = player_screen_x + TILE_SIZE // 2 - level_surface.get_width() // 2
+        level_y = text_y + text_surface.get_height() + 10
+        
+        # Draw level text with shadow
+        shadow_level = level_font.render(level_text, True, (0, 0, 0))
+        glow_surface.blit(shadow_level, (level_x + 2, level_y + 2))
+        glow_surface.blit(level_surface, (level_x, level_y))
+        
+        # Draw the final glow surface onto the screen
+        self.screen.blit(glow_surface, (0, 0))
 
 class Equipment:
     """Class to manage equipped items."""
