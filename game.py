@@ -431,7 +431,6 @@ class GameState:
         self.running = True
         self.paused = False
         self.current_attack_effect = None  # Track current attack animation
-        self.save_file = 'savegame.json'
         
         # Game save path
         self.save_path = "save"

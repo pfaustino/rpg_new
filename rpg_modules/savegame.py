@@ -20,6 +20,7 @@ def save_game(game_state):
     # Save the game state to a file
     save_data = {
         'player': {
+            'name': game_state.player.name,
             'x': game_state.player.x,
             'y': game_state.player.y,
             'health': game_state.player.health,
@@ -39,10 +40,16 @@ def save_game(game_state):
             'player_visited': list(game_state.player_visited) if hasattr(game_state, 'player_visited') else []
         }
     }
+    
+    # Create save directory if it doesn't exist
     os.makedirs('save', exist_ok=True)
-    with open('save/savegame.json', 'w') as f:
+    
+    # Use player name in save file path, replace spaces with underscores
+    save_filename = f"save/{game_state.player.name.replace(' ', '_')}_savegame.json"
+    
+    with open(save_filename, 'w') as f:
         json.dump(save_data, f, indent=2)
-    print("Game saved to save\\savegame.json")
+    print(f"Game saved to {save_filename}")
     try:
         # Only close the system menu if it's currently visible
         if game_state.system_menu_ui.visible:
@@ -58,104 +65,124 @@ def load_game(game_state):
     Args:
         game_state: The current GameState object
     """
-    save_path = os.path.join(game_state.save_path, game_state.save_file)
-    print(f"Attempting to load game from: {save_path}")
-    if os.path.exists(save_path):
-        try:
-            with open(save_path, 'r') as f:
-                save_data = json.load(f)
-                print("Save data loaded successfully.")
+    # Try player-specific save file first
+    save_filename = f"save/{game_state.player.name.replace(' ', '_')}_savegame.json"
+    
+    print(f"Attempting to load game from: {save_filename}")
+    if os.path.exists(save_filename):
+        return _process_save_file(game_state, save_filename)
+    else:
+        # Fallback to generic save file for backward compatibility
+        save_filename = "save/savegame.json"
+        print(f"Player-specific save not found. Trying generic save file: {save_filename}")
+        if os.path.exists(save_filename):
+            return _process_save_file(game_state, save_filename)
+        else:
+            print("No save files found.")
+            return False
             
-            # Load player data
-            player_data = save_data.get('player', {})
-            game_state.player.rect.x = player_data.get('x', game_state.player.rect.x)
-            game_state.player.rect.y = player_data.get('y', game_state.player.rect.y)
-            game_state.player.level = player_data.get('level', game_state.player.level)
-            if hasattr(game_state.player, 'xp'):
-                game_state.player.xp = player_data.get('xp', getattr(game_state.player, 'xp', 0))
-            elif hasattr(game_state.player, 'experience'):
-                game_state.player.experience = player_data.get('xp', getattr(game_state.player, 'experience', 0))
-            if hasattr(game_state.player, 'gold'):
-                game_state.player.gold = player_data.get('gold', getattr(game_state.player, 'gold', 0))
-            if hasattr(game_state.player, 'health'):
-                game_state.player.health = player_data.get('health', getattr(game_state.player, 'health', 0))
-            elif hasattr(game_state.player, 'hp'):
-                game_state.player.hp = player_data.get('health', getattr(game_state.player, 'hp', 0))
-            if hasattr(game_state.player, 'max_health'):
-                game_state.player.max_health = player_data.get('max_health', getattr(game_state.player, 'max_health', 0))
-            elif hasattr(game_state.player, 'max_hp'):
-                game_state.player.max_hp = player_data.get('max_health', getattr(game_state.player, 'max_hp', 0))
-            if hasattr(game_state.player, 'mana'):
-                game_state.player.mana = player_data.get('mana', getattr(game_state.player, 'mana', 0))
-            if hasattr(game_state.player, 'max_mana'):
-                game_state.player.max_mana = player_data.get('max_mana', getattr(game_state.player, 'max_mana', 0))
-            if hasattr(game_state.player, 'stamina'):
-                game_state.player.stamina = player_data.get('stamina', getattr(game_state.player, 'stamina', 0))
-            if hasattr(game_state.player, 'max_stamina'):
-                game_state.player.max_stamina = player_data.get('max_stamina', getattr(game_state.player, 'max_stamina', 0))
-            if hasattr(game_state.player, 'attack_type'):
-                game_state.player.attack_type = player_data.get('attack_type', getattr(game_state.player, 'attack_type', 1))
-            if hasattr(game_state.player, 'base_attack'):
-                game_state.player.base_attack = player_data.get('base_attack', getattr(game_state.player, 'base_attack', 0))
-            if hasattr(game_state.player, 'defense'):
-                game_state.player.defense = player_data.get('defense', getattr(game_state.player, 'defense', 0))
-            if hasattr(game_state.player, 'dexterity'):
-                game_state.player.dexterity = player_data.get('dexterity', getattr(game_state.player, 'dexterity', 0))
-            print("Player data applied.")
-            
-            # Reset inventory with proper capacity
-            inventory_capacity = len(game_state.player.inventory.items)
-            game_state.player.inventory.items = [None] * inventory_capacity
-            print(f"Reset inventory with capacity {inventory_capacity}.")
-            
-            # Load inventory items
-            for i, item_data in enumerate(player_data.get('inventory', [])):
-                if item_data:  # Only process non-None items
-                    item = create_item_from_data(item_data)
-                    if item:
-                        # Add directly to inventory slot instead of using add_item
-                        # This preserves the exact item positions from the save file
-                        if i < inventory_capacity:
-                            game_state.player.inventory.items[i] = item
-            print(f"Loaded {sum(1 for item in game_state.player.inventory.items if item is not None)} items into inventory.")
-            
-            # Clear current equipment
-            for slot in game_state.player.equipment.slots:
-                game_state.player.equipment.unequip_item(slot)
-            print("Current equipment cleared.")
-            
-            # Load equipped items
-            for slot, item_data in player_data.get('equipment', {}).items():
+def _process_save_file(game_state, save_filename):
+    """Process a save file and load the data into the game state."""
+    try:
+        with open(save_filename, 'r') as f:
+            save_data = json.load(f)
+            print("Save data loaded successfully.")
+        
+        # Load player data
+        player_data = save_data.get('player', {})
+        
+        # Set player name from save data
+        game_state.player.name = player_data.get('name', game_state.player.name)
+        
+        game_state.player.rect.x = player_data.get('x', game_state.player.rect.x)
+        game_state.player.rect.y = player_data.get('y', game_state.player.rect.y)
+        game_state.player.level = player_data.get('level', game_state.player.level)
+        if hasattr(game_state.player, 'xp'):
+            game_state.player.xp = player_data.get('xp', getattr(game_state.player, 'xp', 0))
+        elif hasattr(game_state.player, 'experience'):
+            game_state.player.experience = player_data.get('xp', getattr(game_state.player, 'experience', 0))
+        if hasattr(game_state.player, 'gold'):
+            game_state.player.gold = player_data.get('gold', getattr(game_state.player, 'gold', 0))
+        if hasattr(game_state.player, 'health'):
+            game_state.player.health = player_data.get('health', getattr(game_state.player, 'health', 0))
+        elif hasattr(game_state.player, 'hp'):
+            game_state.player.hp = player_data.get('health', getattr(game_state.player, 'hp', 0))
+        if hasattr(game_state.player, 'max_health'):
+            game_state.player.max_health = player_data.get('max_health', getattr(game_state.player, 'max_health', 0))
+        elif hasattr(game_state.player, 'max_hp'):
+            game_state.player.max_hp = player_data.get('max_health', getattr(game_state.player, 'max_hp', 0))
+        if hasattr(game_state.player, 'mana'):
+            game_state.player.mana = player_data.get('mana', getattr(game_state.player, 'mana', 0))
+        if hasattr(game_state.player, 'max_mana'):
+            game_state.player.max_mana = player_data.get('max_mana', getattr(game_state.player, 'max_mana', 0))
+        if hasattr(game_state.player, 'stamina'):
+            game_state.player.stamina = player_data.get('stamina', getattr(game_state.player, 'stamina', 0))
+        if hasattr(game_state.player, 'max_stamina'):
+            game_state.player.max_stamina = player_data.get('max_stamina', getattr(game_state.player, 'max_stamina', 0))
+        if hasattr(game_state.player, 'attack_type'):
+            game_state.player.attack_type = player_data.get('attack_type', getattr(game_state.player, 'attack_type', 1))
+        if hasattr(game_state.player, 'base_attack'):
+            game_state.player.base_attack = player_data.get('base_attack', getattr(game_state.player, 'base_attack', 0))
+        if hasattr(game_state.player, 'defense'):
+            game_state.player.defense = player_data.get('defense', getattr(game_state.player, 'defense', 0))
+        if hasattr(game_state.player, 'dexterity'):
+            game_state.player.dexterity = player_data.get('dexterity', getattr(game_state.player, 'dexterity', 0))
+        print("Player data applied.")
+        
+        # Reset inventory with proper capacity
+        inventory_capacity = len(game_state.player.inventory.items)
+        game_state.player.inventory.items = [None] * inventory_capacity
+        print(f"Reset inventory with capacity {inventory_capacity}.")
+        
+        # Load inventory items
+        for i, item_data in enumerate(player_data.get('inventory', [])):
+            if item_data:  # Only process non-None items
                 item = create_item_from_data(item_data)
                 if item:
-                    game_state.player.equipment.equip_item(item)
-            print(f"Loaded {len(player_data.get('equipment', {}))} equipped items.")
-            
-            # Make sure the inventory UI is updated with the new inventory
-            game_state.refresh_inventory_ui()
-            
-            # Update equipment UI with player's equipment
-            game_state.equipment_ui.equipment = game_state.player.equipment.slots
-            game_state.equipment_ui.set_player(game_state.player)
-            
-            # Force a complete UI refresh
-            if hasattr(game_state.inventory_ui, 'rebuild'):
-                game_state.inventory_ui.rebuild()
-            if hasattr(game_state.equipment_ui, 'rebuild'):
-                game_state.equipment_ui.rebuild()
-            
-            print("Refreshed inventory and equipment UI after loading.")
-            
-            print(f"Game loaded from {save_path}")
-            # Only close the system menu if it's currently visible
-            if game_state.system_menu_ui.visible:
-                game_state.system_menu_ui.toggle()
-        except Exception as e:
-            print(f"Error loading game: {str(e)}")
-            import traceback
-            traceback.print_exc()
-    else:
-        print(f"No saved game found at {save_path}.")
+                    # Add directly to inventory slot instead of using add_item
+                    # This preserves the exact item positions from the save file
+                    if i < inventory_capacity:
+                        game_state.player.inventory.items[i] = item
+        print(f"Loaded {sum(1 for item in game_state.player.inventory.items if item is not None)} items into inventory.")
+        
+        # Clear current equipment
+        for slot in game_state.player.equipment.slots:
+            game_state.player.equipment.unequip_item(slot)
+        print("Current equipment cleared.")
+        
+        # Load equipped items
+        for slot, item_data in player_data.get('equipment', {}).items():
+            item = create_item_from_data(item_data)
+            if item:
+                game_state.player.equipment.equip_item(item)
+        print(f"Loaded {len(player_data.get('equipment', {}))} equipped items.")
+        
+        # Make sure the inventory UI is updated with the new inventory
+        game_state.refresh_inventory_ui()
+        
+        # Update equipment UI with player's equipment
+        game_state.equipment_ui.equipment = game_state.player.equipment.slots
+        game_state.equipment_ui.set_player(game_state.player)
+        
+        # Force a complete UI refresh
+        if hasattr(game_state.inventory_ui, 'rebuild'):
+            game_state.inventory_ui.rebuild()
+        if hasattr(game_state.equipment_ui, 'rebuild'):
+            game_state.equipment_ui.rebuild()
+        
+        print("Refreshed inventory and equipment UI after loading.")
+        
+        print(f"Successfully loaded game for {game_state.player.name}")
+        # Only close the system menu if it's currently visible
+        if game_state.system_menu_ui.visible:
+            game_state.system_menu_ui.toggle()
+        
+        return True
+    except Exception as e:
+        print(f"Error loading game: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 def resume_game(game_state):
     """

@@ -1,95 +1,56 @@
 {
   "player": {
-    "x": 388.37904000000606,
-    "y": 924.3500600000078,
-    "health": 202,
-    "max_health": 260,
+    "name": "Hero",
+    "x": 796.4105599999986,
+    "y": 939.8048799999982,
+    "health": 90,
+    "max_health": 120,
     "mana": 0,
-    "max_mana": 130,
-    "stamina": 155,
-    "max_stamina": 155,
+    "max_mana": 60,
+    "stamina": 110,
+    "max_stamina": 110,
     "attack_type": 3,
-    "xp": 950,
-    "level": 17,
+    "xp": 40,
+    "level": 3,
     "inventory": [
-      {
-        "type": "Weapon",
-        "quality": "Legendary",
-        "prefix": null,
-        "weapon_type": "Axe",
-        "attack_power": 14
-      },
+      null,
       {
         "type": "Armor",
-        "quality": "Legendary",
-        "prefix": null,
-        "armor_type": "Feet",
-        "defense": 10
-      },
-      {
-        "type": "Armor",
-        "quality": "Masterwork",
-        "prefix": null,
-        "armor_type": "Hands",
+        "quality": "Polished",
+        "prefix": "Precise",
+        "armor_type": "Legs",
         "defense": 15
       },
       {
         "type": "Armor",
         "quality": "Polished",
         "prefix": null,
-        "armor_type": "Legs",
-        "defense": 9
+        "armor_type": "Head",
+        "defense": 13
       },
       {
         "type": "Armor",
         "quality": "Standard",
-        "prefix": "Balanced",
-        "armor_type": "Feet",
-        "defense": 10
+        "prefix": null,
+        "armor_type": "Head",
+        "defense": 14
       },
-      {
-        "type": "Armor",
-        "quality": "Legendary",
-        "prefix": "Celestial",
-        "armor_type": "Chest",
-        "defense": 12
-      },
+      null,
+      null,
       {
         "type": "Armor",
         "quality": "Masterwork",
         "prefix": "Reinforced",
         "armor_type": "Head",
-        "defense": 10
-      },
-      {
-        "type": "Armor",
-        "quality": "Polished",
-        "prefix": null,
-        "armor_type": "Hands",
-        "defense": 6
-      },
-      {
-        "type": "Armor",
-        "quality": "Standard",
-        "prefix": null,
-        "armor_type": "Feet",
-        "defense": 13
+        "defense": 18
       },
       {
         "type": "Armor",
         "quality": "Masterwork",
         "prefix": null,
-        "armor_type": "Hands",
-        "defense": 15
+        "armor_type": "Legs",
+        "defense": 7
       },
-      {
-        "type": "Consumable",
-        "quality": "Standard",
-        "prefix": null,
-        "consumable_type": "stamina",
-        "effect_value": 39
-      },
-      null,
       null,
       null,
       {
@@ -97,70 +58,25 @@
         "quality": "Polished",
         "prefix": null,
         "consumable_type": "stamina",
-        "effect_value": 60
+        "effect_value": 30
       },
-      null,
       {
         "type": "Consumable",
         "quality": "Polished",
         "prefix": null,
-        "consumable_type": "stamina",
-        "effect_value": 24
-      },
-      {
-        "type": "Consumable",
-        "quality": "Standard",
-        "prefix": null,
-        "consumable_type": "health",
+        "consumable_type": "mana",
         "effect_value": 36
       },
-      null,
       {
         "type": "Consumable",
         "quality": "Polished",
         "prefix": null,
-        "consumable_type": "health",
-        "effect_value": 54
-      },
-      {
-        "type": "Consumable",
-        "quality": "Masterwork",
-        "prefix": null,
-        "consumable_type": "stamina",
-        "effect_value": 37
-      },
-      null,
-      {
-        "type": "Consumable",
-        "quality": "Polished",
-        "prefix": null,
-        "consumable_type": "health",
-        "effect_value": 54
+        "consumable_type": "mana",
+        "effect_value": 27
       },
       {
         "type": "Consumable",
         "quality": "Standard",
-        "prefix": null,
-        "consumable_type": "health",
-        "effect_value": 31
-      },
-      {
-        "type": "Consumable",
-        "quality": "Standard",
-        "prefix": null,
-        "consumable_type": "stamina",
-        "effect_value": 49
-      },
-      {
-        "type": "Consumable",
-        "quality": "Standard",
-        "prefix": null,
-        "consumable_type": "health",
-        "effect_value": 46
-      },
-      {
-        "type": "Consumable",
-        "quality": "Polished",
         "prefix": null,
         "consumable_type": "stamina",
         "effect_value": 24
@@ -169,136 +85,220 @@
         "type": "Consumable",
         "quality": "Polished",
         "prefix": null,
-        "consumable_type": "stamina",
+        "consumable_type": "health",
         "effect_value": 58
       },
       {
         "type": "Consumable",
-        "quality": "Legendary",
+        "quality": "Standard",
         "prefix": null,
-        "consumable_type": "health",
-        "effect_value": 88
+        "consumable_type": "mana",
+        "effect_value": 42
       },
       {
         "type": "Consumable",
         "quality": "Standard",
         "prefix": null,
         "consumable_type": "stamina",
-        "effect_value": 39
+        "effect_value": 40
       },
       {
         "type": "Consumable",
         "quality": "Polished",
-        "prefix": null,
-        "consumable_type": "stamina",
-        "effect_value": 31
-      },
-      {
-        "type": "Consumable",
-        "quality": "Standard",
         "prefix": null,
         "consumable_type": "stamina",
         "effect_value": 48
       },
       {
         "type": "Consumable",
-        "quality": "Polished",
-        "prefix": null,
-        "consumable_type": "mana",
-        "effect_value": 58
-      },
-      {
-        "type": "Consumable",
         "quality": "Standard",
         "prefix": null,
-        "consumable_type": "mana",
+        "consumable_type": "health",
         "effect_value": 29
       },
       {
         "type": "Consumable",
-        "quality": "Standard",
+        "quality": "Polished",
         "prefix": null,
-        "consumable_type": "mana",
-        "effect_value": 32
+        "consumable_type": "stamina",
+        "effect_value": 44
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "stamina",
+        "effect_value": 44
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "stamina",
+        "effect_value": 28
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "stamina",
+        "effect_value": 44
       },
       {
         "type": "Consumable",
         "quality": "Masterwork",
         "prefix": null,
-        "consumable_type": "mana",
-        "effect_value": 34
+        "consumable_type": "health",
+        "effect_value": 63
       },
       {
         "type": "Consumable",
         "quality": "Standard",
         "prefix": null,
-        "consumable_type": "mana",
-        "effect_value": 38
+        "consumable_type": "stamina",
+        "effect_value": 39
+      },
+      {
+        "type": "Consumable",
+        "quality": "Standard",
+        "prefix": null,
+        "consumable_type": "health",
+        "effect_value": 37
       },
       {
         "type": "Consumable",
         "quality": "Polished",
         "prefix": null,
         "consumable_type": "mana",
-        "effect_value": 36
+        "effect_value": 48
+      },
+      {
+        "type": "Consumable",
+        "quality": "Standard",
+        "prefix": null,
+        "consumable_type": "stamina",
+        "effect_value": 25
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "mana",
+        "effect_value": 33
       },
       {
         "type": "Consumable",
         "quality": "Masterwork",
         "prefix": null,
-        "consumable_type": "mana",
-        "effect_value": 69
+        "consumable_type": "health",
+        "effect_value": 58
       },
       {
         "type": "Consumable",
         "quality": "Legendary",
         "prefix": null,
         "consumable_type": "mana",
-        "effect_value": 94
+        "effect_value": 74
+      },
+      {
+        "type": "Consumable",
+        "quality": "Standard",
+        "prefix": null,
+        "consumable_type": "mana",
+        "effect_value": 27
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "mana",
+        "effect_value": 50
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "mana",
+        "effect_value": 24
+      },
+      {
+        "type": "Consumable",
+        "quality": "Standard",
+        "prefix": null,
+        "consumable_type": "mana",
+        "effect_value": 28
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "health",
+        "effect_value": 50
+      },
+      {
+        "type": "Consumable",
+        "quality": "Masterwork",
+        "prefix": null,
+        "consumable_type": "health",
+        "effect_value": 36
+      },
+      {
+        "type": "Consumable",
+        "quality": "Standard",
+        "prefix": null,
+        "consumable_type": "health",
+        "effect_value": 20
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "health",
+        "effect_value": 28
+      },
+      {
+        "type": "Consumable",
+        "quality": "Polished",
+        "prefix": null,
+        "consumable_type": "health",
+        "effect_value": 37
       }
     ],
     "equipment": {
       "head": {
         "type": "Armor",
-        "quality": "Polished",
-        "prefix": null,
+        "quality": "Masterwork",
+        "prefix": "Reinforced",
         "armor_type": "Head",
-        "defense": 6
+        "defense": 13
       },
       "chest": {
         "type": "Armor",
-        "quality": "Legendary",
-        "prefix": "Soulbound",
+        "quality": "Standard",
+        "prefix": null,
         "armor_type": "Chest",
-        "defense": 10
+        "defense": 15
       },
       "legs": {
         "type": "Armor",
-        "quality": "Masterwork",
+        "quality": "Legendary",
         "prefix": null,
         "armor_type": "Legs",
-        "defense": 15
+        "defense": 18
       },
       "feet": {
         "type": "Armor",
-        "quality": "Standard",
-        "prefix": null,
+        "quality": "Legendary",
+        "prefix": "Celestial",
         "armor_type": "Feet",
-        "defense": 5
-      },
-      "hands": {
-        "type": "Armor",
-        "quality": "Masterwork",
-        "prefix": "Vicious",
-        "armor_type": "Hands",
-        "defense": 22
+        "defense": 10
       },
       "weapon": {
         "type": "Weapon",
         "quality": "Legendary",
         "prefix": "Ethereal",
-        "weapon_type": "Axe",
-        "attack_power": 30
+        "weapon_type": "Dagger",
+        "attack_power": 14
       }
     }
   },
