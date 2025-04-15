@@ -216,7 +216,7 @@ class Monster:
         self.direction = random.randint(0, 3)  # Random initial direction
         self.move_timer = 0
         self.chasing = False
-        self.chase_range = 200
+        self.chase_range = 6
         self.level = 1  # Initialize monster level
         
         # Animation state
