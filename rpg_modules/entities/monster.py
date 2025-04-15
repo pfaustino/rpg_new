@@ -7,6 +7,7 @@ import math
 from ..core.constants import SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE
 from ..utils.logging import logger
 from ..core.settings import GameSettings
+from rpg_modules.core.pathfinding import find_path
 
 class MonsterType(Enum):
     # Format: (name, base_health, base_damage, base_speed, attack_range, attack_cooldown)
@@ -240,43 +241,117 @@ class Monster:
         dy = player_pos[1] - self.y
         distance = math.sqrt(dx * dx + dy * dy)
         
-        # If player is within chase range, move towards them
+        # Path to follow
+        self.path = None
+        
+        # If player is within chase range, use pathfinding to move towards them
         if distance < self.chase_range * TILE_SIZE:  # Convert chase range to pixels
-            # Normalize direction vector
-            if distance > 0:
-                dx /= distance
-                dy /= distance
-            
-            # Store current position to check for collisions
-            old_x = self.x
-            old_y = self.y
-            
-            # Move in the direction with larger component
-            if abs(dx) > abs(dy):
-                self.x += dx * self.speed * monster_speed_multiplier * dt
-                self.direction = Direction.RIGHT if dx > 0 else Direction.LEFT
-            else:
-                self.y += dy * self.speed * monster_speed_multiplier * dt
-                self.direction = Direction.DOWN if dy > 0 else Direction.UP
-            
-            # Simple collision detection - only check the center point
-            # This prevents issues with collision at the edges of walkable areas
-            is_collision = False
+            # Use A* pathfinding to find a path to the player
             if hasattr(self, 'game_map') and self.game_map:
-                # Get the tile coordinates for the monster's center
-                center_tile_x = int(self.x // TILE_SIZE)
-                center_tile_y = int(self.y // TILE_SIZE)
+                # Only calculate a new path every so often to save performance
+                if not hasattr(self, 'path_timer') or self.path_timer <= 0:
+                    self.path = find_path(
+                        self.game_map,
+                        (self.x, self.y),
+                        player_pos,
+                        max_distance=20,
+                        wall_clearance=1.0  # Lower clearance for monsters
+                    )
+                    # Set a timer for recalculating the path (every 1 second)
+                    self.path_timer = 1.0
+                else:
+                    self.path_timer -= dt
+                    
+            # If we have a valid path, follow it
+            if self.path and len(self.path) > 1:
+                # Get the next point in the path
+                next_pos = self.path[1]  # Skip the first point which is our current position
                 
-                # Check if the tile at that position is walkable
-                if not self.game_map.is_walkable(center_tile_x, center_tile_y):
-                    is_collision = True
-            
-            # If there's a collision, revert to old position
-            if is_collision:
-                self.x = old_x
-                self.y = old_y
-            
-            self.moving = True
+                # Calculate direction to the next point
+                dx = next_pos[0] - self.x
+                dy = next_pos[1] - self.y
+                
+                # Normalize direction
+                path_distance = math.sqrt(dx * dx + dy * dy)
+                if path_distance > 0:
+                    dx /= path_distance
+                    dy /= path_distance
+                    
+                    # Store current position for collision check
+                    old_x = self.x
+                    old_y = self.y
+                    
+                    # Move toward the next point
+                    self.x += dx * self.speed * monster_speed_multiplier * dt
+                    self.y += dy * self.speed * monster_speed_multiplier * dt
+                    
+                    # Update visual direction
+                    if abs(dx) > abs(dy):
+                        self.direction = Direction.RIGHT if dx > 0 else Direction.LEFT
+                    else:
+                        self.direction = Direction.DOWN if dy > 0 else Direction.UP
+                    
+                    # Check for collisions
+                    is_collision = False
+                    if hasattr(self, 'game_map') and self.game_map:
+                        # Get the tile coordinates for the monster's center
+                        center_tile_x = int(self.x // TILE_SIZE)
+                        center_tile_y = int(self.y // TILE_SIZE)
+                        
+                        # Check if the tile at that position is walkable
+                        if not self.game_map.is_walkable(center_tile_x, center_tile_y):
+                            is_collision = True
+                    
+                    # If there's a collision, revert to old position
+                    if is_collision:
+                        self.x = old_x
+                        self.y = old_y
+                        # Force path recalculation on next update
+                        self.path_timer = 0
+                    
+                    self.moving = True
+                    
+                # If we're close to the next path point, remove it
+                if path_distance < (self.speed * monster_speed_multiplier * dt):
+                    # We've reached this point, remove it from the path
+                    if len(self.path) > 1:
+                        self.path.pop(0)
+            else:
+                # If pathfinding failed but player is in range, fall back to direct movement
+                # Normalize direction vector
+                if distance > 0:
+                    dx = player_pos[0] - self.x
+                    dy = player_pos[1] - self.y
+                    dx /= distance
+                    dy /= distance
+                
+                # Store current position for collision check
+                old_x = self.x
+                old_y = self.y
+                
+                # Move in the direction with larger component
+                if abs(dx) > abs(dy):
+                    self.x += dx * self.speed * monster_speed_multiplier * dt
+                    self.direction = Direction.RIGHT if dx > 0 else Direction.LEFT
+                else:
+                    self.y += dy * self.speed * monster_speed_multiplier * dt
+                    self.direction = Direction.DOWN if dy > 0 else Direction.UP
+                
+                # Check for collisions
+                is_collision = False
+                if hasattr(self, 'game_map') and self.game_map:
+                    center_tile_x = int(self.x // TILE_SIZE)
+                    center_tile_y = int(self.y // TILE_SIZE)
+                    
+                    if not self.game_map.is_walkable(center_tile_x, center_tile_y):
+                        is_collision = True
+                
+                # If there's a collision, revert to old position
+                if is_collision:
+                    self.x = old_x
+                    self.y = old_y
+                
+                self.moving = True
         else:
             # Random movement when not chasing
             if random.random() < 0.02:  # 2% chance to change direction each frame
@@ -296,15 +371,12 @@ class Monster:
             elif self.direction == Direction.RIGHT:
                 self.x += self.speed * monster_speed_multiplier * dt
             
-            # Simple collision detection - only check the center point
-            # This prevents issues with collision at the edges of walkable areas
+            # Simple collision detection
             is_collision = False
             if hasattr(self, 'game_map') and self.game_map:
-                # Get the tile coordinates for the monster's center
                 center_tile_x = int(self.x // TILE_SIZE)
                 center_tile_y = int(self.y // TILE_SIZE)
                 
-                # Check if the tile at that position is walkable
                 if not self.game_map.is_walkable(center_tile_x, center_tile_y):
                     is_collision = True
             
@@ -338,6 +410,18 @@ class Monster:
                                screen_y + scaled_size // 2, 
                                self.direction,
                                size=scaled_size)
+            
+            # Draw the path if debug visualization is enabled
+            if GameSettings.instance().debug_visualization and hasattr(self, 'path') and self.path:
+                for i in range(len(self.path) - 1):
+                    # Convert path points to screen coordinates
+                    start_x = int((self.path[i][0] + camera.x) * zoom)
+                    start_y = int((self.path[i][1] + camera.y) * zoom)
+                    end_x = int((self.path[i+1][0] + camera.x) * zoom)
+                    end_y = int((self.path[i+1][1] + camera.y) * zoom)
+                    
+                    # Draw path segment as a line
+                    pygame.draw.line(screen, (255, 0, 255), (start_x, start_y), (end_x, end_y), 2)
             
             # Draw health bar above the monster
             bar_width = scaled_size

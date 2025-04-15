@@ -1,125 +1,153 @@
 === New Game Session ===
-DEBUG: Created MonsterAnimation for ice_elemental
-Created ICE_ELEMENTAL monster at (160, 1408)
-DEBUG: Created MonsterAnimation for kraken
-Created KRAKEN monster at (1152, 864)
-DEBUG: Created MonsterAnimation for wraith
-Created WRAITH monster at (960, 224)
-DEBUG: Created MonsterAnimation for water_spirit
-Created WATER_SPIRIT monster at (448, 480)
-DEBUG: Created MonsterAnimation for zombie
-Created ZOMBIE monster at (576, 864)
-DEBUG: Created MonsterAnimation for leviathan
-Created LEVIATHAN monster at (704, 1088)
-DEBUG: Created MonsterAnimation for storm_elemental
-Created STORM_ELEMENTAL monster at (800, 1408)
-DEBUG: Created MonsterAnimation for siren
-Created SIREN monster at (480, 544)
-DEBUG: Created MonsterAnimation for fire_elemental
-Created FIRE_ELEMENTAL monster at (832, 1184)
-DEBUG: Created MonsterAnimation for merfolk
-Created MERFOLK monster at (288, 384)
 DEBUG: Created MonsterAnimation for clockwork_knight
-Created CLOCKWORK_KNIGHT monster at (960, 1344)
-DEBUG: Created MonsterAnimation for nightmare
-Created NIGHTMARE monster at (832, 1408)
-DEBUG: Created MonsterAnimation for crystal_golem
-Created CRYSTAL_GOLEM monster at (448, 1248)
-DEBUG: Created MonsterAnimation for treant
-Created TREANT monster at (288, 768)
-DEBUG: Created MonsterAnimation for unicorn
-Created UNICORN monster at (896, 288)
-DEBUG: Created MonsterAnimation for pixie
-Created PIXIE monster at (736, 1184)
-DEBUG: Created MonsterAnimation for arcane_turret
-Created ARCANE_TURRET monster at (864, 416)
-DEBUG: Created MonsterAnimation for demon
-Created DEMON monster at (480, 192)
-DEBUG: Created MonsterAnimation for dryad
-Created DRYAD monster at (288, 704)
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (352, 1280)
-DEBUG: Created MonsterAnimation for steam_golem
-Created STEAM_GOLEM monster at (960, 928)
-DEBUG: Created MonsterAnimation for phoenix
-Created PHOENIX monster at (224, 672)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (288, 1056)
-DEBUG: Created MonsterAnimation for prism_elemental
-Created PRISM_ELEMENTAL monster at (192, 672)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1408, 160)
+Created CLOCKWORK_KNIGHT monster at (1024, 864)
+DEBUG: Created MonsterAnimation for water_spirit
+Created WATER_SPIRIT monster at (192, 800)
 DEBUG: Created MonsterAnimation for vampire
-Created VAMPIRE monster at (160, 544)
-DEBUG: Created MonsterAnimation for gem_basilisk
-Created GEM_BASILISK monster at (1280, 832)
-DEBUG: Created MonsterAnimation for bear
-Created BEAR monster at (1216, 1152)
+Created VAMPIRE monster at (480, 1152)
+DEBUG: Created MonsterAnimation for siren
+Created SIREN monster at (544, 448)
+DEBUG: Created MonsterAnimation for demon
+Created DEMON monster at (992, 256)
+DEBUG: Created MonsterAnimation for kraken
+Created KRAKEN monster at (1056, 256)
+DEBUG: Created MonsterAnimation for pixie
+Created PIXIE monster at (704, 288)
+DEBUG: Created MonsterAnimation for merfolk
+Created MERFOLK monster at (320, 832)
+DEBUG: Created MonsterAnimation for fire_elemental
+Created FIRE_ELEMENTAL monster at (640, 1024)
+DEBUG: Created MonsterAnimation for leviathan
+Created LEVIATHAN monster at (352, 800)
+DEBUG: Created MonsterAnimation for ice_elemental
+Created ICE_ELEMENTAL monster at (1152, 1376)
+DEBUG: Created MonsterAnimation for spider
+Created SPIDER monster at (1408, 1280)
+DEBUG: Created MonsterAnimation for phoenix
+Created PHOENIX monster at (992, 1184)
+DEBUG: Created MonsterAnimation for wolf
+Created WOLF monster at (1088, 160)
+DEBUG: Created MonsterAnimation for crystal_golem
+Created CRYSTAL_GOLEM monster at (288, 992)
+DEBUG: Created MonsterAnimation for steam_golem
+Created STEAM_GOLEM monster at (1120, 1184)
 DEBUG: Created MonsterAnimation for shadow_stalker
-Created SHADOW_STALKER monster at (224, 1056)
+Created SHADOW_STALKER monster at (1184, 672)
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (544, 1504)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (352, 1088)
+Created SLIME monster at (512, 768)
+DEBUG: Created MonsterAnimation for zombie
+Created ZOMBIE monster at (1408, 224)
+DEBUG: Created MonsterAnimation for nightmare
+Created NIGHTMARE monster at (640, 992)
+DEBUG: Created MonsterAnimation for prism_elemental
+Created PRISM_ELEMENTAL monster at (512, 1312)
+DEBUG: Created MonsterAnimation for storm_elemental
+Created STORM_ELEMENTAL monster at (1088, 960)
+DEBUG: Created MonsterAnimation for arcane_turret
+Created ARCANE_TURRET monster at (192, 1376)
+DEBUG: Created MonsterAnimation for unicorn
+Created UNICORN monster at (256, 416)
+DEBUG: Created MonsterAnimation for treant
+Created TREANT monster at (160, 448)
+DEBUG: Created MonsterAnimation for bear
+Created BEAR monster at (864, 288)
+DEBUG: Created MonsterAnimation for gem_basilisk
+Created GEM_BASILISK monster at (448, 1184)
+DEBUG: Created MonsterAnimation for dryad
+Created DRYAD monster at (1376, 384)
+DEBUG: Created MonsterAnimation for wraith
+Created WRAITH monster at (928, 576)
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1280, 800)
+Created SPIDER monster at (640, 512)
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (160, 1312)
+Created SLIME monster at (550.1295532649443, 755.0834073977057)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (525.1295532649443, 748.0834073977057)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (565.9442832186752, 744.055886641865)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (543.9442832186752, 741.055886641865)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (524.2656852207826, 732.1052553491631)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (531.2656852207826, 762.1052553491631)
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1376, 1184)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (448, 1376)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (640, 1440)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (224, 704)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (704, 1504)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (527.8224635387726, 1243.8162759333948)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (534.8224635387726, 1257.8162759333948)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1440, 1024)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (538.6031785524074, 1239.8162759333948)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (531.6031785524074, 1239.8162759333948)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (544.170449306408, 1252.8162759333948)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (517.170449306408, 1266.8162759333948)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (704, 832)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1120, 576)
+Created WOLF monster at (1472, 1408)
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (704, 736)
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1056, 1408)
+Created SPIDER monster at (192, 960)
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (864, 1408)
+Created WOLF monster at (1280, 160)
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (544, 1472)
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1120, 96)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (704, 1472)
+Created WOLF monster at (1216, 64)
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1376, 1408)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1056, 704)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (96, 544)
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1120, 288)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1248, 1184)
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (736, 448)
+Created SLIME monster at (480, 992)
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1088, 256)
+Created SPIDER monster at (1216, 480)
+DEBUG: Created MonsterAnimation for wolf
+Created WOLF monster at (480, 96)
+DEBUG: Created MonsterAnimation for wolf
+Created WOLF monster at (480, 1312)
+DEBUG: Created MonsterAnimation for wolf
+Created WOLF monster at (160, 576)
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (512, 1216)
+Created SPIDER monster at (448, 192)
+DEBUG: Created MonsterAnimation for wolf
+Created WOLF monster at (544, 1184)
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (800, 416)
+Created SLIME monster at (416, 1120)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (1408, 288)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (992, 288)
+DEBUG: Created MonsterAnimation for wolf
+Created WOLF monster at (1344, 1440)
+DEBUG: Created MonsterAnimation for spider
+Created SPIDER monster at (1152, 992)
+DEBUG: Created MonsterAnimation for wolf
+Created WOLF monster at (352, 1056)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (1472, 832)
+DEBUG: Created MonsterAnimation for wolf
+Created WOLF monster at (480, 192)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (800, 1408)
+DEBUG: Created MonsterAnimation for spider
+Created SPIDER monster at (704, 1120)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (896, 768)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (640, 448)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (453.11620225454374, 1089.3017607655775)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (459.11620225454374, 1108.3017607655775)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (473.4679614763798, 1093.278563304183)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (468.4679614763798, 1091.278563304183)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (458.4049730961102, 1116.2582701802814)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (472.4049730961102, 1119.2582701802814)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (224, 384)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (497.31873414141484, 1015.5949916983116)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (490.31873414141484, 998.5949916983116)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (499.31873414141484, 1007.687583421755)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (480.31873414141484, 1026.6875834217549)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (502.462819439539, 1016.5949916983116)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (483.462819439539, 997.5949916983116)
+DEBUG: Created MonsterAnimation for spider
+Created SPIDER monster at (864, 256)
+DEBUG: Created MonsterAnimation for wolf
+Created WOLF monster at (1440, 544)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (832, 256)
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (1088, 832)

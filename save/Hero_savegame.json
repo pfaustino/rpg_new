@@ -1,17 +1,17 @@
 {
   "player": {
     "name": "Hero",
-    "x": 796.4105599999986,
-    "y": 939.8048799999982,
-    "health": 90,
-    "max_health": 120,
-    "mana": 0,
-    "max_mana": 60,
-    "stamina": 110,
-    "max_stamina": 110,
+    "x": 559.0207800000011,
+    "y": 1168.075340000001,
+    "health": 126,
+    "max_health": 140,
+    "mana": 10,
+    "max_mana": 70,
+    "stamina": 120,
+    "max_stamina": 120,
     "attack_type": 3,
-    "xp": 40,
-    "level": 3,
+    "xp": 190,
+    "level": 5,
     "inventory": [
       null,
       {
@@ -81,13 +81,7 @@
         "consumable_type": "stamina",
         "effect_value": 24
       },
-      {
-        "type": "Consumable",
-        "quality": "Polished",
-        "prefix": null,
-        "consumable_type": "health",
-        "effect_value": 58
-      },
+      null,
       {
         "type": "Consumable",
         "quality": "Standard",
@@ -109,13 +103,7 @@
         "consumable_type": "stamina",
         "effect_value": 48
       },
-      {
-        "type": "Consumable",
-        "quality": "Standard",
-        "prefix": null,
-        "consumable_type": "health",
-        "effect_value": 29
-      },
+      null,
       {
         "type": "Consumable",
         "quality": "Polished",
@@ -144,13 +132,7 @@
         "consumable_type": "stamina",
         "effect_value": 44
       },
-      {
-        "type": "Consumable",
-        "quality": "Masterwork",
-        "prefix": null,
-        "consumable_type": "health",
-        "effect_value": 63
-      },
+      null,
       {
         "type": "Consumable",
         "quality": "Standard",
