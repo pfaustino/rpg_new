@@ -1,279 +1,113 @@
 === New Game Session ===
-DEBUG: Created MonsterAnimation for unicorn
-Created UNICORN monster at (1056, 1344) - Level 1
-DEBUG: Created MonsterAnimation for kraken
-Created KRAKEN monster at (1088, 992) - Level 1
-DEBUG: Created MonsterAnimation for pixie
-Created PIXIE monster at (864, 384) - Level 1
-DEBUG: Created MonsterAnimation for merfolk
-Created MERFOLK monster at (1088, 992) - Level 2
-DEBUG: Created MonsterAnimation for wraith
-Created WRAITH monster at (1088, 768) - Level 3
+DEBUG: Created MonsterAnimation for spider
+Created SPIDER monster at (1632, 2016) - Level 2
 DEBUG: Created MonsterAnimation for water_spirit
-Created WATER_SPIRIT monster at (1216, 832) - Level 3
-DEBUG: Created MonsterAnimation for prism_elemental
-Created PRISM_ELEMENTAL monster at (768, 288) - Level 3
-DEBUG: Created MonsterAnimation for leviathan
-Created LEVIATHAN monster at (1056, 192) - Level 1
-DEBUG: Created MonsterAnimation for zombie
-Created ZOMBIE monster at (1312, 768) - Level 3
-DEBUG: Created MonsterAnimation for siren
-Created SIREN monster at (480, 320) - Level 3
-DEBUG: Created MonsterAnimation for nightmare
-Created NIGHTMARE monster at (480, 736) - Level 2
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (608, 1248) - Level 2
-DEBUG: Created MonsterAnimation for clockwork_knight
-Created CLOCKWORK_KNIGHT monster at (1088, 1312) - Level 2
-DEBUG: Created MonsterAnimation for crystal_golem
-Created CRYSTAL_GOLEM monster at (1088, 1280) - Level 3
-DEBUG: Created MonsterAnimation for phoenix
-Created PHOENIX monster at (992, 928) - Level 2
-DEBUG: Created MonsterAnimation for arcane_turret
-Created ARCANE_TURRET monster at (448, 640) - Level 3
-DEBUG: Created MonsterAnimation for bear
-Created BEAR monster at (1344, 896) - Level 3
-DEBUG: Created MonsterAnimation for treant
-Created TREANT monster at (544, 1120) - Level 1
-DEBUG: Created MonsterAnimation for ice_elemental
-Created ICE_ELEMENTAL monster at (256, 896) - Level 2
-DEBUG: Created MonsterAnimation for demon
-Created DEMON monster at (832, 384) - Level 2
-DEBUG: Created MonsterAnimation for steam_golem
-Created STEAM_GOLEM monster at (384, 1248) - Level 3
-DEBUG: Created MonsterAnimation for gem_basilisk
-Created GEM_BASILISK monster at (1120, 1152) - Level 2
-DEBUG: Created MonsterAnimation for vampire
-Created VAMPIRE monster at (160, 192) - Level 3
-DEBUG: Created MonsterAnimation for storm_elemental
-Created STORM_ELEMENTAL monster at (416, 736) - Level 3
-DEBUG: Created MonsterAnimation for fire_elemental
-Created FIRE_ELEMENTAL monster at (224, 512) - Level 3
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1120, 1184) - Level 1
+Created WATER_SPIRIT monster at (1056, 800) - Level 3
 DEBUG: Created MonsterAnimation for dryad
-Created DRYAD monster at (992, 1216) - Level 2
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (192, 1152) - Level 2
+Created DRYAD monster at (1856, 2272) - Level 3
+DEBUG: Created MonsterAnimation for siren
+Created SIREN monster at (768, 1152) - Level 2
+DEBUG: Created MonsterAnimation for crystal_golem
+Created CRYSTAL_GOLEM monster at (1184, 2240) - Level 2
+DEBUG: Created MonsterAnimation for leviathan
+Created LEVIATHAN monster at (2048, 1984) - Level 3
+DEBUG: Created MonsterAnimation for wraith
+Created WRAITH monster at (256, 2304) - Level 2
+DEBUG: Created MonsterAnimation for kraken
+Created KRAKEN monster at (672, 1056) - Level 1
+DEBUG: Created MonsterAnimation for storm_elemental
+Created STORM_ELEMENTAL monster at (1312, 2240) - Level 3
+DEBUG: Created MonsterAnimation for merfolk
+Created MERFOLK monster at (896, 704) - Level 3
+DEBUG: Created MonsterAnimation for gem_basilisk
+Created GEM_BASILISK monster at (1504, 1088) - Level 1
+DEBUG: Created MonsterAnimation for bear
+Created BEAR monster at (1440, 1984) - Level 2
+DEBUG: Created MonsterAnimation for nightmare
+Created NIGHTMARE monster at (2176, 224) - Level 3
+DEBUG: Created MonsterAnimation for vampire
+Created VAMPIRE monster at (992, 1696) - Level 2
+DEBUG: Created MonsterAnimation for zombie
+Created ZOMBIE monster at (1920, 1152) - Level 2
+DEBUG: Created MonsterAnimation for prism_elemental
+Created PRISM_ELEMENTAL monster at (1024, 576) - Level 2
+DEBUG: Created MonsterAnimation for ice_elemental
+Created ICE_ELEMENTAL monster at (640, 896) - Level 2
+DEBUG: Created MonsterAnimation for fire_elemental
+Created FIRE_ELEMENTAL monster at (320, 2048) - Level 2
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (384, 480) - Level 1
 DEBUG: Created MonsterAnimation for shadow_stalker
-Created SHADOW_STALKER monster at (1408, 800) - Level 1
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1184, 1024) - Level 10
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (896, 1056) - Level 10
+Created SHADOW_STALKER monster at (1664, 576) - Level 1
+DEBUG: Created MonsterAnimation for steam_golem
+Created STEAM_GOLEM monster at (2240, 2368) - Level 1
+DEBUG: Created MonsterAnimation for unicorn
+Created UNICORN monster at (320, 192) - Level 3
+DEBUG: Created MonsterAnimation for treant
+Created TREANT monster at (2144, 320) - Level 1
+DEBUG: Created MonsterAnimation for pixie
+Created PIXIE monster at (640, 1408) - Level 1
+DEBUG: Created MonsterAnimation for arcane_turret
+Created ARCANE_TURRET monster at (1376, 704) - Level 3
+DEBUG: Created MonsterAnimation for demon
+Created DEMON monster at (2144, 352) - Level 2
+DEBUG: Created MonsterAnimation for clockwork_knight
+Created CLOCKWORK_KNIGHT monster at (448, 1024) - Level 1
+DEBUG: Created MonsterAnimation for phoenix
+Created PHOENIX monster at (256, 1440) - Level 1
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (352, 640) - Level 13
+Created WOLF monster at (512, 1472) - Level 2
+DEBUG: Created MonsterAnimation for spider
+Created SPIDER monster at (672, 96) - Level 11
+DEBUG: Created MonsterAnimation for spider
+Created SPIDER monster at (1792, 2400) - Level 11
+DEBUG: Created MonsterAnimation for spider
+Created SPIDER monster at (448, 1984) - Level 10
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (832, 480) - Level 10
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1472, 352) - Level 10
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1280, 160) - Level 11
+Created SLIME monster at (2240, 1248) - Level 11
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (672, 192) - Level 11
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (160, 416) - Level 12
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (512, 1440) - Level 11
+Created WOLF monster at (1024, 1568) - Level 10
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1344, 736) - Level 11
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (512, 160) - Level 10
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1440, 1024) - Level 10
+Created WOLF monster at (2144, 480) - Level 11
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (1568, 640) - Level 10
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (256, 96) - Level 12
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (2464, 1024) - Level 12
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1280, 96) - Level 12
+Created SPIDER monster at (1792, 2400) - Level 10
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (704, 288) - Level 11
+Created SPIDER monster at (2080, 544) - Level 12
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (2368, 2144) - Level 11
+DEBUG: Created MonsterAnimation for slime
+Created SLIME monster at (864, 1440) - Level 13
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (704, 960) - Level 12
+Created SPIDER monster at (1024, 2080) - Level 13
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1216, 64) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (809.5927321990765, 472.70106598567367) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (819.5927321990765, 509.70106598567367) - Level 13
+Created SLIME monster at (1824, 1184) - Level 13
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1376, 224) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (814.7396133843715, 503.7462768483435) - Level 12
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (830.7396133843715, 516.7462768483435) - Level 10
+Created WOLF monster at (96, 224) - Level 10
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (640, 1312) - Level 10
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (808.639893637628, 484.59026213407907) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (807.639893637628, 493.59026213407907) - Level 13
+Created SPIDER monster at (1120, 2272) - Level 11
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1312, 896) - Level 13
+Created WOLF monster at (128, 1312) - Level 13
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1440, 704) - Level 13
+Created SPIDER monster at (2336, 1760) - Level 13
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (128, 352) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (544, 768) - Level 12
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (192, 1184) - Level 10
+Created SLIME monster at (1344, 1088) - Level 10
 DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (288, 1344) - Level 11
+Created SPIDER monster at (544, 672) - Level 13
 DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (224, 1248) - Level 11
+Created SLIME monster at (1856, 2208) - Level 10
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (960, 1376) - Level 13
+Created WOLF monster at (1120, 2272) - Level 13
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (576, 1408) - Level 10
+Created WOLF monster at (1632, 1984) - Level 13
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1408, 1184) - Level 11
+Created WOLF monster at (1952, 1696) - Level 11
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (544, 416) - Level 14
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (128, 96) - Level 14
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1223.5598299410028, 74.6301687314716) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1200.5598299410028, 63.6301687314716) - Level 10
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1204.5690827971468, 74.39810044408352) - Level 10
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1208.5690827971468, 73.39810044408352) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1215.5219666305854, 66.20814443209353) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1206.5219666305854, 68.20814443209353) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (192, 192) - Level 12
+Created WOLF monster at (352, 2144) - Level 12
 DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (64, 896) - Level 13
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (384, 1216) - Level 15
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1248, 1344) - Level 11
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (160, 928) - Level 14
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (640, 832) - Level 10
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1280, 1408) - Level 11
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (640, 576) - Level 14
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1234.4570195459119, 1340.8755331465181) - Level 10
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1236.4570195459119, 1331.8755331465181) - Level 14
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1229.0625362674543, 1333.842123166107) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1228.0625362674543, 1346.842123166107) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1233.115880732395, 1339.843805299406) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1240.115880732395, 1336.843805299406) - Level 15
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (576, 64) - Level 13
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1344, 96) - Level 12
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (480, 1312) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (896, 96) - Level 11
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (800, 160) - Level 15
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (352, 640) - Level 12
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (865.2125421855111, 1042.0588206034738) - Level 12
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (862.2125421855111, 1063.0588206034738) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (869.2232237691904, 1056.9131685910238) - Level 10
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (876.2232237691904, 1060.9131685910238) - Level 12
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (871.2308722715794, 1079.7748505171273) - Level 15
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (843.2308722715794, 1057.7748505171273) - Level 16
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (704, 96) - Level 16
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (556.0625602063437, 748.6503163391611) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (537.0625602063437, 767.6503163391611) - Level 15
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (537.0832739899495, 750.1345732550304) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (565.0832739899495, 745.1345732550304) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (527.360219835813, 764.6793855714428) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (554.360219835813, 786.6793855714428) - Level 14
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (256, 1280) - Level 15
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (960, 1216) - Level 10
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (928, 128) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1440, 1440) - Level 10
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (269.7898516884169, 1267.4494744139251) - Level 12
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (277.7898516884169, 1231.4494744139251) - Level 14
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (287.82179485355647, 1272.2510668966386) - Level 14
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (260.82179485355647, 1277.2510668966386) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (260.2458919970881, 1212.4504403982546) - Level 10
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (262.2458919970881, 1224.4504403982546) - Level 14
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (225.13928896111184, 1176.2933045535738) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (220.13928896111184, 1168.2933045535738) - Level 17
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (209.16370782566568, 1185.3876421172429) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (213.16370782566568, 1153.3876421172429) - Level 15
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (230.35510596044853, 1160.19943090986) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (224.35510596044853, 1187.19943090986) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (288, 576) - Level 16
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (512, 224) - Level 17
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (1472, 288) - Level 16
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (520.9523307957544, 1475.7727521622244) - Level 13
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (533.9523307957544, 1457.7727521622244) - Level 15
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (224, 480) - Level 11
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (509.18352646672395, 1475.154948558736) - Level 17
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (527.183526466724, 1471.154948558736) - Level 17
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (540.9306806044864, 1463.1633715092034) - Level 14
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (540.9306806044864, 1452.1633715092034) - Level 10
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (96, 192) - Level 17
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1440, 1120) - Level 14
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (928, 320) - Level 12
-DEBUG: Created MonsterAnimation for slime
-Created SLIME monster at (1440, 1120) - Level 18
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (960, 768) - Level 18
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1504, 832) - Level 18
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1184, 1376) - Level 15
-DEBUG: Created MonsterAnimation for wolf
-Created WOLF monster at (736, 1472) - Level 15
-DEBUG: Created MonsterAnimation for spider
-Created SPIDER monster at (1440, 1184) - Level 15
+Created WOLF monster at (288, 1344) - Level 13

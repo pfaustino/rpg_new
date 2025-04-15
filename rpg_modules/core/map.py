@@ -10,6 +10,7 @@ from typing import List, Tuple, Dict, Optional, Set
 from enum import Enum
 from .constants import TILE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT
 from .camera import Camera
+from .settings import GameSettings
 
 class BiomeType(Enum):
     """Enum for different biome types."""
@@ -73,7 +74,7 @@ class Map:
         }
     }
     
-    def __init__(self, width: int = 50, height: int = 50, seed: Optional[int] = None):
+    def __init__(self, width: int = None, height: int = None, seed: Optional[int] = None):
         """
         Initialize the map with the given dimensions.
         
@@ -82,6 +83,12 @@ class Map:
             height: Map height in tiles
             seed: Optional seed for random generation
         """
+        # Get default values from settings if not provided
+        if width is None:
+            width = GameSettings.instance().map_width
+        if height is None:
+            height = GameSettings.instance().map_height
+            
         self.width = width
         self.height = height
         self.pixel_width = width * TILE_SIZE

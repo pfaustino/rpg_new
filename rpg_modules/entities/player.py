@@ -261,51 +261,37 @@ class Player:
                 pygame.draw.circle(screen, (255, 255, 0), (screen_final_x, screen_final_y), 5)
         
     def move(self, dx: int, dy: int, walls: List[pygame.Rect]) -> None:
-        """Move the player with wall sliding."""
-        # Store original position
-        original_x = self.x
-        original_y = self.y
+        """
+        Move the player by the given amount if possible.
         
-        # Try moving in X direction
-        if dx != 0:
-            self.x += dx
-            self.rect.x = self.x + 4
-            if self._check_collision(walls):
-                # Revert X movement if collision
-                self.x = original_x
-                self.rect.x = self.x + 4
-                self.dx = 0
+        Args:
+            dx: Amount to move horizontally
+            dy: Amount to move vertically
+            walls: List of wall rectangles to check for collisions
+        """
+        # Store current position to check for collisions
+        old_x = self.x
+        old_y = self.y
         
-        # Try moving in Y direction
-        if dy != 0:
-            self.y += dy
-            self.rect.y = self.y + 4
-            if self._check_collision(walls):
-                # Revert Y movement if collision
-                self.y = original_y
-                self.rect.y = self.y + 4
-                self.dy = 0
+        # Update position
+        self.x += dx
+        self.y += dy
         
-        # Map boundary constraints
-        map_width = 50 * TILE_SIZE
-        map_height = 50 * TILE_SIZE
+        # Screen boundary check with TILE_SIZE padding at the edges
+        settings = GameSettings.instance()
+        map_width = settings.map_width * TILE_SIZE
+        map_height = settings.map_height * TILE_SIZE
         
-        # Constrain x position
-        if self.x < 0:
-            self.x = 0
-            self.dx = 0
+        if self.x < TILE_SIZE:
+            self.x = TILE_SIZE
         elif self.x > map_width - TILE_SIZE:
             self.x = map_width - TILE_SIZE
-            self.dx = 0
-            
-        # Constrain y position
-        if self.y < 0:
-            self.y = 0
-            self.dy = 0
+        
+        if self.y < TILE_SIZE:
+            self.y = TILE_SIZE
         elif self.y > map_height - TILE_SIZE:
             self.y = map_height - TILE_SIZE
-            self.dy = 0
-            
+        
         # Update collision rectangle final position
         self.rect.x = self.x + 4
         self.rect.y = self.y + 4
@@ -460,12 +446,15 @@ class Player:
             
     def _handle_death(self) -> None:
         """Handle player death."""
-        # Reset health to 25% of max
+        # Visual effects for death could be added here
+        
+        # Restore some health
         self.health = self.max_health // 4
         
         # Respawn at center of map (simple respawn logic)
-        map_width = 50 * TILE_SIZE
-        map_height = 50 * TILE_SIZE
+        settings = GameSettings.instance()
+        map_width = settings.map_width * TILE_SIZE
+        map_height = settings.map_height * TILE_SIZE
         self.x = map_width // 2
         self.y = map_height // 2
         

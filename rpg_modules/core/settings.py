@@ -24,6 +24,10 @@ class GameSettings:
         if GameSettings._instance is not None:
             raise RuntimeError("GameSettings is a singleton. Use GameSettings.instance() instead.")
         
+        # Map settings
+        self.map_width = 80
+        self.map_height = 80
+        
         # Monster settings
         self.monster_speed_multiplier = 2.0  # Default: normal speed (1.0)
         

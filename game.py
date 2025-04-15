@@ -389,7 +389,7 @@ class GameState:
         
         # Create map
         print("Creating game map...")
-        self.map = Map(50, 50)
+        self.map = Map()
         print(f"Map created with dimensions: {self.map.width}x{self.map.height}")
         
         # Create player
@@ -626,7 +626,7 @@ class GameState:
         self.monster_counts = {monster_type: 0 for monster_type in MonsterType}
         
         # Reset map with explicit dimensions
-        self.map = Map(50, 50)
+        self.map = Map()
         
         # Set the game map reference for the player for pathfinding
         self.player.set_game_map(self.map)
@@ -2716,7 +2716,7 @@ def initialize_game():
         
         # Create game map
         print("Creating game map...")
-        game_map = Map(50, 50)  # 50x50 grid
+        game_map = Map()  # Use dimensions from GameSettings
         if not game_map:
             raise RuntimeError("Failed to create game map")
         print("Game map created")
